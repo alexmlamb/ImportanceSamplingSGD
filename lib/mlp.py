@@ -198,7 +198,7 @@ class MLP(object):
         self.input = input
 
 
-def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
+def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
              dataset='mnist.pkl.gz', batch_size=20, n_hidden=500):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
@@ -254,7 +254,6 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     learning_rate = T.scalar('learning_rate')
 
-    importance_weights = T.vector('importance_weights') #weights for importance sampling
 
     rng = numpy.random.RandomState(1234)
 
@@ -271,11 +270,7 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     # the cost we minimize during training is the negative log likelihood of
     # the model plus the regularization terms (L1 and L2); cost is expressed
     # here symbolically
-    cost = (
-        T.mean(classifier.negative_log_likelihood(y))
-        + L1_reg * classifier.L1
-        + L2_reg * classifier.L2_sqr
-    )
+    cost = classifier.negative_log_likelihood(y) + batch_size * L2_reg * classifier.L2_sqr
     # end-snippet-4
 
 
@@ -300,13 +295,10 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     gradient_norm = 0.0
 
-    #Need to recompute gparams here.  Use gradient clipping.  
 
     for param in classifier.params:
 
-        grad_param = theano.gradient.jacobian(importance_weights * 0.0 + batch_size * L2_reg * classifier.L2_sqr + classifier.negative_log_likelihood(y), param)
-
-        #(N x h1 x h2) or (N x h1)
+        grad_param = theano.gradient.jacobian(cost, param)
 
         if param.ndim == 2:
             gradient_norm_param = T.sum(T.sqr(grad_param), axis = (1,2), keepdims = True)
@@ -324,16 +316,13 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     for param in classifier.params:
 
-        grad_param = theano.gradient.jacobian(classifier.negative_log_likelihood(y), param)
+        grad_param = theano.gradient.jacobian(cost, param)
 
         if param.ndim == 2: 
-            normalized_gradient = grad_param
-        elif param.ndim == 1:
-            normalized_gradient = grad_param
-        else:
-            raise Exception("param ndim invalid")
+            grad_param = grad_param / T.addbroadcast(T.reshape(gradient_norm, (batch_size, 1, 1)))
 
-        gparams += [T.mean(normalized_gradient, axis = 0)]
+
+        gparams += [T.mean(grad_param, axis = 0)]
 
     #Compute flattened update param over all instances and then check that L2 norm for each instance is 1.  
 
@@ -353,13 +342,13 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     # in the same time updates the parameter of the model based on the rules
     # defined in `updates`
     train_model = theano.function(
-        inputs=[x, y, importance_weights, learning_rate],
-        outputs=[cost, gradient_norm, normalized_gradient],
+        inputs=[x, y, learning_rate],
+        outputs=[cost, gradient_norm],
         updates=updates,
     )
     # end-snippet-5
 
-    get_gradient_norm = theano.function(inputs = [x,y,importance_weights], outputs = [gradient_norm])
+    get_gradient_norm = theano.function(inputs = [x,y], outputs = [gradient_norm])
 
     ###############
     # TRAIN MODEL #
@@ -397,7 +386,6 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     minibatch_index = 0
  
-    gradient_norm_lst = []
     sumGradientNorm = 0.0
     numGradientNorm = 0.0
 
@@ -412,26 +400,38 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
         indexLst = range(0, len(train_set_x))
 
         random.shuffle(indexLst)
-        
-        if len(gradient_norm_lst) > 0:
-            #plt.hist(gradient_norm_lst, numpy.arange(-0.1, 100.0, 0.1))
-            #plt.title("Distribution of L2 norm of gradient for epoch: " + str(epoch - 1))
-            #plt.show()
-
-            sorted_g_lst = numpy.asarray(list(reversed(sorted(gradient_norm_lst))))
-
-            #plt.plot(sorted_g_lst.cumsum() * 1.0 / sorted_g_lst.sum())
-            #plt.title("Cumulative Distribution of Gradient Norms for epoch: " + str(epoch - 1))
-            #plt.show()
-
-            gradient_norm_lst = []
 
         #eps 2.0 is good
         #High importance weight -> sample with low probability
-        def calculateImportanceWeight(gnorm, max_gnorm, avg_gnorm, epsilon):
-            sample_prob = (gnorm + 0.0001) / (max_gnorm + 0.0001)
+        def calculateImportanceWeight(gnorm, max_gnorm, sum_gnorm, epsilon):
+            sample_prob = (gnorm + 0.0001) / (sum_gnorm + 0.0001)
             return 1.0 / sample_prob
             #return 1.0
+
+        x_mb_train = []
+        y_mb_train = []
+        mb_indices = []
+        gradientNorms = {}
+
+        #Compute gradientNorms over all instances.  
+        for i in range(0, len(train_set_x)):
+            x_mb_train += [train_set_x[i]]
+            y_mb_train += [train_set_y[i]]
+            mb_indices += [i]
+
+            if len(x_mb_train) == 200:
+                gradient_norm_lst = get_gradient_norm(x_mb_train, y_mb_train)
+                
+                x_mb_train = []
+                y_mb_train = []
+
+                for j in range(0, 200):
+                    gradientNorms[mb_indices[j]] = gradient_norm_lst[0][j]
+
+                mb_indices = []
+
+        print "computed gradient for minibatch"
+
 
         for i in indexLst:
 
@@ -440,10 +440,7 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
             doTrain = True
 
 
-            if i in gradientNorms:
-                imp_weight_instance = calculateImportanceWeight(gnorm = gradientNorms[i], max_gnorm = maxGradientNorm, avg_gnorm = sumGradientNorm * 1.0 / numGradientNorm, epsilon = 0.01)
-            else:
-                imp_weight_instance = 100.0
+            imp_weight_instance = calculateImportanceWeight(gnorm = gradientNorms[i], max_gnorm = maxGradientNorm, sum_gnorm = sumGradientNorm, epsilon = 0.01)
 
             if random.uniform(0,1) < 1.0 / imp_weight_instance: 
                 doTrain = True
@@ -456,33 +453,24 @@ def test_mlp(base_learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
                 mb_indices += [i]
                 importance_weights_mb += [imp_weight_instance]
 
-            if len(gradientNorms) > 0:
-                learning_rate = base_learning_rate
-            else:
-                learning_rate = base_learning_rate
 
             if len(x_mb_train) == batch_size: 
-                minibatch_avg_cost, gradient_norm, ng = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), numpy.asarray(importance_weights_mb, dtype = 'float32'), numpy.asarray(learning_rate, dtype = 'float32'))
-
-		print "ng shape", ng[0]
-		print ng[1]
-		print ng[2]
+                train_model_outputs = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), 0.01)
+                minibatch_avg_cost, gradient_norm_o = train_model_outputs
 
                 if True:
-                    if random.uniform(0,1) < 0.01 or sum(gradient_norm).tolist() == float('nan'):
+                    if random.uniform(0,1) < 0.01 or sum(gradient_norm_o).tolist() == float('nan'):
                         for k in range(0, 1): 
                             print "================================================="
-                            print sum(gradient_norm).tolist() == float('nan')
+                            print sum(gradient_norm_o).tolist() == float('nan')
                             if mb_indices[k] in gradientNorms:
                                 print "last grad norm", gradientNorms[mb_indices[k]]
-                            print "gradient norm", gradient_norm[k]
+                            print "gradient norm", gradient_norm_o[k]
                             print "class", y_mb_train[k]
                             print "sample prob", 1.0 / importance_weights_mb[k]
                     for k in range(0, batch_size):
-                        gradient_norm_lst += [gradient_norm[k]]
-                        gradientNorms[mb_indices[k]] = gradient_norm[k]
                         numGradientNorm += 1.0
-                        sumGradientNorm += gradient_norm[k]
+                        sumGradientNorm += gradient_norm_o[k]
 
                 minibatch_index += 1
                 x_mb_train = []
