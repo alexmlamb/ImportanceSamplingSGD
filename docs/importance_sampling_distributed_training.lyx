@@ -217,22 +217,26 @@ SGD with importance weights
 \end_layout
 
 \begin_layout Standard
-We can rewrite the estimator for the normal SGD by defining importance weights.
- Let 
-\begin_inset Formula $w=(1,\ldots,1)$
+We can rewrite the estimator for the normal SGD by defining a vector 
+\begin_inset Formula $\beta=(\beta_{1},\ldots,\beta_{N})$
 \end_inset
 
- be weights associated with all the 
+ of probabilities that determines by how much we want to favor each sample.
+ With the normal SGD, we use 
+\begin_inset Formula $\beta=(\frac{1}{N},\ldots,\frac{1}{N})$
+\end_inset
+
+ to have equal preference for each of the 
 \begin_inset Formula $N$
 \end_inset
 
  training samples.
- Then we can see how the normal SGD is just an index 
+ We can see how the normal SGD is just an index 
 \begin_inset Formula $m$
 \end_inset
 
  selected from 
-\begin_inset Formula $\textrm{Multinomial}(1,w)$
+\begin_inset Formula $\textrm{Multinomial}(1,\beta)$
 \end_inset
 
 , followed by the evaluation of 
@@ -265,7 +269,7 @@ We can rewrite the estimator for the normal SGD by defining importance weights.
 \color inherit
  and with that quantity being applied to a gradient descent update.
  We will just write 
-\begin_inset Formula $\textrm{Multinomial}(w)$
+\begin_inset Formula $\textrm{Multinomial}(\beta)$
 \end_inset
 
  when the context indicates that we are drawing one sample only.
@@ -285,11 +289,260 @@ status open
 \end_layout
 
 \begin_layout Standard
-So, what if we were using a different vector weights 
-\begin_inset Formula $w$
+So, what if we were using a vector with different coefficients in 
+\begin_inset Formula $\beta$
 \end_inset
 
  ?
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Remember that with importance sampling we can evaluate 
+\begin_inset Formula $\mathbb{E}_{p(x)}\left[g_{\theta}(x)\right]$
+\end_inset
+
+ by expressing it instead through another distribution 
+\begin_inset Formula $q(x)$
+\end_inset
+
+ that might be easier to sample from (for whatever reason).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathbb{E}_{p(x)}\left[g_{\theta}(x)\right]=\mathbb{E}_{q(x)}\left[\frac{p(x)}{q(x)}g_{\theta}(x)\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Here we let 
+\begin_inset Formula $q(x_{n})\propto\beta_{n}p(x_{n})$
+\end_inset
+
+ for all the points of the original training set 
+\begin_inset Formula $\left\{ x_{n}\right\} _{n=1}^{N}$
+\end_inset
+
+, which means that we are evaluating 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\frac{\partial}{\partial\theta}\mathcal{L}_{N}(\theta)$
+\end_inset
+
+ through
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ 
+\begin_inset Formula $q(x)$
+\end_inset
+
+ instead of 
+\begin_inset Formula $p(x)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the context of importance sampling, this means that we are using importance
+ weights
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+w_{n}\propto\frac{p(x_{n})}{q(x_{n})}=\frac{p(x_{n})}{\beta_{n}p(x_{n})}=\frac{1}{\beta_{n}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+w_{n}=\frac{1}{\beta_{n}\sum_{n}\left(1/\beta_{n}\right)}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now that means that we can now use those weights to estimate 
+\begin_inset Formula $\frac{\partial}{\partial\theta}\mathcal{L}_{N}(\theta)$
+\end_inset
+
+ by 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{\partial}{\partial\theta}\mathcal{L}_{N}(\theta)=\frac{1}{\sum_{n}\left(1/\beta_{n}\right)}\sum_{n=1}^{N}\frac{1}{\beta_{n}}g_{\theta}(x_{n}),\hspace{1em}\textrm{for \ensuremath{x_{n}\sim q(x)}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In practice, what we want to use as 
+\begin_inset Formula $\beta_{n}$
+\end_inset
+
+ are the norms of the gradients of the data points.
+ We want this because we want a collection of distributed worker nodes to
+ identify the examples that contribute the most to the true gradient 
+\begin_inset Formula $g_{\theta}^{*}$
+\end_inset
+
+.
+ We want to save as much network transfers as possible, so we'll send only
+ indices 
+\begin_inset Formula $n$
+\end_inset
+
+ instead of the gradients 
+\begin_inset Formula $g_{\theta}(x_{n})$
+\end_inset
+
+ which take a lot of space.
+ Optionally, we should send the norms also, but we will settle that detail
+ during the implementation.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We get
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{\partial}{\partial\theta}\mathcal{L}(\theta)\approx\frac{1}{\sum_{n}\left(1/\left\Vert g_{\theta}(x_{n})\right\Vert \right)}\sum_{n=1}^{N}\frac{g_{\theta}(x_{n})}{\left\Vert g_{\theta}(x_{n})\right\Vert },\hspace{1em}\textrm{for \ensuremath{x_{n}\sim\textrm{Multinomial}(\mbox{\left\Vert g_{\theta}(x_{1})\right\Vert },\ldots,\left\Vert g_{\theta}(x_{N})\right\Vert )}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -378,7 +631,7 @@ Instead of minimizing
 \begin_layout Standard
 \begin_inset Formula 
 \[
-\frac{1}{M}\sum_{m=1}^{M}g_{\theta}(x_{m}),\hspace{1em}\textrm{for \ensuremath{x_{m}} selected at uniformly random from }\left\{ x_{n}\right\} _{n=1}^{N}.
+\frac{1}{M}\sum_{m=1}^{M}g_{\theta}(x_{m}),\hspace{1em}\textrm{for \ensuremath{x_{m}}selected at uniformly random from }\left\{ x_{n}\right\} _{n=1}^{N}.
 \]
 
 \end_inset
