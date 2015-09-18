@@ -1,0 +1,430 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section*
+Importance Sampling to be used in Distributed Training
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $p(x)$
+\end_inset
+
+ be the true distribution of the data.
+ For a model 
+\begin_inset Formula $p_{\theta}(x)$
+\end_inset
+
+, the actual loss function that we'd like to minimize is 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathcal{L}(\theta)=\int p(x)\log p_{\theta}(x_{n}).
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In practice we have a dataset of values 
+\begin_inset Formula $\left\{ x_{n}\right\} _{n=1}^{N}$
+\end_inset
+
+ that is given to us, drawn from 
+\begin_inset Formula $p(x)$
+\end_inset
+
+ at the beginning, and we minimize an empirical estimate
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathcal{L}_{N}(\theta)=\frac{1}{N}\sum_{n=1}^{N}\log p_{\theta}(x_{n}),\hspace{1em}\textrm{for \ensuremath{x_{n}\sim p(x)}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To make things simpler, we will denote 
+\begin_inset Formula $g_{\theta}(x)=\frac{\partial}{\partial\theta}\log p_{\theta}(x)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+To minimize 
+\begin_inset Formula $\mathcal{L}(\theta)$
+\end_inset
+
+ through gradient descent we would ideally like to use the quantity 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+g_{\theta}^{*}\overset{\textrm{def}}{=}\frac{\partial}{\partial\theta}\mathcal{L}(\theta)=\mathbb{E}_{p(x)}\left[g_{\theta}(x)\right],
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+but we have to resort to using an empirical estimate
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{\partial}{\partial\theta}\mathcal{L}_{N}(\theta)=\frac{1}{N}\sum_{n=1}^{N}g_{\theta}(x_{n}),\hspace{1em}\textrm{for \ensuremath{x_{n}\sim p(x)}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+The normal SGD setup
+\end_layout
+
+\begin_layout Standard
+Instead of minimizing 
+\begin_inset Formula $\mathcal{L}_{N}(\theta)$
+\end_inset
+
+ by going through all the training samples 
+\begin_inset Formula $\left\{ x_{n}\right\} _{n=1}^{N}$
+\end_inset
+
+, we pick a 1 element among them, with equal probability.
+ The estimator of 
+\begin_inset Formula $\frac{\partial}{\partial\theta}\mathcal{L}(\theta)$
+\end_inset
+
+ then becomes just 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $g_{\theta}(x_{m})$
+\end_inset
+
+ for some index 
+\begin_inset Formula $m\in{1,\ldots,N}$
+\end_inset
+
+ selected at random.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In practice, mini-batches are used instead of just one element, and we iterate
+ through the whole dataset instead of selecting elements at random, but
+ we're not talking about this here.
+\end_layout
+
+\begin_layout Subsubsection*
+SGD with importance weights
+\end_layout
+
+\begin_layout Standard
+We can rewrite the estimator for the normal SGD by defining importance weights.
+ Let 
+\begin_inset Formula $w=(1,\ldots,1)$
+\end_inset
+
+ be weights associated with all the 
+\begin_inset Formula $N$
+\end_inset
+
+ training samples.
+ Then we can see how the normal SGD is just an index 
+\begin_inset Formula $m$
+\end_inset
+
+ selected from 
+\begin_inset Formula $\textrm{Multinomial}(1,w)$
+\end_inset
+
+, followed by the evaluation of 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $g_{\theta}(x_{m})$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ and with that quantity being applied to a gradient descent update.
+ We will just write 
+\begin_inset Formula $\textrm{Multinomial}(w)$
+\end_inset
+
+ when the context indicates that we are drawing one sample only.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+So, what if we were using a different vector weights 
+\begin_inset Formula $w$
+\end_inset
+
+ ?
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+The usual SGD setup
+\end_layout
+
+\begin_layout Standard
+Instead of minimizing 
+\begin_inset Formula $\mathcal{L}_{N}(\theta)$
+\end_inset
+
+ by going through all the training samples 
+\begin_inset Formula $\left\{ x_{n}\right\} _{n=1}^{N}$
+\end_inset
+
+, we pick a subset of 
+\begin_inset Formula $M\ll N$
+\end_inset
+
+ elements with equal probability.
+ In practice, this is just a mini-batch and we iterate through the dataset
+ instead of selecting 
+\begin_inset Formula $M$
+\end_inset
+
+ elements at random and with replacements.
+ The estimator of 
+\begin_inset Formula $\frac{\partial}{\partial\theta}\mathcal{L}(\theta)$
+\end_inset
+
+ then becomes
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{1}{M}\sum_{m=1}^{M}g_{\theta}(x_{m}),\hspace{1em}\textrm{for \ensuremath{x_{m}} selected at uniformly random from }\left\{ x_{n}\right\} _{n=1}^{N}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The most simple formulation of SGD just uses 
+\begin_inset Formula $M=1$
+\end_inset
+
+ gradient contribution 
+\begin_inset Formula $g_{\theta}(x)$
+\end_inset
+
+ every update.
+ We will use this approach to expand on the theory.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In order to set up the next section, we will rewrite that estimator in a
+ different way.
+ Let 
+\begin_inset Formula $w=(1,\ldots,1)$
+\end_inset
+
+ be weights associated with all the 
+\begin_inset Formula $N$
+\end_inset
+
+ training samples.
+\end_layout
+
+\end_body
+\end_document
