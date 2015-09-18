@@ -520,16 +520,18 @@ status open
 \end_layout
 
 \begin_layout Standard
-\begin_inset Phantom VPhantom
-status open
-
-\begin_layout Plain Layout
-
-\end_layout
-
+(Editing note : It feels like I'm getting something wrong here because I
+ would want to have more something like 
+\begin_inset Formula $\sum_{n}\left\Vert g_{\theta}(x_{n})\right\Vert $
 \end_inset
 
+ instead of 
+\begin_inset Formula $\sum_{n}\left(1/\left\Vert g_{\theta}(x_{n})\right\Vert \right)$
+\end_inset
 
+.
+ I don't know.
+ I'll have to read the thing again at this point.)
 \end_layout
 
 \begin_layout Standard
@@ -597,61 +599,6 @@ status open
 
 \end_layout
 
-\begin_layout Subsubsection*
-The usual SGD setup
-\end_layout
-
-\begin_layout Standard
-Instead of minimizing 
-\begin_inset Formula $\mathcal{L}_{N}(\theta)$
-\end_inset
-
- by going through all the training samples 
-\begin_inset Formula $\left\{ x_{n}\right\} _{n=1}^{N}$
-\end_inset
-
-, we pick a subset of 
-\begin_inset Formula $M\ll N$
-\end_inset
-
- elements with equal probability.
- In practice, this is just a mini-batch and we iterate through the dataset
- instead of selecting 
-\begin_inset Formula $M$
-\end_inset
-
- elements at random and with replacements.
- The estimator of 
-\begin_inset Formula $\frac{\partial}{\partial\theta}\mathcal{L}(\theta)$
-\end_inset
-
- then becomes
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\[
-\frac{1}{M}\sum_{m=1}^{M}g_{\theta}(x_{m}),\hspace{1em}\textrm{for \ensuremath{x_{m}}selected at uniformly random from }\left\{ x_{n}\right\} _{n=1}^{N}.
-\]
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-The most simple formulation of SGD just uses 
-\begin_inset Formula $M=1$
-\end_inset
-
- gradient contribution 
-\begin_inset Formula $g_{\theta}(x)$
-\end_inset
-
- every update.
- We will use this approach to expand on the theory.
-\end_layout
-
 \begin_layout Standard
 \begin_inset Phantom VPhantom
 status open
@@ -663,20 +610,6 @@ status open
 \end_inset
 
 
-\end_layout
-
-\begin_layout Standard
-In order to set up the next section, we will rewrite that estimator in a
- different way.
- Let 
-\begin_inset Formula $w=(1,\ldots,1)$
-\end_inset
-
- be weights associated with all the 
-\begin_inset Formula $N$
-\end_inset
-
- training samples.
 \end_layout
 
 \end_body
