@@ -199,8 +199,8 @@ class MLP(object):
         self.input = input
 
 
-def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=100, n_hidden=500):
+def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=9999000,
+             dataset='mnist.pkl.gz', batch_size=128, n_hidden=500):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -255,6 +255,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     learning_rate = T.scalar('learning_rate')
 
+    imp_weights = T.vector('importance weights')
 
     rng = numpy.random.RandomState(1234)
 
@@ -271,10 +272,10 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     # the cost we minimize during training is the negative log likelihood of
     # the model plus the regularization terms (L1 and L2); cost is expressed
     # here symbolically
-    cost = classifier.negative_log_likelihood(y) + batch_size * L2_reg * classifier.L2_sqr
+    cost = classifier.negative_log_likelihood(y) * imp_weights + 0.0 * batch_size * L2_reg * classifier.L2_sqr
     # end-snippet-4
 
-    get_cost = theano.function(inputs = [x,y], outputs = [classifier.negative_log_likelihood(y)])
+    get_cost = theano.function(inputs = [x,y], outputs = [classifier.negative_log_likelihood(y), classifier.errors(y)])
 
     # compiling a Theano function that computes the mistakes that are made
     # by the model on a minibatch
@@ -320,7 +321,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     print "compiling training model"
     t2 = time.time()
     train_model = theano.function(
-        inputs=[x, y, learning_rate],
+        inputs=[x, y, learning_rate, imp_weights],
         outputs=[cost],
         updates=updates,
     )
@@ -369,6 +370,9 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     maxGradientNorm = 1.0
     costMap = {}
 
+    print "Number training examples", len(train_set_x)
+    print "Learning Rate", base_learning_rate
+
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
 
@@ -392,12 +396,13 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
         t1 = time.time()
 
-        grad_mb_size = 100
+        grad_mb_size = 10000
 
-        print "Number training examples", len(train_set_x)
 
         #Compute cost over all instances.  
         for i in range(0, len(train_set_x)):
+
+            all_error_lst = []
 
             if random.uniform(0,1) < 1.0: 
                 x_mb_train += [train_set_x[i]]
@@ -406,30 +411,65 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
             if len(x_mb_train) == grad_mb_size:
 
-                cost_lst = get_cost(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'))
+
+                cost_lst, error_lst = get_cost(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'))
+                all_error_lst += [error_lst]
 
                 x_mb_train = []
                 y_mb_train = []
 
                 for j in range(0, grad_mb_size):
-                    costMap[mb_indices[j]] = cost_lst[0][j]
+                    costMap[mb_indices[j]] = cost_lst[j]
 
                 mb_indices = []
 
         
 
-        print "computed all costs for minibatch in", time.time() - t1
+        #print "computed all costs for minibatch in", time.time() - t1
 
-        maxCost = max(costMap.values())
+        sumCost = sum(costMap.values())
+        numCost = len(costMap)
 
-        indexLst = indexLst[:128]
+        trainErrorRate = numpy.mean(all_error_lst)
+        averageTrainCost = sumCost / numCost
 
-        print "Num indices", len(indexLst)
+        #print "Average cost", averageCost
+        #print "Number costs", numCost
+        #print "Variance cost", numpy.asarray(costMap.values()).var()
+        #print "max cost", max(costMap.values())
 
-        try:
-            print "time to compute minibatch", time.time() - t0_e
-        except:
-            pass
+        #indexLst = indexLst[:batch_size]
+
+        #Sample with probability costMap[i]
+        def sampleInstances(indexLst, costMap, batch_size):
+
+            weightMap = {}
+            sumCost = sum(costMap.values())
+
+            #print "average cost", sumCost / len(costMap)
+            avgCost = sumCost / len(costMap)
+
+            for key in costMap:
+                weightMap[key] = costMap[key] / sumCost
+
+            selectedIndices = numpy.random.choice(len(weightMap),batch_size,p=weightMap.values())
+
+            cmKeys = costMap.keys()
+            newIndexLst = []
+            impWeightLst = []
+
+            for index in selectedIndices:
+                newIndexLst += [cmKeys[index]]
+                impWeightLst += [avgCost / costMap[cmKeys[index]]]
+
+            return newIndexLst, impWeightLst
+
+
+        indexLst,importanceWeights = sampleInstances(indexLst, costMap, batch_size)
+
+        #indexLst,importanceWeights = indexLst[:batch_size], [1.0] * batch_size
+
+        averageCostTrain = sum(costMap) / len(costMap)
 
         t0_e = time.time()
 
@@ -449,22 +489,10 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
             if len(x_mb_train) == batch_size: 
 
                 
-                
-                train_model_outputs = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), 0.01)
+                train_model_outputs = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), numpy.asarray(base_learning_rate, dtype = 'float32'),numpy.asarray(importanceWeights, dtype = 'float32'))
+
                 minibatch_avg_cost = train_model_outputs
 
-                if True:
-                    if random.uniform(0,1) < 0.01:
-                        for k in range(0, 1): 
-                            print "================================================="
-                            if mb_indices[k] in costNorms:
-                                print "last grad norm", costNorms[mb_indices[k]]
-                            print "gradient norm", costNorms[mb_indices[k]]
-                            print "class", y_mb_train[k]
-                            #print "sample prob", 1.0 / importance_weights_mb[k]
-                    for k in range(0, batch_size):
-                        numCost += 1.0
-                        sumCost += costNorms[mb_indices[k]]
 
                 minibatch_index += 1
                 x_mb_train = []
@@ -494,13 +522,12 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
                     t0 = time.time()
 
                     print(
-                        'epoch %i, minibatch %i/%i, iteration %i, validation error %f %%' %
+                        'MB Processed %i, validation error %f %%, training error %f %%, training log-likelihood %f' %
                         (
                             epoch,
-                            minibatch_index + 1,
-                            iter,
-                            n_train_batches,
-                            this_validation_loss * 100.
+                            this_validation_loss * 100.,
+                            trainErrorRate * 100,
+                            averageTrainCost
                         )
                     )
 
