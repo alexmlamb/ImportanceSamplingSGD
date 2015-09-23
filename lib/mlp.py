@@ -198,9 +198,9 @@ class MLP(object):
         # keep track of model input
         self.input = input
 
-
+#was using 500
 def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=9999000,
-             dataset='mnist.pkl.gz', batch_size=128, n_hidden=500):
+             dataset='mnist.pkl.gz', batch_size=128, n_hidden=100):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -302,6 +302,14 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
         gparams += [grad_param]
 
+    param_gradient_lst = []
+
+    for param in classifier.params:
+        param_gradient_lst += [T.flatten(T.jacobian(classifier.negative_log_likelihood(y), param), 2)]
+
+    gradient_vector = T.concatenate(param_gradient_lst, axis = 1)
+
+    get_gradient = theano.function(inputs = [x,y], outputs = [gradient_vector])
 
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs
@@ -350,6 +358,9 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
     test_score = 0.
     start_time = timeit.default_timer()
 
+    logFile = open('logs/mnist_isgd_saved.txt', 'w')
+    doValidate = False
+
     epoch = 0
     done_looping = False
 
@@ -396,7 +407,15 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
         t1 = time.time()
 
-        grad_mb_size = 10000
+        cost_mb_size = 200
+        grad_mb_size = 20
+
+        #If we're validating, save to the gradientmap.  
+        gradientMap = {}
+
+        x_mb_grad = []
+        y_mb_grad = []
+        g_indices = []
 
 
         #Compute cost over all instances.  
@@ -408,8 +427,11 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
                 x_mb_train += [train_set_x[i]]
                 y_mb_train += [train_set_y[i]]
                 mb_indices += [i]
+                x_mb_grad += [train_set_x[i]]
+                y_mb_grad += [train_set_y[i]]
+                g_indices += [i]
 
-            if len(x_mb_train) == grad_mb_size:
+            if len(x_mb_train) == cost_mb_size:
 
 
                 cost_lst, error_lst = get_cost(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'))
@@ -418,12 +440,30 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
                 x_mb_train = []
                 y_mb_train = []
 
-                for j in range(0, grad_mb_size):
-                    costMap[mb_indices[j]] = cost_lst[j]
+                for j in range(0, cost_mb_size):
+                    costMap[mb_indices[j]] = cost_lst[j].tolist()
 
                 mb_indices = []
 
-        
+            if len(x_mb_grad) == grad_mb_size:
+                if doValidate: 
+                    gradient_lst = get_gradient(numpy.asarray(x_mb_grad, dtype = 'float32'), numpy.asarray(y_mb_grad, dtype = 'int32'))
+                    for j in range(0, 2 + 0 * grad_mb_size): #sample 10% of instances
+                        gradientMap[g_indices[j]] = gradient_lst[0][j].round(3).tolist()
+
+                    if len(gradientMap) == 200:
+                        print "writing to logfile"
+                        print "len cost map", len(costMap)
+                        print "len gradient map", len(gradientMap)
+                        logFile.write(str(epoch) + "    " + str(costMap) + "    " + str(gradientMap) + "\n")
+                        logFile.flush()
+                        gradientMap = {}
+                        print "written to logfile"
+
+                g_indices = []
+                x_mb_grad = []
+                y_mb_grad = []
+
 
         #print "computed all costs for minibatch in", time.time() - t1
 
@@ -503,6 +543,7 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
                 iter = (epoch - 1) * n_train_batches + minibatch_index
     
                 if (iter + 1) % validation_frequency == 0:
+                    doValidate = True
                     # compute zero-one loss on validation set
                     validation_losses = []
                 
@@ -563,6 +604,9 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
                                'best model %f %%') %
                               (epoch, minibatch_index + 1, n_train_batches,
                                test_score * 100.))
+
+                else:
+                    doValidate = False
 
                 if patience <= iter:
                     done_looping = False
