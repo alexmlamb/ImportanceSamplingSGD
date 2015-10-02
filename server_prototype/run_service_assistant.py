@@ -7,6 +7,13 @@ import time
 import sys, os
 import getopt
 
+# Note : There is something a bit unsatisfying about the way that
+#        we're encoding the "grad_norm2" inside the `batch_name`.
+#        This is a little less flexible than ideal, but we'll see
+#        later if we want to make just a small adjustment and
+#        carry around the suffix to add it manually every time.
+
+
 
 def sample_batch_name_triplets(batch_L_names_all, L_weights, total_weights, nbr_indices_sampled):
 
@@ -17,7 +24,8 @@ def sample_batch_name_triplets(batch_L_names_all, L_weights, total_weights, nbr_
     A_weights = np.array(L_weights)
 
     accum = []
-    for i in range(nbr_indices_sampled):
+    for _ in range(nbr_indices_sampled):
+        i = np.random.randint(low=0, high=len(batch_L_names_all))
         accum.append((batch_L_names_all[i], A_weights[i], total_weights))
 
     return accum
@@ -70,12 +78,12 @@ def run(server_ip, server_port, server_password):
         batch_L_names_all = rsconn.lrange("batch:L_names_all", 0, nbr_of_batches)
         assert rsconn.llen("batch:L_names_todo") == 0, "Was this database initialized by someone else before ?"
 
-        nbr_indices_sampled = int(rsconn.get("config:nbr_indices_sampled"))
-        assert 0 < nbr_indices_sampled
+        nbr_indices_sampled_minimum = int(rsconn.get("config:nbr_indices_sampled_minimum"))
+        assert 0 < nbr_indices_sampled_minimum
 
-        resampling_threshold = int(rsconn.get("config:resampling_threshold"))
-        assert 0 < resampling_threshold
-        assert resampling_threshold <= nbr_indices_sampled
+        nbr_indices_sampled_maximum = int(rsconn.get("config:nbr_indices_sampled_maximum"))
+        assert 0 < nbr_indices_sampled_maximum
+        assert nbr_indices_sampled_minimum <= nbr_indices_sampled_maximum
 
         success = True
         break
@@ -96,15 +104,16 @@ def run(server_ip, server_port, server_password):
 
         # There are two maintenance tasks here.
         #
-        # 1) When the parameters have been updated, you need to copy over
-        #    the contents from "batch:L_names_all" to "batch:L_names_todo"
-        #    in a shuffled order. Clear "batch:L_names_todo" beforehand.
+        # (1) When the parameters have been updated, you need to copy over
+        #     the contents from "batch:L_names_all" to "batch:L_names_todo"
+        #     in a shuffled order. Clear "batch:L_names_todo" beforehand.
         #
-        # 2) When the number of drawn samples in
-        #    "importance_samples:L_(batch_name, weight, total_weights)"
-        #    drops below `nbr_indices_sampled`, then you have to resample
-        #    more values. Maybe you want to push out the stale values out
-        #    by inserting on one side and removing on the other side ?
+        # (2) When the number of drawn samples in
+        #     "importance_samples:L_(batch_name, weight, total_weights)"
+        #     drops below `nbr_indices_sampled_minimum`, then you have to resample
+        #     more values. We get enough to bring the number up to
+        #     `nbr_indices_sampled_maximum` to be good for a while.
+        #     Insert on one side and removing on the other side (older indices).
 
         new_parameters_current_timestamp = rsconn.get("parameters:current_timestamp")
         if parameters_current_timestamp != new_parameters_current_timestamp:
@@ -112,14 +121,22 @@ def run(server_ip, server_port, server_password):
 
             parameters_current_timestamp = new_parameters_current_timestamp
 
-            # ...
+            batch_L_names_todo = copy(batch_L_names_all)
+            np.random.shuffle(batch_L_names_todo)
+
+            # We just delete the list in order to clear it out.
+            # This means that workers reading from the list have
+            # to be careful to avoid freaking out if they don't
+            # find it for a split-second. They should just retry.
+            rsconn.delete("batch:L_names_todo")
+            for e in batch_L_names_todo:
+                rsconn.rpush("batch:L_names_todo", e)
 
             maintenance_task_1_was_required = True
 
 
 
-        nbr_samples_left = rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)")
-        if nbr_samples_left < resampling_threshold:
+        if rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)") < nbr_indices_sampled_minimum:
             # Maintenance task (2) should be done.
 
             L_weights = []
@@ -131,7 +148,7 @@ def run(server_ip, server_port, server_password):
                 L_weights.append(weight)
                 total_weights += weight
 
-            L_encoded_samples = [encode_batch_name_triplets(*v3) for v3 in sample_batch_names(batch_L_names_all, L_weights, total_weights, nbr_indices_sampled)]
+            L_encoded_samples = [encode_batch_name_triplets(*v3) for v3 in sample_batch_name_triplets(batch_L_names_all, L_weights, total_weights, nbr_indices_sampled_maximum)]
 
             # Warning. We'll get a little bit of a race condition if the master is fetching
             #          indices from "importance_samples:L_(batch_name, weight, total_weights)"
@@ -142,12 +159,12 @@ def run(server_ip, server_port, server_password):
             for encoded_sample in L_encoded_samples:
                 rsconn.lpush("importance_samples:L_(batch_name, weight, total_weights)", encoded_sample)
 
-            while nbr_indices_sampled <= rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)"):
+            while nbr_indices_sampled_maximum < rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)"):
                 # throw away one element, starting from the oldest,
-                # until we reach the target `nbr_indices_sampled`
+                # until we reach the target `nbr_indices_sampled_maximum`
                 rsconn.rpop("importance_samples:L_(batch_name, weight, total_weights)")
 
-
+            print "Maintenance task (2) completed. We now have %d sampled indices available." % rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)")
             maintenance_task_2_was_required = True
 
 
@@ -156,6 +173,7 @@ def run(server_ip, server_port, server_password):
         # if neither maintenance task was required. Maybe set a kind of sleeping schedule that
         # backs down to 10s if it doesn't get updates, but it would start at something low like 0.5s.
         if maintenance_task_1_was_required is False and maintenance_task_2_was_required is False:
+            print "No maintenance task currently required. Sleeping."
             time.sleep(1.0)
 
         # end While
@@ -202,7 +220,10 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    #main(sys.argv)
+    main(sys.argv)
 
-    for s in list_all_heap_keys(range(0,10), 2)['all']:
-        print s
+
+"""
+    python run_service_assistant.py --server_port=5982 --server_password="patate"
+
+"""

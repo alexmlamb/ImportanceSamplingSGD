@@ -272,7 +272,10 @@ We can rewrite the estimator for the normal SGD by defining a vector
 \begin_inset Formula $\textrm{Multinomial}(\beta)$
 \end_inset
 
- when the context indicates that we are drawing one sample only.
+ when the context indicates that we are drawing one sample only, and we
+ will allow the use of un-normalized arguments when that lightens the notation
+ (to be normalized automatically before sampling from the Multinomial distributi
+on).
 \end_layout
 
 \begin_layout Standard

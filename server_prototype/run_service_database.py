@@ -10,7 +10,11 @@ import getopt
 
 import redis_server_wrapper
 
-def configure(rsconn, batch_size, Ntrain, batch_desc_suffix, nbr_indices_sampled=32, want_exclude_partial_batch=True):
+def configure(  rsconn,
+                batch_size, Ntrain, batch_desc_suffix,
+                nbr_indices_sampled_minimum=32,
+                nbr_indices_sampled_maximum=64,
+                want_exclude_partial_batch=True):
 
     # `batch_size` is an int,
     # `Ntrain` is the total number of training examples (to be split into batches).
@@ -24,8 +28,6 @@ def configure(rsconn, batch_size, Ntrain, batch_desc_suffix, nbr_indices_sampled
     # potentially not used
     rsconn.set("parameters:current_datestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
 
-    # No tolerance at all for not resampling as agressively as possible.
-    resampling_threshold = nbr_indices_sampled
 
     L_batch_name = []
     for lower_index in range(0, Ntrain+1, batch_size):
@@ -62,21 +64,22 @@ def configure(rsconn, batch_size, Ntrain, batch_desc_suffix, nbr_indices_sampled
     # (unlike every other float64 value in here).
     rsconn.delete("importance_samples:L_(batch_name, weight, total_weights)")
 
-    rsconn.set("config:resampling_threshold", resampling_threshold)
-    rsconn.set("config:nbr_indices_sampled", nbr_indices_sampled)
+    rsconn.set("config:nbr_indices_sampled_maximum", nbr_indices_sampled_maximum)
+    rsconn.set("config:nbr_indices_sampled_minimum", nbr_indices_sampled_minimum)
     rsconn.set("config:want_exclude_partial_batch", want_exclude_partial_batch)
 
 
 
-def run(local_server_scratch_path, local_server_port, local_server_password,
+def run(server_scratch_path, server_port, server_password,
         batch_size, Ntrain, batch_desc_suffix,
-        nbr_indices_sampled=1):
+        nbr_indices_sampled_minimum=32,
+        nbr_indices_sampled_maximum=64):
 
-    if local_server_scratch_path is None:
-        local_server_scratch_path = "."
+    if server_scratch_path is None:
+        server_scratch_path = "."
 
-    if local_server_port is None:
-        local_server_port = np.random.randint(low=1025, high=65535)
+    if server_port is None:
+        server_port = np.random.randint(low=1025, high=65535)
 
     # password can be None.
     # Consider maybe generating one at random, shared with workers later.
@@ -89,15 +92,17 @@ def run(local_server_scratch_path, local_server_port, local_server_password,
     # to the other workers on the helios cluster.
     # We'll write to a file. Later. Not important for now.
 
-    rserv = redis_server_wrapper.EphemeralRedisServer(  scratch_path=local_server_scratch_path,
-                                                        port=local_server_port, password=local_server_password)
+    rserv = redis_server_wrapper.EphemeralRedisServer(  scratch_path=server_scratch_path,
+                                                        port=server_port, password=server_password)
     rserv.start()
     time.sleep(5)
     rsconn = rserv.get_client()
     print "pinging master server : %s" % (rsconn.ping(),)
 
 
-    configure(rsconn, batch_size, Ntrain, batch_desc_suffix, nbr_indices_sampled=nbr_indices_sampled)
+    configure(  rsconn,
+                batch_size, Ntrain, batch_desc_suffix,
+                nbr_indices_sampled_minimum=nbr_indices_sampled_minimum, nbr_indices_sampled_maximum=nbr_indices_sampled_maximum)
 
     # You might want to do something to shutdown the redis server more gracefully upon hitting ctrl-c
     # or have some other way of closing it. Not important for now.
@@ -115,22 +120,25 @@ def main(argv):
     """
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hv", ["local_server_scratch_path=", "local_server_port=", "local_server_password=",
-                                                        "batch_size=", "Ntrain=", "batch_desc_suffix=", "nbr_indices_sampled="])
+        opts, args = getopt.getopt(sys.argv[1:], "hv", ["server_scratch_path=", "server_port=", "server_password=",
+                                                        "batch_size=", "Ntrain=", "batch_desc_suffix=",
+                                                        "nbr_indices_sampled_minimum=", "nbr_indices_sampled_maximum="])
     except getopt.GetoptError as err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
         usage()
         sys.exit(2)
 
-    local_server_scratch_path = None
-    local_server_port = None
-    local_server_password = None
+    server_scratch_path = None
+    server_port = None
+    server_password = None
 
     batch_size = None
     Ntrain = None
     batch_desc_suffix = None
-    nbr_indices_sampled = 1
+    nbr_indices_sampled_minimum = 32
+    nbr_indices_sampled_maximum = 64
+
 
     verbose = False
     for o, a in opts:
@@ -139,28 +147,29 @@ def main(argv):
         elif o in ("-h", "--help"):
             usage()
             sys.exit()
-        elif o in ("--local_server_scratch_path"):
-            local_server_scratch_path = a
-        elif o in ("--local_server_port"):
-            local_server_port = int(a)
-        elif o in ("--local_server_password"):
-            local_server_password = a
+        elif o in ("--server_scratch_path"):
+            server_scratch_path = a
+        elif o in ("--server_port"):
+            server_port = int(a)
+        elif o in ("--server_password"):
+            server_password = a
         elif o in ("--batch_size"):
             batch_size = int(a)
         elif o in ("--Ntrain"):
             Ntrain = int(a)
         elif o in ("--batch_desc_suffix"):
             batch_desc_suffix = a
-        elif o in ("--nbr_indices_sampled"):
-            nbr_indices_sampled = int(a)
-
+        elif o in ("--nbr_indices_sampled_minimum"):
+            nbr_indices_sampled_minimum = int(a)
+        elif o in ("--nbr_indices_sampled_maximum"):
+            nbr_indices_sampled_maximum = int(a)
         else:
             assert False, "unhandled option"
  
     # The validity of the arguments is verified in the `run` function.
-    run(local_server_scratch_path, local_server_port, local_server_password,
+    run(server_scratch_path, server_port, server_password,
         batch_size, Ntrain, batch_desc_suffix,
-        nbr_indices_sampled=nbr_indices_sampled)
+        nbr_indices_sampled_minimum=nbr_indices_sampled_minimum, nbr_indices_sampled_maximum=nbr_indices_sampled_maximum)
 
 
 if __name__ == "__main__":
@@ -168,7 +177,7 @@ if __name__ == "__main__":
 
 
 """
-    python run_service_database.py --local_server_port=5982 --local_server_password="patate" --batch_size=32 --Ntrain=562 --batch_desc_suffix="grad_norm2"
+    python run_service_database.py --server_port=5982 --server_password="patate" --batch_size=32 --Ntrain=562 --batch_desc_suffix="grad_norm2"
 
     python run_service_database.py --batch_size=32 --Ntrain=562 --batch_desc_suffix="grad_norm2"
 
