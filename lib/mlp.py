@@ -34,6 +34,7 @@ import time
 import matplotlib.pyplot as plt
 
 from logistic_sgd import LogisticRegression, load_data
+from jacobian_forloop import jacobian_forloop
 
 theano.config.floatX = 'float32'
 
@@ -197,9 +198,9 @@ class MLP(object):
         # keep track of model input
         self.input = input
 
-
-def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=20, n_hidden=500):
+#was using 500
+def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=9999000,
+             dataset='mnist.pkl.gz', batch_size=128, n_hidden=100):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -254,6 +255,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     learning_rate = T.scalar('learning_rate')
 
+    imp_weights = T.vector('importance weights')
 
     rng = numpy.random.RandomState(1234)
 
@@ -270,9 +272,10 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     # the cost we minimize during training is the negative log likelihood of
     # the model plus the regularization terms (L1 and L2); cost is expressed
     # here symbolically
-    cost = classifier.negative_log_likelihood(y) + batch_size * L2_reg * classifier.L2_sqr
+    cost = classifier.negative_log_likelihood(y) * imp_weights + 0.0 * batch_size * L2_reg * classifier.L2_sqr
     # end-snippet-4
 
+    get_cost = theano.function(inputs = [x,y], outputs = [classifier.negative_log_likelihood(y), classifier.errors(y)])
 
     # compiling a Theano function that computes the mistakes that are made
     # by the model on a minibatch
@@ -293,38 +296,20 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     gparams = []
 
-    gradient_norm = 0.0
-
-
     for param in classifier.params:
 
-        grad_param = theano.gradient.jacobian(cost, param)
+        grad_param = T.grad(T.mean(cost), param)
 
-        if param.ndim == 2:
-            gradient_norm_param = T.sum(T.sqr(grad_param), axis = (1,2), keepdims = True)
-            gradient_norm += T.sum(gradient_norm_param, axis = (1,2))
-        elif param.ndim == 1:
-            gradient_norm_param = T.sum(T.sqr(grad_param), axis = 1, keepdims = True)
-            gradient_norm += T.sum(gradient_norm_param, axis = 1)
-        else:
-            raise Exception("Param ndim invalid")
+        gparams += [grad_param]
 
-    gradient_norm = T.sqrt(gradient_norm)
-
-    #generate updates
-
+    param_gradient_lst = []
 
     for param in classifier.params:
+        param_gradient_lst += [T.flatten(T.jacobian(classifier.negative_log_likelihood(y), param), 2)]
 
-        grad_param = theano.gradient.jacobian(cost, param)
+    gradient_vector = T.concatenate(param_gradient_lst, axis = 1)
 
-        if param.ndim == 2: 
-            grad_param = grad_param / T.addbroadcast(T.reshape(gradient_norm, (batch_size, 1, 1)))
-
-
-        gparams += [T.mean(grad_param, axis = 0)]
-
-    #Compute flattened update param over all instances and then check that L2 norm for each instance is 1.  
+    get_gradient = theano.function(inputs = [x,y], outputs = [gradient_vector])
 
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs
@@ -341,14 +326,15 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     # compiling a Theano function `train_model` that returns the cost, but
     # in the same time updates the parameter of the model based on the rules
     # defined in `updates`
+    print "compiling training model"
+    t2 = time.time()
     train_model = theano.function(
-        inputs=[x, y, learning_rate],
-        outputs=[cost, gradient_norm],
+        inputs=[x, y, learning_rate, imp_weights],
+        outputs=[cost],
         updates=updates,
     )
+    print "compilation finished in", time.time() - t2
     # end-snippet-5
-
-    get_gradient_norm = theano.function(inputs = [x,y], outputs = [gradient_norm])
 
     ###############
     # TRAIN MODEL #
@@ -372,6 +358,9 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     test_score = 0.
     start_time = timeit.default_timer()
 
+    logFile = open('logs/mnist_isgd_saved.txt', 'w')
+    doValidate = False
+
     epoch = 0
     done_looping = False
 
@@ -386,13 +375,14 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     minibatch_index = 0
  
-    sumGradientNorm = 0.0
-    numGradientNorm = 0.0
 
     t0 = time.time()
 
     maxGradientNorm = 1.0
-    gradientNorms = {}
+    costMap = {}
+
+    print "Number training examples", len(train_set_x)
+    print "Learning Rate", base_learning_rate
 
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
@@ -411,66 +401,138 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
         x_mb_train = []
         y_mb_train = []
         mb_indices = []
-        gradientNorms = {}
 
-        #Compute gradientNorms over all instances.  
+
+        
+
+        t1 = time.time()
+
+        cost_mb_size = 200
+        grad_mb_size = 20
+
+        #If we're validating, save to the gradientmap.  
+        gradientMap = {}
+
+        x_mb_grad = []
+        y_mb_grad = []
+        g_indices = []
+
+
+        #Compute cost over all instances.  
         for i in range(0, len(train_set_x)):
-            x_mb_train += [train_set_x[i]]
-            y_mb_train += [train_set_y[i]]
-            mb_indices += [i]
 
-            if len(x_mb_train) == 200:
-                gradient_norm_lst = get_gradient_norm(x_mb_train, y_mb_train)
-                
+            all_error_lst = []
+
+            if random.uniform(0,1) < 1.0: 
+                x_mb_train += [train_set_x[i]]
+                y_mb_train += [train_set_y[i]]
+                mb_indices += [i]
+                x_mb_grad += [train_set_x[i]]
+                y_mb_grad += [train_set_y[i]]
+                g_indices += [i]
+
+            if len(x_mb_train) == cost_mb_size:
+
+
+                cost_lst, error_lst = get_cost(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'))
+                all_error_lst += [error_lst]
+
                 x_mb_train = []
                 y_mb_train = []
 
-                for j in range(0, 200):
-                    gradientNorms[mb_indices[j]] = gradient_norm_lst[0][j]
+                for j in range(0, cost_mb_size):
+                    costMap[mb_indices[j]] = cost_lst[j].tolist()
 
                 mb_indices = []
 
-        print "computed gradient for minibatch"
+            if len(x_mb_grad) == grad_mb_size:
+                if doValidate: 
+                    gradient_lst = get_gradient(numpy.asarray(x_mb_grad, dtype = 'float32'), numpy.asarray(y_mb_grad, dtype = 'int32'))
+                    for j in range(0, 2 + 0 * grad_mb_size): #sample 10% of instances
+                        gradientMap[g_indices[j]] = gradient_lst[0][j].round(3).tolist()
 
+                    if len(gradientMap) == 200:
+                        print "writing to logfile"
+                        print "len cost map", len(costMap)
+                        print "len gradient map", len(gradientMap)
+                        logFile.write(str(epoch) + "    " + str(costMap) + "    " + str(gradientMap) + "\n")
+                        logFile.flush()
+                        gradientMap = {}
+                        print "written to logfile"
+
+                g_indices = []
+                x_mb_grad = []
+                y_mb_grad = []
+
+
+        #print "computed all costs for minibatch in", time.time() - t1
+
+        sumCost = sum(costMap.values())
+        numCost = len(costMap)
+
+        trainErrorRate = numpy.mean(all_error_lst)
+        averageTrainCost = sumCost / numCost
+
+        #print "Average cost", averageCost
+        #print "Number costs", numCost
+        #print "Variance cost", numpy.asarray(costMap.values()).var()
+        #print "max cost", max(costMap.values())
+
+        #indexLst = indexLst[:batch_size]
+
+        #Sample with probability costMap[i]
+        def sampleInstances(indexLst, costMap, batch_size):
+
+            weightMap = {}
+            sumCost = sum(costMap.values())
+
+            #print "average cost", sumCost / len(costMap)
+            avgCost = sumCost / len(costMap)
+
+            for key in costMap:
+                weightMap[key] = costMap[key] / sumCost
+
+            selectedIndices = numpy.random.choice(len(weightMap),batch_size,p=weightMap.values())
+
+            cmKeys = costMap.keys()
+            newIndexLst = []
+            impWeightLst = []
+
+            for index in selectedIndices:
+                newIndexLst += [cmKeys[index]]
+                impWeightLst += [avgCost / costMap[cmKeys[index]]]
+
+            return newIndexLst, impWeightLst
+
+
+        indexLst,importanceWeights = sampleInstances(indexLst, costMap, batch_size)
+
+        #indexLst,importanceWeights = indexLst[:batch_size], [1.0] * batch_size
+
+        averageCostTrain = sum(costMap) / len(costMap)
+
+        t0_e = time.time()
 
         for i in indexLst:
 
+            t0_e = time.time()
 
             #doTrain could be based on uniform sampling
             doTrain = True
-
-
-            imp_weight_instance = calculateImportanceWeight(gnorm = gradientNorms[i], max_gnorm = maxGradientNorm, sum_gnorm = sumGradientNorm, epsilon = 0.01)
-
-            if random.uniform(0,1) < 1.0 / imp_weight_instance: 
-                doTrain = True
-            else:
-                doTrain = False
 
             if doTrain: 
                 x_mb_train += [train_set_x[i]]
                 y_mb_train += [train_set_y[i]]
                 mb_indices += [i]
-                importance_weights_mb += [imp_weight_instance]
 
 
             if len(x_mb_train) == batch_size: 
-                train_model_outputs = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), 0.01)
-                minibatch_avg_cost, gradient_norm_o = train_model_outputs
 
-                if True:
-                    if random.uniform(0,1) < 0.01 or sum(gradient_norm_o).tolist() == float('nan'):
-                        for k in range(0, 1): 
-                            print "================================================="
-                            print sum(gradient_norm_o).tolist() == float('nan')
-                            if mb_indices[k] in gradientNorms:
-                                print "last grad norm", gradientNorms[mb_indices[k]]
-                            print "gradient norm", gradient_norm_o[k]
-                            print "class", y_mb_train[k]
-                            print "sample prob", 1.0 / importance_weights_mb[k]
-                    for k in range(0, batch_size):
-                        numGradientNorm += 1.0
-                        sumGradientNorm += gradient_norm_o[k]
+                
+                train_model_outputs = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), numpy.asarray(base_learning_rate, dtype = 'float32'),numpy.asarray(importanceWeights, dtype = 'float32'))
+
+                minibatch_avg_cost = train_model_outputs
+
 
                 minibatch_index += 1
                 x_mb_train = []
@@ -481,6 +543,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
                 iter = (epoch - 1) * n_train_batches + minibatch_index
     
                 if (iter + 1) % validation_frequency == 0:
+                    doValidate = True
                     # compute zero-one loss on validation set
                     validation_losses = []
                 
@@ -500,13 +563,12 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
                     t0 = time.time()
 
                     print(
-                        'epoch %i, minibatch %i/%i, iteration %i, validation error %f %%' %
+                        'MB Processed %i, validation error %f %%, training error %f %%, training log-likelihood %f' %
                         (
                             epoch,
-                            minibatch_index + 1,
-                            iter,
-                            n_train_batches,
-                            this_validation_loss * 100.
+                            this_validation_loss * 100.,
+                            trainErrorRate * 100,
+                            averageTrainCost
                         )
                     )
 
@@ -543,11 +605,13 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
                               (epoch, minibatch_index + 1, n_train_batches,
                                test_score * 100.))
 
+                else:
+                    doValidate = False
+
                 if patience <= iter:
                     done_looping = False
                     #break
 
-        maxGradientNorm = max(gradientNorms.values())
 
     end_time = timeit.default_timer()
     print(('Optimization complete. Best validation score of %f %% '
