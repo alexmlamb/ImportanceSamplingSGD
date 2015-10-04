@@ -3,6 +3,7 @@ import redis
 import numpy as np
 import json
 import time
+import copy
 
 import sys, os
 import getopt
@@ -114,6 +115,11 @@ def run(server_ip, server_port, server_password):
         #     more values. We get enough to bring the number up to
         #     `nbr_indices_sampled_maximum` to be good for a while.
         #     Insert on one side and removing on the other side (older indices).
+        #
+        # The structure of the while True loop for the assistant is slightly different
+        # than for the other roles because it has to restrain itself to avoid
+        # looping too quickly. In the other roles, there is always one of the tasks
+        # which is expected to be scheduled as aggressively as possible.
 
         new_parameters_current_timestamp = rsconn.get("parameters:current_timestamp")
         if parameters_current_timestamp != new_parameters_current_timestamp:
@@ -121,7 +127,14 @@ def run(server_ip, server_port, server_password):
 
             parameters_current_timestamp = new_parameters_current_timestamp
 
-            batch_L_names_todo = copy(batch_L_names_all)
+            # shallow copy. Don't modify the strings themselves,
+            # but make a new list that can be shuffled.
+            # That being said, it would probably be fine
+            # to shuffle the original list `batch_L_names_all`,
+            # but it's probably wiser to keep it intact since it's
+            # meant to cache the value found on the server, which
+            # we are fine with reading only once and using many times.
+            batch_L_names_todo = copy.copy(batch_L_names_all)
             np.random.shuffle(batch_L_names_todo)
 
             # We just delete the list in order to clear it out.
@@ -135,8 +148,9 @@ def run(server_ip, server_port, server_password):
             maintenance_task_1_was_required = True
 
 
+        nbr_indices_sampled = rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)")
 
-        if rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)") < nbr_indices_sampled_minimum:
+        if nbr_indices_sampled < nbr_indices_sampled_minimum:
             # Maintenance task (2) should be done.
 
             L_weights = []
@@ -164,7 +178,7 @@ def run(server_ip, server_port, server_password):
                 # until we reach the target `nbr_indices_sampled_maximum`
                 rsconn.rpop("importance_samples:L_(batch_name, weight, total_weights)")
 
-            print "Maintenance task (2) completed. We now have %d sampled indices available." % rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)")
+            print "Maintenance task (2) completed. We now have %d sampled indices available (up from the %d that we had)." % (rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)"), nbr_indices_sampled)
             maintenance_task_2_was_required = True
 
 

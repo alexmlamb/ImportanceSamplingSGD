@@ -8,10 +8,14 @@ import re
 import sys, os
 import getopt
 
+
+SIMULATED_BATCH_UPDATE_TIME = 1.0
+
+
 # batch_name being of the form
 #     "batch:%0.9d-%0.9d_%s" % (lower_index, upper_index, batch_desc_suffix)
 
-prog_batch_name = re.compile(r"batch:(\a+)-(\a+)_(.*?)")
+prog_batch_name = re.compile(r"batch:(\d+)-(\d+)_(.*?)")
 
 def decode_batch_name(batch_name):
 
@@ -82,14 +86,16 @@ def run(server_ip, server_port, server_password):
                 print "No parameters found in the server. Might as well sleep."
                 time.sleep(0.2)
                 continue
-            current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
-            parameters_current_timestamp = new_parameters_current_timestamp
-            continue
+            else:
+                current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
+                parameters_current_timestamp = new_parameters_current_timestamp
+                continue
 
 
         # Task (2)
 
         batch_name = rsconn.lpop("batch:L_names_todo")
+        nbr_batch_name_todo = rsconn.llen("batch:L_names_todo")  # for debugging, potentially oudated value
         if batch_name is None or len(batch_name) == 0:
             # Note that the "batch:L_names_todo" might be temporarily gone
             # from the server because that's how the assistant is updating it
@@ -99,16 +105,21 @@ def run(server_ip, server_port, server_password):
             # TODO : Adjust the duration of the sleep.
             time.sleep(0.2)
             continue
+        else:
+            (lower_index, upper_index, suffix) = decode_batch_name(batch_name)
 
-        (lower_index, upper_index, suffix) = decode_batch_name(batch_name)
+            print "The worker is processing %s. Estimated %d batches left in the todo list." % (batch_name, nbr_batch_name_todo)
+            print "(lower_index, upper_index, suffix)"
+            print (lower_index, upper_index, suffix)
 
-        print "The worker is processing %s." % batch_name
-        print "(lower_index, upper_index, suffix)"
-        print (lower_index, upper_index, suffix)
+            # TODO : Compute the actual gradient norm here.
+            rsconn.set(batch_name, np.ones((1,), dtype=np.float64).tostring(order='C'))
 
-        # TODO : Compute the actual gradient norm here.
-        rsconn.set(batch_name, 1.0)
-        print ""
+            # Sleep to simulate work time.
+            time.sleep(SIMULATED_BATCH_UPDATE_TIME)
+
+            print ""
+            continue
 
 
 def usage():
