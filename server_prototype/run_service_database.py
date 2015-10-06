@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
 
 """
-    python run_service_database.py --server_port=5982 --server_password="patate" --batch_size=32 --Ntrain=562 --batch_desc_suffix="grad_norm2"
+    python run_service_database.py --server_port=5982 --server_password="patate" --batch_size=32 --Ntrain=50000 --batch_desc_suffix="grad_norm2"
 
     python run_service_database.py --batch_size=32 --Ntrain=562 --batch_desc_suffix="grad_norm2"
 
