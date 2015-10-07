@@ -17,7 +17,7 @@ def conv(inputs, filters):
             for f in range(F):
                 for i in range(H-h+1):
                     for j in range(W-w+1):
-                        result[n, f, i, j] = (inputs[n, c, i:i+h, j:j+w] * filters[f, c, :, :]).sum()
+                        result[n, f, i, j] = result[n, f, i, j] + (inputs[n, c, i:i+h, j:j+w] * filters[f, c, :, :]).sum()
 
     return result
 
@@ -123,6 +123,9 @@ def run_experiment():
     print R0 / R1
     print "R0 / R2 :"
     print R0 / R2
+
+
+    #print conv(np.ones((2,2,4,4)), np.ones((3,2,2,2)))
 
 
 if __name__ == "__main__":
