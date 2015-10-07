@@ -149,7 +149,7 @@ def run_experiment():
     #print "[c, v0, gs1, gs2]"
     L_c, L_v0, L_gs1, L_gs2 = ([], [], [], [])
     for n in range(N):
-        [nc, nv0, ngs1, ngs2] = f(Xtrain[n,:].reshape((1,100)), ytrain[n,:].reshape((1,10)))
+        [nc, nv0, ngs1, ngs2] = f(np.tile(Xtrain[n,:].reshape((1,100)), (N,1)), np.tile(ytrain[n,:].reshape((1,10)), (N,1)))
         L_c.append(nc)
         L_v0.append(nv0)
         L_gs1.append(ngs1)

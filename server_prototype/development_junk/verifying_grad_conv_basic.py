@@ -25,11 +25,21 @@ def get_sum_square_norm_gradients_conv_transformations(D_by_layer, cost, accum =
 
     for (layer_name, D) in D_by_layer.items():
 
-        sumc_A_square = tensor.sqr(D['input'].sum(axis=1, keepdims=True))
+        sumc_A_square = tensor.sqr(D['input']).sum(axis=1, keepdims=True)
         backprop_output = tensor.grad(cost, D['output'])
-        sumf_Bo_square = tensor.sqr(backprop_output.sum(axis=1, keepdims=True))
+        sumf_Bo_square = tensor.sqr(backprop_output).sum(axis=1, keepdims=True)
 
-        square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(2).sum(axis=1)
+        # This is slightly wasteful because it introduces a value of N*N,
+        # but it also avoids performing F*C separate convolutions by
+        # using the amazing property that they can be summed as squares beforehand.
+        #
+        # The flatten-sum-diag thing is because we end up with an array E[1:N, 1:N, :, :]
+        # and we want to sum out the image information in the last two dimensions,
+        # and then extract the diagonal E[n,n,:,:].sum().
+        square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(3).sum(axis=2).diagonal()
+
+        # Wrong.
+        #square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(2).sum(axis=1)
 
         assert D.has_key('weight')
 
@@ -93,8 +103,7 @@ def run_experiment():
     # works on the sum of the gradients in a mini-batch
     sum_square_norm_gradients_method_02 = sum([tensor.sqr(g).sum() for g in L_grads_method_02])
 
-
-
+    
 
     D_by_layer = get_conv_layers_transformation_roles(ComputationGraph(conv_output))
     individual_sum_square_norm_gradients_method_00 = get_sum_square_norm_gradients_conv_transformations(D_by_layer, cost)
@@ -103,7 +112,14 @@ def run_experiment():
 
     N = 8
     Xtrain = np.random.randn(N, nbr_channels, image_shape[0], image_shape[1]).astype(np.float32)
+    #Xtrain[1:,:,:,:] = 0.0
+    Xtrain[:,1:,:,:] = 0.0
 
+    convolution_filter_variable = VariableFilter(roles=[FILTER])(ComputationGraph([y_hat]).variables)[0]
+    convolution_filter_variable_value = convolution_filter_variable.get_value()
+    convolution_filter_variable_value[:,:,:,:] = 0.0
+    convolution_filter_variable_value[0,0,:,:] = 1.0
+    convolution_filter_variable.set_value(convolution_filter_variable_value)
 
     f = theano.function([X],
                         [cost,
