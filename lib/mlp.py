@@ -147,22 +147,20 @@ class MLP(object):
 
         """
 
-        # Since we are dealing with a one hidden layer MLP, this will translate
-        # into a HiddenLayer with a tanh activation function connected to the
-        # LogisticRegression layer; the activation function can be replaced by
-        # sigmoid or any other nonlinear function
-        self.hiddenLayer = HiddenLayer(
+        self.hiddenLayer1 = HiddenLayer(
             rng=rng,
             input=input,
             n_in=n_in,
             n_out=n_hidden,
-            activation=T.tanh
+            activation=(lambda layer_input: T.maximum(0.0, layer_input))
         )
+
+        self.hiddenLayer2 = HiddenLayer(rng=rng, input=self.hiddenLayer1.output,n_in=n_hidden,n_out=n_hidden,activation=(lambda layer_input: T.maximum(0.0, layer_input)))
 
         # The logistic regression layer gets as input the hidden units
         # of the hidden layer
         self.logRegressionLayer = LogisticRegression(
-            input=self.hiddenLayer.output,
+            input=self.hiddenLayer2.output,
             n_in=n_hidden,
             n_out=n_out
         )
@@ -170,14 +168,14 @@ class MLP(object):
         # L1 norm ; one regularization option is to enforce L1 norm to
         # be small
         self.L1 = (
-            abs(self.hiddenLayer.W).sum()
+            abs(self.hiddenLayer1.W).sum() + abs(self.hiddenLayer2.W).sum()
             + abs(self.logRegressionLayer.W).sum()
         )
 
         # square of L2 norm ; one regularization option is to enforce
         # square of L2 norm to be small
         self.L2_sqr = (
-            (self.hiddenLayer.W ** 2).sum()
+            (self.hiddenLayer1.W ** 2).sum() + (self.hiddenLayer2.W ** 2).sum()
             + (self.logRegressionLayer.W ** 2).sum()
         )
 
@@ -192,15 +190,17 @@ class MLP(object):
 
         # the parameters of the model are the parameters of the two layer it is
         # made out of
-        self.params = self.hiddenLayer.params + self.logRegressionLayer.params
+        self.params = self.hiddenLayer1.params + self.hiddenLayer2.params + self.logRegressionLayer.params
         # end-snippet-3
+
+        self.layers = [input, self.hiddenLayer1.output, self.hiddenLayer2.output, self.logRegressionLayer.output]
 
         # keep track of model input
         self.input = input
 
 #was using 500
-def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=9999000,
-             dataset='mnist.pkl.gz', batch_size=128, n_hidden=100):
+def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.0001, n_epochs=9999000,
+             dataset='mnist.pkl.gz', batch_size=128, n_hidden=512):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -302,14 +302,22 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
         gparams += [grad_param]
 
-    param_gradient_lst = []
+    #Function that computes gradient norm
 
-    for param in classifier.params:
-        param_gradient_lst += [T.flatten(T.jacobian(classifier.negative_log_likelihood(y), param), 2)]
+    def compute_gradient_norm(loss, layerLst):
+        gradient_norm_f = 0.0
 
-    gradient_vector = T.concatenate(param_gradient_lst, axis = 1)
+        for index in range(1, len(layerLst)):
+            output_layer = layerLst[index]
+            input_layer = layerLst[index - 1]
+            gradient_norm_f += (input_layer**2).sum(axis = 1) * (T.grad(loss, output_layer)**2).sum(axis = 1)
 
-    get_gradient = theano.function(inputs = [x,y], outputs = [gradient_vector])
+        gradient_norm_f = T.sqrt(gradient_norm_f)
+
+        return gradient_norm_f
+
+
+    get_gradient = theano.function(inputs = [x,y], outputs = [compute_gradient_norm(T.sum(classifier.negative_log_likelihood(y)), classifier.layers)])
 
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs
@@ -330,7 +338,7 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
     t2 = time.time()
     train_model = theano.function(
         inputs=[x, y, learning_rate, imp_weights],
-        outputs=[cost],
+        outputs=[cost, compute_gradient_norm(T.sum(classifier.negative_log_likelihood(y)), classifier.layers)],
         updates=updates,
     )
     print "compilation finished in", time.time() - t2
@@ -380,6 +388,15 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
     maxGradientNorm = 1.0
     costMap = {}
+    freshnessMap = {}
+    gradientMap = {}
+
+    for k in range(0,50000):
+        freshnessMap[k] = -1
+        gradientMap[k] = 1.0
+
+    compute_gradient_all = False
+    compute_cost_all = False
 
     print "Number training examples", len(train_set_x)
     print "Learning Rate", base_learning_rate
@@ -391,12 +408,6 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
         random.shuffle(indexLst)
 
-        #eps 2.0 is good
-        #High importance weight -> sample with low probability
-        def calculateImportanceWeight(gnorm, max_gnorm, sum_gnorm, epsilon):
-            sample_prob = (gnorm + 0.0001) / (sum_gnorm + 0.0001)
-            return 1.0 / sample_prob
-            #return 1.0
 
         x_mb_train = []
         y_mb_train = []
@@ -407,11 +418,9 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
         t1 = time.time()
 
-        cost_mb_size = 200
-        grad_mb_size = 20
+        cost_mb_size = 1000
+        grad_mb_size = 1000
 
-        #If we're validating, save to the gradientmap.  
-        gradientMap = {}
 
         x_mb_grad = []
         y_mb_grad = []
@@ -433,32 +442,25 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
             if len(x_mb_train) == cost_mb_size:
 
+                if compute_cost_all:
+                    cost_lst, error_lst = get_cost(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'))
+                    all_error_lst += [error_lst]
 
-                cost_lst, error_lst = get_cost(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'))
-                all_error_lst += [error_lst]
+                    for j in range(0, cost_mb_size):
+                        costMap[mb_indices[j]] = cost_lst[j].tolist()
 
                 x_mb_train = []
                 y_mb_train = []
-
-                for j in range(0, cost_mb_size):
-                    costMap[mb_indices[j]] = cost_lst[j].tolist()
-
                 mb_indices = []
 
             if len(x_mb_grad) == grad_mb_size:
-                if doValidate: 
+                if compute_gradient_all:
                     gradient_lst = get_gradient(numpy.asarray(x_mb_grad, dtype = 'float32'), numpy.asarray(y_mb_grad, dtype = 'int32'))
-                    for j in range(0, 2 + 0 * grad_mb_size): #sample 10% of instances
-                        gradientMap[g_indices[j]] = gradient_lst[0][j].round(3).tolist()
 
-                    if len(gradientMap) == 200:
-                        print "writing to logfile"
-                        print "len cost map", len(costMap)
-                        print "len gradient map", len(gradientMap)
-                        logFile.write(str(epoch) + "    " + str(costMap) + "    " + str(gradientMap) + "\n")
-                        logFile.flush()
-                        gradientMap = {}
-                        print "written to logfile"
+                    #print "gradient lst", gradient_lst[0].shape
+
+                    for j in range(0, grad_mb_size): 
+                        gradientMap[g_indices[j]] = gradient_lst[0][j].tolist()
 
                 g_indices = []
                 x_mb_grad = []
@@ -467,11 +469,11 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
         #print "computed all costs for minibatch in", time.time() - t1
 
-        sumCost = sum(costMap.values())
-        numCost = len(costMap)
-
-        trainErrorRate = numpy.mean(all_error_lst)
-        averageTrainCost = sumCost / numCost
+        if compute_cost_all:
+            sumCost = sum(costMap.values())
+            numCost = len(costMap)
+            trainErrorRate = numpy.mean(all_error_lst)
+            averageTrainCost = sumCost / numCost
 
         #print "Average cost", averageCost
         #print "Number costs", numCost
@@ -480,36 +482,66 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
 
         #indexLst = indexLst[:batch_size]
 
-        #Sample with probability costMap[i]
-        def sampleInstances(indexLst, costMap, batch_size):
+        #Sample from indices where mbIndex - fMap[index] < k.  
+
+        def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
+
+            freshness_threshold = 10
+
+            cMap = {}
+
+            for key in cMap_unsmoothed:
+                cMap[key] = cMap_unsmoothed[key] + 0.01
 
             weightMap = {}
-            sumCost = sum(costMap.values())
+            usedKeys = []
 
-            #print "average cost", sumCost / len(costMap)
-            avgCost = sumCost / len(costMap)
+            sumCost = 0.0
 
-            for key in costMap:
-                weightMap[key] = costMap[key] / sumCost
+            for key in cMap:
 
-            selectedIndices = numpy.random.choice(len(weightMap),batch_size,p=weightMap.values())
+                if abs(mbIndex - fMap[key]) <= freshness_threshold:
+                    sumCost += cMap[key]
+                    usedKeys += [key]
 
-            cmKeys = costMap.keys()
+            for key in cMap:
+                if abs(mbIndex - fMap[key]) <= freshness_threshold:
+                    weightMap[key] = cMap[key] * 1.0 / sumCost
+
+
+            avgCost = sumCost / len(weightMap)
+
+            print "sum cost", sumCost
+            print "len wm", len(weightMap)
+
+            selectedIndicesRaw = numpy.random.choice(len(weightMap),batch_size,p=weightMap.values()).tolist()
+
+            selectedIndices = [usedKeys[j] for j in selectedIndicesRaw]
+
+            cmKeys = cMap.keys()
             newIndexLst = []
             impWeightLst = []
 
             for index in selectedIndices:
                 newIndexLst += [cmKeys[index]]
-                impWeightLst += [avgCost / costMap[cmKeys[index]]]
+                impWeightLst += [1.0 * avgCost / cMap[cmKeys[index]]]
 
             return newIndexLst, impWeightLst
 
+        
 
-        indexLst,importanceWeights = sampleInstances(indexLst, costMap, batch_size)
+        #indexLst,importanceWeights = sampleInstances(indexLst, gradientMap, batch_size)
 
         #indexLst,importanceWeights = indexLst[:batch_size], [1.0] * batch_size
 
-        averageCostTrain = sum(costMap) / len(costMap)
+        indexLstImp, importanceWeightsFirstHalf = sampleInstances(indexLst, gradientMap, batch_size / 2, freshnessMap, minibatch_index)
+        indexLst = indexLst[:batch_size / 2] + indexLstImp
+        importanceWeights = [1.0] * (batch_size / 2) + importanceWeightsFirstHalf
+
+        if random.uniform(0,1) < 1.005:
+            print importanceWeights
+
+        #averageCostTrain = sum(costMap) / len(costMap)
 
         t0_e = time.time()
 
@@ -531,8 +563,13 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
                 
                 train_model_outputs = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), numpy.asarray(base_learning_rate, dtype = 'float32'),numpy.asarray(importanceWeights, dtype = 'float32'))
 
-                minibatch_avg_cost = train_model_outputs
+                minibatch_avg_cost, gradient_norm_lst = train_model_outputs
 
+                #Update gradientMap
+
+                for k in range(0, len(mb_indices)):
+                    freshnessMap[mb_indices[k]] = minibatch_index
+                    gradientMap[mb_indices[k]] = gradient_norm_lst[k]
 
                 minibatch_index += 1
                 x_mb_train = []
@@ -562,6 +599,8 @@ def test_mlp(base_learning_rate=1.0, L1_reg=0.00, L2_reg=0.0001, n_epochs=999900
                     print "time", time.time() - t0
                     t0 = time.time()
 
+                    trainErrorRate = 0.0
+                    averageTrainCost = 0.0
                     print(
                         'MB Processed %i, validation error %f %%, training error %f %%, training log-likelihood %f' %
                         (
