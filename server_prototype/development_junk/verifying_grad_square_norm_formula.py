@@ -51,6 +51,35 @@ def get_square_norm_gradients(D_by_layer, cost, accum = 0):
 
 
 
+def get_square_norm_gradients_scan(D_by_layer, cost, accum = 0):
+
+    # This returns a theano variable that will be of shape (minibatch_size, ).
+    # It will contain, for each training example, the associated square-norm of the total gradient.
+    # If you take the element-wise square-root afterwards, you will get
+    # the associated 2-norms, which is what you want for importance sampling.
+
+    for (layer_name, D) in D_by_layer.items():
+
+        backprop_output = tensor.grad(cost, D['output'])
+
+        if D.has_key('weight'):
+            A = D['input']
+            B = backprop_output
+            S, _ =  theano.scan(fn=lambda A, B: tensor.sqr(tensor.outer(A,B)).sum(),
+                                        sequences=[A,B])
+            accum = accum + S
+
+        if D.has_key('bias'):
+
+            B = backprop_output
+            S, _ =  theano.scan(fn=lambda B: tensor.sqr(B).sum(),
+                                        sequences=[B])
+            accum = accum + S
+        
+    return accum
+
+
+
 def get_mean_square_norm_gradients_variance_method_00(D_by_layer, cost, accum = 0):
 
     # This returns a theano variable that will be of shape (minibatch_size, ).
@@ -80,7 +109,6 @@ def get_mean_square_norm_gradients_variance_method_00(D_by_layer, cost, accum = 
     return accum
 
 
-# Fuck this shit. Fuck scan. Doesn't work.
 def get_mean_square_norm_gradients_variance_method_01(D_by_layer, cost, accum = 0):
 
     # This returns a theano variable that will be of shape (minibatch_size, ).
@@ -148,7 +176,12 @@ def run_experiment():
     mlp.initialize()
     y_hat = mlp.apply(X)
 
-    cost = CategoricalCrossEntropy().apply(y, y_hat)
+    # This whole thing is thrown out of whack by the fact that Blocks divises
+    # the cost by N internally because it calls .mean() on the output.
+    # This is a fine thing to do, but it throws off the computation
+    # of the individual gradients because they find themselves divided
+    # by that factor of N which has nothing to do with them.
+    cost = CategoricalCrossEntropy().apply(y, y_hat) * X.shape[0]
     #cost = CategoricalCrossEntropy().apply(y_hat, y)
     #cost = BinaryCrossEntropy().apply(y.flatten(), y_hat.flatten())
 
@@ -182,7 +215,10 @@ def run_experiment():
     D_by_layer = get_linear_transformation_roles(mlp, cg)
 
     # returns a vector with one entry for each in the mini-batch
-    individual_sum_square_norm_gradients_method_00 = get_square_norm_gradients(D_by_layer, cost)
+    individual_sum_square_norm_gradients_method_experimental = get_square_norm_gradients(D_by_layer, cost)
+    individual_sum_square_norm_gradients_method_scan = get_square_norm_gradients_scan(D_by_layer, cost)
+
+
 
     print "There are %d entries in cg.parameters." % len(cg.parameters)
     L_grads_method_01 = [tensor.grad(cost, p) for p in cg.parameters]
@@ -198,35 +234,66 @@ def run_experiment():
 
 
 
-    N = 32
-    Xtrain = np.random.randn(N, 100).astype(np.float32)
+    N = 10
 
     # Option 1.
+    Xtrain = np.random.randn(N, 100).astype(np.float32)
     ytrain = np.zeros((N, 10), dtype=np.float32)
     for n in range(N):
         label = np.random.randint(low=0, high=10)
         ytrain[n, label] = 1.0
 
-    # Option 2, just to debug situations with NaN.
-    #ytrain = np.random.rand(N, 10).astype(np.float32)
-    #for n in range(N):
-    #    ytrain[n,:] = ytrain[n,:] / ytrain[n,:].sum()
+    # Option 2.
+    Xtrain = np.ones((N, 100)).astype(np.float32)
+    ytrain = np.ones((N, 10), dtype=np.float32)
+
+
+
+
+    def grad_covariance(Xtrain, ytrain):
+        N = Xtrain.shape[0]
+        assert N == ytrain.shape[0]
+
+        # add the BIAS here   roles=[WEIGHT, BIAS]   when you want to include it again
+        fc = theano.function([X, y], [tensor.grad(cost, v) for v in VariableFilter(roles=[WEIGHT])(cg.variables)])
+
+        L_minibatch_grads = fc(Xtrain, ytrain)
+        LL_single_grads = []
+        for n in range(N):
+            LL_single_grads.append(fc(np.tile(Xtrain[n,:].reshape((1,100)), (N,1)), np.tile(ytrain[n,:].reshape((1,10)), (N,1))))
+
+        individual_mean_square_norm_gradients_variance_method_02 = np.zeros((N,))
+
+        for (n, L_single_grads) in enumerate(LL_single_grads):
+
+            for (minibatch_grad, single_grad) in zip(L_minibatch_grads, L_single_grads):
+                #print single_grad.shape
+                #print minibatch_grad.shape
+                B = (single_grad - minibatch_grad)**2
+                #print B.shape
+                individual_mean_square_norm_gradients_variance_method_02[n] += B.mean()
+
+        return individual_mean_square_norm_gradients_variance_method_02
 
 
     f = theano.function([X,y],
                         [cost,
-                            individual_sum_square_norm_gradients_method_00,
+                            individual_sum_square_norm_gradients_method_experimental,
+                            individual_sum_square_norm_gradients_method_scan,
                             individual_mean_square_norm_gradients_variance_method_00,
                             individual_mean_square_norm_gradients_variance_method_01,
                             sum_square_norm_gradients_method_01,
                             sum_square_norm_gradients_method_02])
 
-    [c, v0, var0, var1, gs1, gs2] = f(Xtrain, ytrain)
+    [c, v0, sc0, var0, var1, gs1, gs2] = f(Xtrain, ytrain)
 
     #print "[c, v0, gs1, gs2]"
     L_c, L_v0, L_gs1, L_gs2 = ([], [], [], [])
     for n in range(N):
-        [nc, nv0, _, _, ngs1, ngs2] = f(np.tile(Xtrain[n,:].reshape((1,100)), (N,1)), np.tile(ytrain[n,:].reshape((1,10)), (N,1)))
+        #replicas = 2
+        #[nc, nv0, _, _, _, ngs1, ngs2] = f(np.tile(Xtrain[n,:].reshape((1,100)), (replicas,1)), np.tile(ytrain[n,:].reshape((1,10)), (replicas,1)))
+        [nc, nv0, _, _, _, ngs1, ngs2] = f(Xtrain[n,:].reshape((1,100)), ytrain[n,:].reshape((1,10)))
+        
         L_c.append(nc)
         L_v0.append(nv0)
         L_gs1.append(ngs1)
@@ -237,23 +304,29 @@ def run_experiment():
     print ""
     print "Square-norm of all gradients for each data point in single shot :"
     print v0.reshape((1,-1))
+    print "Square-norm of all gradients for each data point in single shot using scan :"
+    print sc0.reshape((1,-1))
     print "Square-norm of all gradients for each data point iteratively :"
     print np.array(L_gs1).reshape((1,-1))
-    print "Square-norm of all gradients for each data point iteratively :"
-    print np.array(L_gs2).reshape((1,-1))
+    #print "Square-norm of all gradients for each data point iteratively :"
+    #print np.array(L_gs2).reshape((1,-1))
     print ""
     print "Difference max abs : %f." % np.max(np.abs(v0 - np.array(L_gs1)))
-    print "Difference max abs : %f." % np.max(np.abs(v0 - np.array(L_gs2)))
+    #print "Difference max abs : %f." % np.max(np.abs(v0 - np.array(L_gs2)))
     print ""
-    print "Ratios : "
+    print "Ratios (from experimental method): "
     print np.array(L_gs1).reshape((1,-1)) / v0.reshape((1,-1))
-    print ""
-    print ""
-    print "var0"
-    print var0
-    print "var1"
-    print var1
+    print "Ratios (from scan) : "
+    print np.array(L_gs1).reshape((1,-1)) / sc0.reshape((1,-1))
 
+    #print ""
+    #print ""
+    #print "var0"
+    #print var0
+    #print "var1"
+    #print var1
+    #print "grad_covariance(Xtrain, ytrain)"
+    #print grad_covariance(Xtrain, ytrain)
 
 
 if __name__ == "__main__":
