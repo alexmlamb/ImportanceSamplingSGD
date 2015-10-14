@@ -115,11 +115,11 @@ def run_experiment():
     #Xtrain[1:,:,:,:] = 0.0
     Xtrain[:,1:,:,:] = 0.0
 
-    convolution_filter_variable = VariableFilter(roles=[FILTER])(ComputationGraph([y_hat]).variables)[0]
-    convolution_filter_variable_value = convolution_filter_variable.get_value()
-    convolution_filter_variable_value[:,:,:,:] = 0.0
-    convolution_filter_variable_value[0,0,:,:] = 1.0
-    convolution_filter_variable.set_value(convolution_filter_variable_value)
+    #convolution_filter_variable = VariableFilter(roles=[FILTER])(ComputationGraph([y_hat]).variables)[0]
+    #convolution_filter_variable_value = convolution_filter_variable.get_value()
+    #convolution_filter_variable_value[:,:,:,:] = 0.0
+    #convolution_filter_variable_value[0,0,:,:] = 1.0
+    #convolution_filter_variable.set_value(convolution_filter_variable_value)
 
     f = theano.function([X],
                         [cost,
