@@ -99,12 +99,17 @@ def get_mean_square_norm_gradients_variance_method_00(D_by_layer, cost, accum = 
         backprop_output_square_norms = tensor.sqr(backprop_output).sum(axis=1)
 
         if D.has_key('weight'):
-            accum = accum + input_square_norms * backprop_output_square_norms
-            accum = accum + tensor.sqr(grad_weight).sum() # all the terms get this "middle" expression added to them
-            accum = accum - 2 * (backprop_output.dot(grad_weight.T) * input).mean(axis=1)
+            A = input_square_norms * backprop_output_square_norms
+            C = tensor.sqr(grad_weight).sum() # all the terms get this "middle" expression added to them
+            B = (backprop_output.dot(grad_weight.T) * input).sum(axis=1)
+
+            accum += (A - 2*B + C)
+
         if D.has_key('bias'):
-            pass
-            # TODO : Implement this.
+            # this last `sum` could be a component-wise `max` if we wanted
+            # to carry the maximum of the variances instead of the sum of squares
+            accum = accum + tensor.sqr(backprop_output - grad_bias.reshape((1,-1))).sum(axis=1)
+
 
     return accum
 
@@ -244,8 +249,8 @@ def run_experiment():
         ytrain[n, label] = 1.0
 
     # Option 2.
-    Xtrain = np.ones((N, 100)).astype(np.float32)
-    ytrain = np.ones((N, 10), dtype=np.float32)
+    #Xtrain = np.ones((N, 100)).astype(np.float32)
+    #ytrain = np.ones((N, 10), dtype=np.float32)
 
 
 
@@ -255,23 +260,27 @@ def run_experiment():
         assert N == ytrain.shape[0]
 
         # add the BIAS here   roles=[WEIGHT, BIAS]   when you want to include it again
-        fc = theano.function([X, y], [tensor.grad(cost, v) for v in VariableFilter(roles=[WEIGHT])(cg.variables)])
+        fc = theano.function([X, y], [tensor.grad(cost, v) for v in VariableFilter(roles=[WEIGHT, BIAS])(cg.variables)])
 
         L_minibatch_grads = fc(Xtrain, ytrain)
         LL_single_grads = []
         for n in range(N):
-            LL_single_grads.append(fc(np.tile(Xtrain[n,:].reshape((1,100)), (N,1)), np.tile(ytrain[n,:].reshape((1,10)), (N,1))))
+            LL_single_grads.append(fc(Xtrain[n,:].reshape((1,100)), ytrain[n,:].reshape((1,10))))
 
         individual_mean_square_norm_gradients_variance_method_02 = np.zeros((N,))
 
         for (n, L_single_grads) in enumerate(LL_single_grads):
+
+            #print "n : %d" % n
+            #print L_single_grads
 
             for (minibatch_grad, single_grad) in zip(L_minibatch_grads, L_single_grads):
                 #print single_grad.shape
                 #print minibatch_grad.shape
                 B = (single_grad - minibatch_grad)**2
                 #print B.shape
-                individual_mean_square_norm_gradients_variance_method_02[n] += B.mean()
+                #print B.sum()
+                individual_mean_square_norm_gradients_variance_method_02[n] += B.sum()
 
         return individual_mean_square_norm_gradients_variance_method_02
 
@@ -319,14 +328,14 @@ def run_experiment():
     print "Ratios (from scan) : "
     print np.array(L_gs1).reshape((1,-1)) / sc0.reshape((1,-1))
 
-    #print ""
-    #print ""
-    #print "var0"
-    #print var0
+    print ""
+    print ""
+    print "var0"
+    print var0
     #print "var1"
     #print var1
-    #print "grad_covariance(Xtrain, ytrain)"
-    #print grad_covariance(Xtrain, ytrain)
+    print "grad_covariance(Xtrain, ytrain)"
+    print grad_covariance(Xtrain, ytrain)
 
 
 if __name__ == "__main__":
