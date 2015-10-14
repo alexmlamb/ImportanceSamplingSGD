@@ -25,9 +25,26 @@ def get_sum_square_norm_gradients_conv_transformations(D_by_layer, cost, accum =
 
     for (layer_name, D) in D_by_layer.items():
 
-        sumc_A_square = tensor.sqr(D['input']).sum(axis=1, keepdims=True)
-        backprop_output = tensor.grad(cost, D['output'])
-        sumf_Bo_square = tensor.sqr(backprop_output).sum(axis=1, keepdims=True)
+        A = D['input']
+        B = tensor.grad(cost, D['output'])
+
+        #square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(input=A[n,:,np.newaxis,:,:], filters=B[n,:,np.newaxis,:,:]).sum(axis=0).sum(axis=0).norm(L=2)
+
+        # This is a `map`, but Pierre-Luc says to call `scan`.
+        # The iteration happens on the first dimension, so we need
+        # to slip in the extra axis all the time.
+        # After the convolution, we take norms over all the components left over (channels, filters, pixels)
+        # and this gives us our value for the gradient norm of input `n`, for n in range(N).
+        #
+        square_norm_grad_wrt_filters, _ = theano.scan(fn=lambda A, B: tensor.sqr(theano.tensor.nnet.conv.conv2d(input=A[:,np.newaxis,:,:], filters=B[:,np.newaxis,:,:]).norm(L=2)),
+                                                      sequences=[A,B])
+
+
+        #theano.scan(fn=lambda n, A, B: theano.tensor.nnet.conv.conv2d(input=A[n,:,np.newaxis,:,:], filters=B[n,:,np.newaxis,:,:]).sum(axis=0).sum(axis=0).norm(L=2),
+        #            sequences=theano.tensor.arange(N),
+        #            non_sequences=[A,B])
+
+
 
         # This is slightly wasteful because it introduces a value of N*N,
         # but it also avoids performing F*C separate convolutions by
@@ -36,7 +53,7 @@ def get_sum_square_norm_gradients_conv_transformations(D_by_layer, cost, accum =
         # The flatten-sum-diag thing is because we end up with an array E[1:N, 1:N, :, :]
         # and we want to sum out the image information in the last two dimensions,
         # and then extract the diagonal E[n,n,:,:].sum().
-        square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(3).sum(axis=2).diagonal()
+        #square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(3).sum(axis=2).diagonal()
 
         # Wrong.
         #square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(2).sum(axis=1)
@@ -75,7 +92,7 @@ def run_experiment():
 
     X = tensor.tensor4('features')
     nbr_channels = 3
-    image_shape = (12, 12)
+    image_shape = (10, 10)
 
     conv_layers = [ ConvolutionalLayer( filter_size=(2,2),
                                         num_filters=10,
@@ -103,23 +120,22 @@ def run_experiment():
     # works on the sum of the gradients in a mini-batch
     sum_square_norm_gradients_method_02 = sum([tensor.sqr(g).sum() for g in L_grads_method_02])
 
-    
 
     D_by_layer = get_conv_layers_transformation_roles(ComputationGraph(conv_output))
     individual_sum_square_norm_gradients_method_00 = get_sum_square_norm_gradients_conv_transformations(D_by_layer, cost)
 
 
 
-    N = 8
+    N = 1
     Xtrain = np.random.randn(N, nbr_channels, image_shape[0], image_shape[1]).astype(np.float32)
     #Xtrain[1:,:,:,:] = 0.0
-    Xtrain[:,1:,:,:] = 0.0
+    #Xtrain[:,:,:,:] = 1.0
 
-    #convolution_filter_variable = VariableFilter(roles=[FILTER])(ComputationGraph([y_hat]).variables)[0]
-    #convolution_filter_variable_value = convolution_filter_variable.get_value()
-    #convolution_filter_variable_value[:,:,:,:] = 0.0
+    convolution_filter_variable = VariableFilter(roles=[FILTER])(ComputationGraph([y_hat]).variables)[0]
+    convolution_filter_variable_value = convolution_filter_variable.get_value()
+    convolution_filter_variable_value[:,:,:,:] = 1.0
     #convolution_filter_variable_value[0,0,:,:] = 1.0
-    #convolution_filter_variable.set_value(convolution_filter_variable_value)
+    convolution_filter_variable.set_value(convolution_filter_variable_value)
 
     f = theano.function([X],
                         [cost,
