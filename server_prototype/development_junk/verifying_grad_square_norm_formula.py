@@ -17,7 +17,7 @@ from blocks.roles import INPUT, OUTPUT, WEIGHT, BIAS
 
 # Note : You'll probably have to work out through shapes and transpositions.
 
-def get_sum_square_norm_gradients(D_by_layer, cost, accum = 0):
+def get_square_norm_gradients(D_by_layer, cost, accum = 0):
 
     # This returns a theano variable that will be of shape (minibatch_size, ).
     # It will contain, for each training example, the associated square-norm of the total gradient.
@@ -43,12 +43,81 @@ def get_sum_square_norm_gradients(D_by_layer, cost, accum = 0):
             accum = accum + backprop_output_square_norms
             gradient_component_count += 1            
         else:
-            print "No contribution at all to get_sum_square_norm_gradients for layer %d." % layer_name
+            print "No contribution at all to get_square_norm_gradients for layer %d." % layer_name
 
-    print "There are %d gradient components found in get_sum_square_norm_gradients." % gradient_component_count
+    print "There are %d gradient components found in get_square_norm_gradients." % gradient_component_count
     return accum
 
 
+
+
+def get_mean_square_norm_gradients_variance_method_00(D_by_layer, cost, accum = 0):
+
+    # This returns a theano variable that will be of shape (minibatch_size, ).
+    # It will contain, for each training example, the associated mean of the
+    # variance wrt the gradient of that minibatch.
+
+    for (layer_name, D) in D_by_layer.items():
+
+        input = D['input']
+        input_square_norms = tensor.sqr(D['input']).sum(axis=1)
+        backprop_output = tensor.grad(cost, D['output'])
+        # I don't think that theano recomputes this.
+        # It should be just redundant nodes in the computational graph
+        # that end up being computed only once anyways.
+        grad_weight = tensor.grad(cost, D['weight'])
+        grad_bias = tensor.grad(cost, D['bias'])
+        backprop_output_square_norms = tensor.sqr(backprop_output).sum(axis=1)
+
+        if D.has_key('weight'):
+            accum = accum + input_square_norms * backprop_output_square_norms
+            accum = accum + tensor.sqr(grad_weight).sum() # all the terms get this "middle" expression added to them
+            accum = accum - 2 * (backprop_output.dot(grad_weight.T) * input).mean(axis=1)
+        if D.has_key('bias'):
+            pass
+            # TODO : Implement this.
+
+    return accum
+
+
+# Fuck this shit. Fuck scan. Doesn't work.
+def get_mean_square_norm_gradients_variance_method_01(D_by_layer, cost, accum = 0):
+
+    # This returns a theano variable that will be of shape (minibatch_size, ).
+    # It will contain, for each training example, the associated mean of the
+    # variance wrt the gradient of that minibatch.
+
+    for (layer_name, D) in D_by_layer.items():
+
+        input = D['input']
+        input_square_norms = tensor.sqr(D['input']).sum(axis=1)
+        backprop_output = tensor.grad(cost, D['output'])
+        # I don't think that theano recomputes this.
+        # It should be just redundant nodes in the computational graph
+        # that end up being computed only once anyways.
+        grad_weight = tensor.grad(cost, D['weight'])
+        grad_bias = tensor.grad(cost, D['bias'])
+        backprop_output_square_norms = tensor.sqr(backprop_output).sum(axis=1)
+
+        if D.has_key('weight'):
+
+            gW = grad_weight
+            A = input
+            B = backprop_output
+            #accum = accum + sum(theano.scan(fn=lambda A, B, W: tensor.sqr(tensor.outer(A,B) - gW).flatten(),
+            #                            sequences=[A,B], non_sequences=[gW])) / A.shape[0]
+            S, _ =  theano.scan(fn=lambda A, B, W: tensor.sqr(tensor.outer(A,B) - gW).flatten(),
+                                        sequences=[A,B], non_sequences=[gW])
+            accum = accum + S.mean(axis=1)
+            #for e in S:
+            #    accum = accum + e
+
+
+        if D.has_key('bias'):
+            pass
+            # TODO : Implement this.
+
+    return accum
 
 
 def get_linear_transformation_roles(mlp, cg):
@@ -113,7 +182,7 @@ def run_experiment():
     D_by_layer = get_linear_transformation_roles(mlp, cg)
 
     # returns a vector with one entry for each in the mini-batch
-    individual_sum_square_norm_gradients_method_00 = get_sum_square_norm_gradients(D_by_layer, cost)
+    individual_sum_square_norm_gradients_method_00 = get_square_norm_gradients(D_by_layer, cost)
 
     print "There are %d entries in cg.parameters." % len(cg.parameters)
     L_grads_method_01 = [tensor.grad(cost, p) for p in cg.parameters]
@@ -122,6 +191,12 @@ def run_experiment():
     # works on the sum of the gradients in a mini-batch
     sum_square_norm_gradients_method_01 = sum([tensor.sqr(g).sum() for g in L_grads_method_01])
     sum_square_norm_gradients_method_02 = sum([tensor.sqr(g).sum() for g in L_grads_method_02])
+
+
+    individual_mean_square_norm_gradients_variance_method_00 = get_mean_square_norm_gradients_variance_method_00(D_by_layer, cost)
+    individual_mean_square_norm_gradients_variance_method_01 = get_mean_square_norm_gradients_variance_method_01(D_by_layer, cost)
+
+
 
     N = 32
     Xtrain = np.random.randn(N, 100).astype(np.float32)
@@ -141,15 +216,17 @@ def run_experiment():
     f = theano.function([X,y],
                         [cost,
                             individual_sum_square_norm_gradients_method_00,
+                            individual_mean_square_norm_gradients_variance_method_00,
+                            individual_mean_square_norm_gradients_variance_method_01,
                             sum_square_norm_gradients_method_01,
                             sum_square_norm_gradients_method_02])
 
-    [c, v0, gs1, gs2] = f(Xtrain, ytrain)
+    [c, v0, var0, var1, gs1, gs2] = f(Xtrain, ytrain)
 
     #print "[c, v0, gs1, gs2]"
     L_c, L_v0, L_gs1, L_gs2 = ([], [], [], [])
     for n in range(N):
-        [nc, nv0, ngs1, ngs2] = f(np.tile(Xtrain[n,:].reshape((1,100)), (N,1)), np.tile(ytrain[n,:].reshape((1,10)), (N,1)))
+        [nc, nv0, _, _, ngs1, ngs2] = f(np.tile(Xtrain[n,:].reshape((1,100)), (N,1)), np.tile(ytrain[n,:].reshape((1,10)), (N,1)))
         L_c.append(nc)
         L_v0.append(nv0)
         L_gs1.append(ngs1)
@@ -170,6 +247,14 @@ def run_experiment():
     print ""
     print "Ratios : "
     print np.array(L_gs1).reshape((1,-1)) / v0.reshape((1,-1))
+    print ""
+    print ""
+    print "var0"
+    print var0
+    print "var1"
+    print var1
+
+
 
 if __name__ == "__main__":
     run_experiment()
