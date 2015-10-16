@@ -171,6 +171,70 @@ class LogisticRegression(object):
         else:
             raise NotImplementedError()
 
+#Return list containing [(train_x, train_y), (valid_x, valid_y), (test_x, test_y)]
+#Pick validation set randomly but with fixed seed.  
+def load_data_svhn():
+    import scipy.io as sio
+    train_file = "/u/lambalex/DeepLearning/train_32x32.mat"
+    extra_file = "/u/lambalex/DeepLearning/extra_32x32.mat"
+    test_file = "/u/lambalex/DeepLearning/test_32x32.mat"
+
+    train_object = sio.loadmat(train_file)
+    extra_object = sio.loadmat(extra_file)
+    test_object = sio.loadmat(test_file)
+
+    train_X = numpy.asarray(train_object["X"], dtype = 'float32')
+    extra_X = numpy.asarray(extra_object["X"], dtype = 'float32')
+    test_X = numpy.asarray(test_object["X"], dtype = 'float32')
+
+    train_Y = numpy.asarray(train_object["y"], dtype = 'int8')
+    extra_Y = numpy.asarray(extra_object["y"], dtype = 'int8')
+    test_Y = numpy.asarray(test_object["y"], dtype = 'int8')
+
+    train_Y -= 1
+    extra_Y -= 1
+    test_Y -= 1
+
+    print train_Y.min(), train_Y.max(), "min max labels"
+
+    train_X = numpy.swapaxes(train_X, 0,3)
+
+    extra_X = numpy.swapaxes(extra_X, 0,3)
+
+    test_X = numpy.swapaxes(test_X, 0,3)
+
+    train_X = numpy.vstack((train_X, extra_X))
+    train_Y = numpy.vstack((train_Y, extra_Y))
+
+    print train_X.shape, train_Y.shape
+    print test_X.shape, test_Y.shape
+
+    train_indices = numpy.random.choice(train_X.shape[0], train_X.shape[0] * 9 / 10, replace = False)
+    valid_indices = numpy.setdiff1d(range(0,train_X.shape[0]), train_indices)
+
+    valid_X = train_X[valid_indices]
+    valid_Y = train_Y[valid_indices]
+
+    train_X = train_X[train_indices[:]]
+    train_Y = train_Y[train_indices[:]]
+
+    #get mean and std for each filter and each pixel.  
+    x_mean = train_X.mean(axis = (0))
+    x_std = train_X.std(axis = (0))
+
+    train_X = (train_X - x_mean) / x_std
+    valid_X = (valid_X - x_mean) / x_std
+    test_X = (test_X - x_mean) / x_std
+
+    train_X = numpy.reshape(train_X, (train_X.shape[0],train_X.shape[1] * train_X.shape[2] * train_X.shape[3]))
+    valid_X = numpy.reshape(valid_X, (valid_X.shape[0],valid_X.shape[1] * valid_X.shape[2] * valid_X.shape[3]))
+    test_X = numpy.reshape(test_X, (test_X.shape[0],test_X.shape[1] * test_X.shape[2] * test_X.shape[3]))
+
+    print train_Y.shape, valid_Y.shape, test_Y.shape
+
+    print "data normalized"
+
+    return [(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
 
 def load_data(dataset, upsample_zero):
     ''' Loads the dataset
@@ -264,6 +328,8 @@ def load_data(dataset, upsample_zero):
 
         train_set = (new_x, new_y)
 
+    print "xs", numpy.asarray(train_set[0]).shape
+    print "ys", numpy.asarray(train_set[1]).shape
 
     test_set_x, test_set_y = test_set
     valid_set_x, valid_set_y = valid_set
@@ -492,5 +558,8 @@ def predict():
     print predicted_values
 
 
-if __name__ == '__main__':
-    sgd_optimization_mnist()
+
+if __name__ == "__main__":
+    load_data_svhn()
+
+    load_data("data/mnist.pkl.gz", False)
