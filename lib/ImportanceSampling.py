@@ -3,27 +3,37 @@ import random
 
 
 def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
-    freshness_threshold = 50
+    #freshness_threshold = 1
+
+    freshness_threshold = 1
+
+    epsilon = 0.0
+
+
     cMap = {}
     for key in cMap_unsmoothed:
-        cMap[key] = (cMap_unsmoothed[key] + 0.01)
+        cMap[key] = (cMap_unsmoothed[key] + epsilon)
     weightMap = {}
     usedKeys = []
     costLst = []
     sumCost = 0.0
+    sumCost_unsmoothed = 0.0
     for key in cMap:
         if abs(mbIndex - fMap[key]) <= freshness_threshold:
+            sumCost_unsmoothed += cMap_unsmoothed[key]
             sumCost += cMap[key]
             usedKeys += [key]
             costLst += [cMap[key]]
     for key in cMap:
         if abs(mbIndex - fMap[key]) <= freshness_threshold:
             weightMap[key] = cMap[key] * 1.0 / sumCost
-    avgCost = sumCost / len(weightMap)
+
+
+    avgCost = sumCost_unsmoothed / len(weightMap)
     medianCost = sorted(costLst)[len(costLst) / 2]
     weightLst = []
     for key in sorted(weightMap.keys()):
-        weightLst += [weightMap[key]]            
+        weightLst += [weightMap[key]]
 
 
     selectedIndicesRaw = numpy.random.choice(len(weightMap),batch_size,p=weightLst, replace = False).tolist()
@@ -32,12 +42,13 @@ def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
     newIndexLst = []
     impWeightLst = []
 
-    print "average cost", avgCost
+    if random.uniform(0,1) < 0.001:
+        print "Top gradients", "\t", sorted(cMap.items(), key=(lambda x: x[1]))[-100:]
 
     sumSelected = 0.0
     for index in selectedIndices:
         newIndexLst += [cmKeys[index]]
-        impWeightLst += [avgCost * 1.0 / cMap[cmKeys[index]]]
+        impWeightLst += [1.0]#[avgCost * 1.0 / cMap[cmKeys[index]]]
         sumSelected += cMap[cmKeys[index]]
 
     return newIndexLst, impWeightLst
