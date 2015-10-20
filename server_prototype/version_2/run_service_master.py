@@ -11,11 +11,8 @@ import getopt
 
 SIMULATED_BATCH_UPDATE_TIME = 1.0
 
-# (batch_name, weight, total_weights)
-# with batch_name being of the form
-#     "batch:%0.9d-%0.9d_%s" % (lower_index, upper_index, batch_desc_suffix)
 
-prog_batch_name_triplet = re.compile(r"\((batch:(\d+)-(\d+)_(.*?)),\s([\-\d\.]+),\s([\-\d\.]+)\)")
+from common import get_rsconn_with_timeout
 
 def decode_batch_name_triplet(batch_name_triplet):
 
@@ -48,24 +45,11 @@ class MockModel(object):
 
 def run(server_ip, server_port, server_password):
 
-    assert server_ip
-    assert server_port
-    assert server_password
+    rsconn = get_rsconn_with_timeout(server_ip, server_port, server_password, timeout=60)
 
-    timeout = 60
 
-    initial_conn_timestamp = time.time()
-    while time.time() - initial_conn_timestamp < timeout:
-    
-        try:
-            rsconn = redis.StrictRedis(host=server_ip, port=server_port, password=server_password)
-            print "Service Master connected to local server."
-            break
-        except:
-            time.sleep(5)
-            print "Service Master failed to connect to local server. Will retry in 5s."
 
-    print "Pinging local server : %s" % (rsconn.ping(),)
+
 
 
     model = MockModel()
@@ -79,7 +63,7 @@ def run(server_ip, server_port, server_password):
     # (2) Get samples representing training examples
     #     on which you perform training steps, taking into
     #     consideration all the things about the importance weights.
-    #   
+    #
     # Ultimately, the parameters must be shared, but it is
     # wasteful to do it at every training step. We have to find
     # the right balance.
@@ -97,7 +81,7 @@ def run(server_ip, server_port, server_password):
     while True:
 
         # Task (1)
-    
+
         current_parameters_str = model.get_parameters().tostring(order='C')
         rsconn.set("parameters:current", current_parameters_str)
         rsconn.set("parameters:current_timestamp", time.time())
@@ -176,7 +160,7 @@ def main(argv):
             server_password = a
         else:
             assert False, "unhandled option"
- 
+
 
     run(server_ip, server_port, server_password)
 

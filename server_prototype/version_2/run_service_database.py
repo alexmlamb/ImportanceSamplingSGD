@@ -29,6 +29,8 @@ def configure(  rsconn,
     # `want_exclude_partial_minibatch` indicates if we want to forget about the data that doesn't fit in a complete minibatch.
 
 
+    rsconn.delete("initialization_is_done")
+
 
     # "parameters:current" will contain a numpy float32 array
     # represented efficiently as a string (max 128MB, potential scaling problems)
@@ -40,13 +42,18 @@ def configure(  rsconn,
     # This could have been the argument to this function,
     # but we don't have to decide on this right now.
     L_dataset_desc = []
+    L_segments = []
+
     assert 0 < Ntrain
     if Ntrain != 0:
         L_dataset_desc.append({'segment' : "train", 'N' : Ntrain})
+        L_segments.append("train")
     if Nvalid != 0:
         L_dataset_desc.append({'segment' : "valid", 'N' : Nvalid})
+        L_segments.append("valid")
     if Ntest != 0:
         L_dataset_desc.append({'segment' : "test", 'N' : Ntest})
+        L_segments.append("test")
 
 
     for dataset_desc in L_dataset_desc:
@@ -65,7 +72,7 @@ def configure(  rsconn,
 
             # The data points corresponding to `upper_index` are NOT to be included.
             upper_index = np.min([lower_index + workers_minibatch_size, Ntrain])
-            
+
             if want_exclude_partial_minibatch and (upper_index - lower_index < workers_minibatch_size):
                 continue
 
@@ -99,10 +106,15 @@ def configure(  rsconn,
     rsconn.delete("config:L_measurements")
     for measurement in L_measurements:
         rsconn.rpush("config:L_measurements", measurement)
+    rsconn.delete("config:L_segments")
+    for segment in L_segments:
+        rsconn.rpush("config:L_segments", segment)
     rsconn.set("config:workers_minibatch_size", workers_minibatch_size)
     rsconn.set("config:master_minibatch_size", master_minibatch_size)
-    rsconn.set("config:want_only_indices_for_master", want_only_indices_for_master)   
+    rsconn.set("config:want_only_indices_for_master", want_only_indices_for_master)
     rsconn.set("config:want_exclude_partial_minibatch", want_exclude_partial_minibatch)
+
+    rsconn.set("initialization_is_done", True)
 
 
 
@@ -119,7 +131,7 @@ def run(server_scratch_path, server_port, server_password,
 
     # password can be None.
     # Consider maybe generating one at random, shared with workers later.
-    
+
     assert workers_minibatch_size is not None and 0 < workers_minibatch_size
     assert master_minibatch_size is not None and 0 < master_minibatch_size
     assert dataset_name is not None
@@ -141,7 +153,7 @@ def run(server_scratch_path, server_port, server_password,
     # Hardcode those two measurements for now.
     # Moreover, we're using the gradient_square_norm as importance_weight
     # so it's going to be the same value.
-    L_measurements = ["importance_weight", "gradient_square_norm"]
+    L_measurements = ["importance_weight", "gradient_square_norm", "loss"]
 
     configure(  rsconn,
                 workers_minibatch_size=workers_minibatch_size, master_minibatch_size=master_minibatch_size,
@@ -216,7 +228,7 @@ def main(argv):
             Ntest = int(a)
         else:
             assert False, "unhandled option"
- 
+
     # The validity of the arguments is verified in the `run` function.
     run(server_scratch_path, server_port, server_password,
         workers_minibatch_size, master_minibatch_size,

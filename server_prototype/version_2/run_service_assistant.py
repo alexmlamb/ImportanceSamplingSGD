@@ -8,36 +8,6 @@ import copy
 import sys, os
 import getopt
 
-# Note : There is something a bit unsatisfying about the way that
-#        we're encoding the "grad_norm2" inside the `batch_name`.
-#        This is a little less flexible than ideal, but we'll see
-#        later if we want to make just a small adjustment and
-#        carry around the suffix to add it manually every time.
-
-
-
-def sample_batch_name_triplets(batch_L_names_all, L_weights, total_weights, nbr_indices_sampled):
-
-    # TODO : Implement this for real.
-    #        Right now we're just returning a valid value,
-    #        but we're absolutely not sampling correctly.
-
-    A_weights = np.array(L_weights)
-
-    accum = []
-    for _ in range(nbr_indices_sampled):
-        i = np.random.randint(low=0, high=len(batch_L_names_all))
-        accum.append((batch_L_names_all[i], A_weights[i], total_weights))
-
-    return accum
-
-
-def encode_batch_name_triplets(batch_name, weight, total_weights):
-    return "(%s, %f, %f)" % (batch_name, weight, total_weights)
-
-
-
-
 def run(server_ip, server_port, server_password):
 
     assert server_ip
@@ -48,7 +18,7 @@ def run(server_ip, server_port, server_password):
 
     initial_conn_timestamp = time.time()
     while time.time() - initial_conn_timestamp < timeout:
-    
+
         try:
             rsconn = redis.StrictRedis(host=server_ip, port=server_port, password=server_password)
             print "Service Assistant connected to local server."
@@ -63,7 +33,7 @@ def run(server_ip, server_port, server_password):
     success = False
     initial_config_timestamp = time.time()
     while time.time() - initial_config_timestamp < timeout:
-    
+
         parameters_current_timestamp = rsconn.get("parameters:current_timestamp")
         if len(parameters_current_timestamp) == 0:
             print "Database is not configured yet. Waiting for 5 seconds before retrying."
@@ -228,7 +198,7 @@ def main(argv):
             server_password = a
         else:
             assert False, "unhandled option"
- 
+
 
     run(server_ip, server_port, server_password)
 
