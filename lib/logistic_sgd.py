@@ -215,8 +215,8 @@ def load_data_svhn():
     valid_X = train_X[valid_indices]
     valid_Y = train_Y[valid_indices]
 
-    train_X = train_X[train_indices[:]]
-    train_Y = train_Y[train_indices[:]]
+    train_X = train_X[train_indices]
+    train_Y = train_Y[train_indices]
 
     #get mean and std for each filter and each pixel.  
     x_mean = train_X.mean(axis = (0))

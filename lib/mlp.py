@@ -324,6 +324,14 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
 
         gparams += [grad_param]
 
+    gparams_mom = []
+
+    for param in classifier.params:
+
+        gparam_mom = theano.shared(numpy.zeros(param.get_value(borrow=True).shape, dtype = 'float32'))
+
+        gparams_mom += [gparam_mom]
+
     #Function that computes gradient norm
 
     def compute_gradient_norm(loss, layerLst):
@@ -349,9 +357,18 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
     # element is a pair formed from the two lists :
     #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
     updates = [
-        (param, param - learning_rate * gparam)
-        for param, gparam in zip(classifier.params, gparams)
+        (param, T.cast(param - learning_rate * gparam_mom, theano.config.floatX))
+        for param, gparam_mom in zip(classifier.params, gparams_mom)
     ]
+
+    momentum_rate = 0.0
+    print "running with momentum rate", momentum_rate
+
+    for i in range(0, len(gparams_mom)):
+        gparam_mom = gparams_mom[i]
+        gparam = gparams[i]
+        new_gparam_mom = gparam_mom * theano.shared(numpy.asarray(momentum_rate, dtype = 'float32')) + theano.shared(numpy.asarray(1.0 - momentum_rate, dtype = 'float32')) * gparam
+        updates += [(gparam_mom, T.cast(new_gparam_mom, theano.config.floatX))]
 
     # compiling a Theano function `train_model` that returns the cost, but
     # in the same time updates the parameter of the model based on the rules
@@ -424,7 +441,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
         freshnessMap[k] = -1
         gradientMap[k] = 1.0
 
-    compute_gradient_all = False
+    compute_gradient_all = True
     compute_cost_all = False
 
     print "Number training examples", len(train_set_x)
@@ -447,17 +464,20 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
 
         t1 = time.time()
 
-        cost_mb_size = 1000
-        grad_mb_size = 1000
+        cost_mb_size = 2000
+        grad_mb_size = 2000
 
 
         x_mb_grad = []
         y_mb_grad = []
         g_indices = []
 
+        imp_indices = range(0, len(train_set_x))
+        random.shuffle(imp_indices)
 
+        #Taking 20000
         #Compute cost over all instances.  
-        for i in range(0, len(train_set_x)):
+        for i in imp_indices[:20000]:
 
             if not compute_cost_all and not compute_gradient_all:
                 break
@@ -489,10 +509,10 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
                 if compute_gradient_all:
                     gradient_lst = get_gradient(numpy.asarray(x_mb_grad, dtype = 'float32'), numpy.asarray(y_mb_grad, dtype = 'int32'))
 
-                    #print "gradient lst", gradient_lst[0].shape
 
                     for j in range(0, grad_mb_size): 
                         gradientMap[g_indices[j]] = gradient_lst[0][j].tolist()
+                        freshnessMap[g_indices[j]] = minibatch_index
 
                 g_indices = []
                 x_mb_grad = []
@@ -512,20 +532,17 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
         #print "Variance cost", numpy.asarray(costMap.values()).var()
         #print "max cost", max(costMap.values())
 
-        #indexLst = indexLst[:batch_size]
 
         #Sample from indices where mbIndex - fMap[index] < k.  
 
 
-        
+        #indexLst,importanceWeights = sampleInstances(indexLst, gradientMap, batch_size, freshnessMap, minibatch_index)
 
-        #indexLst,importanceWeights = sampleInstances(indexLst, gradientMap, batch_size)
+        indexLst,importanceWeights = indexLst[:batch_size], [1.0] * batch_size
 
-        #indexLst,importanceWeights = indexLst[:batch_size], [1.0] * batch_size
-
-        indexLstImp, importanceWeightsFirstHalf = sampleInstances(indexLst, gradientMap, batch_size / 4, freshnessMap, minibatch_index)
-        indexLst = indexLst[:batch_size * 3 / 4] + indexLstImp
-        importanceWeights = [1.0] * (batch_size * 3 / 4) + importanceWeightsFirstHalf
+        #indexLstImp, importanceWeightsFirstHalf = sampleInstances(indexLst, gradientMap, batch_size / 4, freshnessMap, minibatch_index)
+        #indexLst = indexLst[:batch_size * 3 / 4] + indexLstImp
+        #importanceWeights = [1.0] * (batch_size * 3 / 4) + importanceWeightsFirstHalf
 
         assert len(importanceWeights) == 128
 
@@ -558,9 +575,10 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
 
                 #Update gradientMap
 
+
                 for k in range(0, len(mb_indices)):
-                    freshnessMap[mb_indices[k]] = minibatch_index
-                    gradientMap[mb_indices[k]] = gradient_norm_lst[k]
+                    #freshnessMap[mb_indices[k]] = minibatch_index
+                    #gradientMap[mb_indices[k]] = gradient_norm_lst[k]
                     trainCostMap[mb_indices[k]] = minibatch_avg_cost
 
                 if doValidate:
