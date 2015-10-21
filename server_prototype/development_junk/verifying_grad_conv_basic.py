@@ -36,34 +36,19 @@ def get_sum_square_norm_gradients_conv_transformations(D_by_layer, cost, accum =
         # After the convolution, we take norms over all the components left over (channels, filters, pixels)
         # and this gives us our value for the gradient norm of input `n`, for n in range(N).
         #
-        square_norm_grad_wrt_filters, _ = theano.scan(fn=lambda A, B: tensor.sqr(theano.tensor.nnet.conv.conv2d(input=A[:,np.newaxis,:,:], filters=B[:,np.newaxis,:,:]).norm(L=2)),
-                                                      sequences=[A,B])
 
+        if D.has_key('weight'):
+            #square_norm_grad_wrt_filters, _ = theano.scan(fn=lambda A, B: tensor.sqr(theano.tensor.nnet.conv.conv2d(input=A[:,np.newaxis,:,:], filters=B[:,np.newaxis,:,:]).sum()),
+            #                                              sequences=[A,B])
+            #accum += square_norm_grad_wrt_filters
+            pass
 
-        #theano.scan(fn=lambda n, A, B: theano.tensor.nnet.conv.conv2d(input=A[n,:,np.newaxis,:,:], filters=B[n,:,np.newaxis,:,:]).sum(axis=0).sum(axis=0).norm(L=2),
-        #            sequences=theano.tensor.arange(N),
-        #            non_sequences=[A,B])
+        if D.has_key('bias'):
 
+            # same contribution to every element based on the backpropagated signal only
+            accum += tensor.sqr(B).sum()
+            #pass
 
-
-        # This is slightly wasteful because it introduces a value of N*N,
-        # but it also avoids performing F*C separate convolutions by
-        # using the amazing property that they can be summed as squares beforehand.
-        #
-        # The flatten-sum-diag thing is because we end up with an array E[1:N, 1:N, :, :]
-        # and we want to sum out the image information in the last two dimensions,
-        # and then extract the diagonal E[n,n,:,:].sum().
-        #square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(3).sum(axis=2).diagonal()
-
-        # Wrong.
-        #square_norm_grad_wrt_filters = theano.tensor.nnet.conv.conv2d(sumc_A_square, sumf_Bo_square).flatten(2).sum(axis=1)
-
-        assert D.has_key('weight')
-
-        gradient_component_count += 1
-        accum += square_norm_grad_wrt_filters
-
-    print "There are %d gradient components found in get_sum_square_norm_gradients." % gradient_component_count
     return accum
 
 
@@ -92,7 +77,7 @@ def run_experiment():
 
     X = tensor.tensor4('features')
     nbr_channels = 3
-    image_shape = (10, 10)
+    image_shape = (5, 5)
 
     conv_layers = [ ConvolutionalLayer( filter_size=(2,2),
                                         num_filters=10,
@@ -100,7 +85,8 @@ def run_experiment():
                                         border_mode='valid',
                                         pooling_size=(1,1),
                                         weights_init=Uniform(width=0.1),
-                                        biases_init=Uniform(width=0.01),
+                                        #biases_init=Uniform(width=0.01),
+                                        biases_init=Constant(0.0),
                                         name='conv0')]
     conv_sequence = ConvolutionalSequence(  conv_layers,
                                             num_channels=nbr_channels,
@@ -115,8 +101,8 @@ def run_experiment():
     cost = tensor.sqr(y_hat).sum()
 
 
-
-    L_grads_method_02 = [tensor.grad(cost, v) for v in VariableFilter(roles=[FILTER])(ComputationGraph([y_hat]).variables)]
+    #L_grads_method_02 = [tensor.grad(cost, v) for v in VariableFilter(roles=[FILTER, BIAS])(ComputationGraph([y_hat]).variables)]
+    L_grads_method_02 = [tensor.grad(cost, v) for v in VariableFilter(roles=[BIAS])(ComputationGraph([y_hat]).variables)]
     # works on the sum of the gradients in a mini-batch
     sum_square_norm_gradients_method_02 = sum([tensor.sqr(g).sum() for g in L_grads_method_02])
 
@@ -125,11 +111,13 @@ def run_experiment():
     individual_sum_square_norm_gradients_method_00 = get_sum_square_norm_gradients_conv_transformations(D_by_layer, cost)
 
 
+    # why does this thing depend on N again ?
+    # I don't think I've used a cost that divides by N.
 
-    N = 1
+    N = 2
     Xtrain = np.random.randn(N, nbr_channels, image_shape[0], image_shape[1]).astype(np.float32)
     #Xtrain[1:,:,:,:] = 0.0
-    #Xtrain[:,:,:,:] = 1.0
+    Xtrain[:,:,:,:] = 1.0
 
     convolution_filter_variable = VariableFilter(roles=[FILTER])(ComputationGraph([y_hat]).variables)[0]
     convolution_filter_variable_value = convolution_filter_variable.get_value()
@@ -148,7 +136,7 @@ def run_experiment():
     #print "[c, v0, gs2]"
     L_c, L_v0, L_gs2 = ([], [], [])
     for n in range(N):
-        [nc, nv0, ngs2] = f(Xtrain[n,:].reshape((1,Xtrain.shape[1],Xtrain.shape[2], Xtrain.shape[3])))
+        [nc, nv0, ngs2] = f(Xtrain[n,:, :, :].reshape((1, Xtrain.shape[1], Xtrain.shape[2], Xtrain.shape[3])))
         L_c.append(nc)
         L_v0.append(nv0)
         L_gs2.append(ngs2)
