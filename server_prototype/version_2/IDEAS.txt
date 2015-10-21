@@ -1,0 +1,8 @@
+
+Track the distributions of the delays between updates to importance_weight.
+This could be a better way to characterize the training than to look at the
+number of workers, since we don't really care about the number of workers
+so long as they do their job as fast as possible.
+
+Track also the distribution of delays between parameter updates. See how long
+workers operate with stale parameters on average. Another important measure.

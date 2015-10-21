@@ -6,14 +6,14 @@ class ModelAPI():
     def __init__(self):
         self.serialized_parameters_shape = (100,)
 
-    get_serialized_parameters(self):
+    def get_serialized_parameters(self):
         return np.random.rand(*self.serialized_parameters_shape).astype(np.float32)
 
-    set_serialized_parameters(self, serialized_parameters):
+    def set_serialized_parameters(self, serialized_parameters):
         assert type(serialized_parameters) == np.array
         assert serialized_parameters.dtype == np.float32
 
-    worker_process_minibatch(self, A_indices, segment, L_measurements):
+    def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]
 
         # This assumes that the worker knows how to get the data,
@@ -35,7 +35,7 @@ class ModelAPI():
         return res
 
 
-    master_process_minibatch(self, A_indices, segment):
+    def master_process_minibatch(self, A_indices, segment):
         assert segment in ["train"]
 
         # Returns nothing. The master should have used this call to

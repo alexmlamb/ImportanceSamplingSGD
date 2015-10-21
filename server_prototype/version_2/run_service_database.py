@@ -64,7 +64,6 @@ def configure(  rsconn,
         rsconn.delete("L_workers_%s_minibatch_indices_QUEUE" % segment)
         rsconn.delete("L_workers_%s_minibatch_indices_ALL" % segment)
 
-        L_batch_name = []
         for lower_index in range(0, N+1, workers_minibatch_size):
 
             if N <= lower_index:
