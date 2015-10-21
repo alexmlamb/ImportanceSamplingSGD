@@ -43,6 +43,11 @@ config = {}
 #config["dataset"] = "mnist"
 config["dataset"] = "svhn"
 
+#config["algo"] = "sgd"
+config["algo"] = "isgd"
+
+print "algorithm", config["algo"]
+
 if config["dataset"] == "svhn":
     input_size = 32 * 32 * 3
 elif config["dataset"] == "mnist":
@@ -377,7 +382,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
     t2 = time.time()
     train_model = theano.function(
         inputs=[x, y, learning_rate, imp_weights],
-        outputs=[T.mean(classifier.negative_log_likelihood(y)), compute_gradient_norm(T.sum(classifier.negative_log_likelihood(y)), classifier.layers)],
+        outputs=[T.mean(classifier.negative_log_likelihood(y)), compute_gradient_norm(T.sum(classifier.negative_log_likelihood(y)), classifier.layers), classifier.errors(y)],
         updates=updates,
         allow_input_downcast = True
     )
@@ -411,6 +416,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
     trainErrorRate = 0.0
     averageTrainCost = 0.0
     trainCostMap = {}
+    trainErrorMap = {}
 
     logFile = open('logs/mnist_isgd_saved.txt', 'w')
     doValidate = False
@@ -477,7 +483,13 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
 
         #Taking 20000
         #Compute cost over all instances.  
-        for i in imp_indices[:20000]:
+
+        if config["algo"] == "isgd": 
+            grad_consider = 100000
+        if config["algo"] == "sgd":
+            grad_consider = 10
+
+        for i in imp_indices[:grad_consider]:
 
             if not compute_cost_all and not compute_gradient_all:
                 break
@@ -536,14 +548,12 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
         #Sample from indices where mbIndex - fMap[index] < k.  
 
 
-        #indexLst,importanceWeights = sampleInstances(indexLst, gradientMap, batch_size, freshnessMap, minibatch_index)
+        if config["algo"] == "isgd":
+            indexLst,importanceWeights = sampleInstances(indexLst, gradientMap, batch_size, freshnessMap, minibatch_index)
 
-        indexLst,importanceWeights = indexLst[:batch_size], [1.0] * batch_size
-
-        #indexLstImp, importanceWeightsFirstHalf = sampleInstances(indexLst, gradientMap, batch_size / 4, freshnessMap, minibatch_index)
-        #indexLst = indexLst[:batch_size * 3 / 4] + indexLstImp
-        #importanceWeights = [1.0] * (batch_size * 3 / 4) + importanceWeightsFirstHalf
-
+        if config["algo"] == "sgd": 
+            indexLst,importanceWeights = indexLst[:batch_size], [1.0] * batch_size
+        
         assert len(importanceWeights) == 128
 
         #if random.uniform(0,1) < 0.1:
@@ -571,7 +581,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
                 
                 train_model_outputs = train_model(numpy.asarray(x_mb_train, dtype = 'float32'), numpy.asarray(y_mb_train, dtype = 'int32'), numpy.asarray(base_learning_rate, dtype = 'float32'),numpy.asarray(importanceWeights, dtype = 'float32'))
 
-                minibatch_avg_cost, gradient_norm_lst = train_model_outputs
+                minibatch_avg_cost, gradient_norm_lst, minibatch_errors = train_model_outputs
 
                 #Update gradientMap
 
@@ -580,6 +590,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
                     #freshnessMap[mb_indices[k]] = minibatch_index
                     #gradientMap[mb_indices[k]] = gradient_norm_lst[k]
                     trainCostMap[mb_indices[k]] = minibatch_avg_cost
+                    trainErrorMap[mb_indices[k]] = minibatch_errors
 
                 if doValidate:
                     print "Gradient Norm", gradient_norm_lst.sum()
@@ -613,7 +624,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
                     print "time", time.time() - t0
                     t0 = time.time()
 
-                    trainErrorRate = 0.0
+                    trainErrorRate = sum(trainErrorMap.values()) / len(trainErrorMap)
 
                     averageTrainCost = sum(trainCostMap.values()) / len(trainCostMap)
 
