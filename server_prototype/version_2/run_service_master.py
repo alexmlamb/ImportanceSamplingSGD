@@ -9,56 +9,105 @@ import sys, os
 import getopt
 
 
-SIMULATED_BATCH_UPDATE_TIME = 1.0
+from mocked_model import ModelAPI
 
-
-from common import get_rsconn_with_timeout
-
-def decode_batch_name_triplet(batch_name_triplet):
-
-    m = prog_batch_name_triplet.match(batch_name_triplet)
-
-    if m:
-        batch_name = m.group(1)
-        lower_index = int(m.group(2))
-        upper_index = int(m.group(3))
-        suffix = m.group(4)
-        weight = np.float64(m.group(5))
-        total_weights = np.float64(m.group(6))
-    else:
-        print "Failed to decode the batch_name_triplet : %s." % batch_name_triplet
-        print "This should never happen, and you have a bug somewhere."
-        quit()
-
-    return (batch_name, lower_index, upper_index, suffix, weight, total_weights)
+from common import get_rsconn_with_timeout, read_config
 
 
 
-class MockModel(object):
-    def get_parameters(self):
-        return np.random.rand(4,5).astype(np.float32)
-    #def set_parameters(self, parameters):
-    #    pass
-    def train(self, batch_name, lower_index, upper_index, suffix, weight, total_weights):
-        print "Model was called to train on %s." % batch_name
+def get_importance_weights(rsconn):
+
+    # Helper function for `sample_indices_and_scaling_factors`.
+
+    segment = "train"
+    measurement = "importance_weight"
+
+    L_indices = []
+    L_importance_weights = []
+    for (key, value) in rsconn.hgetall("H_%s_minibatch_%s" % (segment, measurement)):
+        A_some_indices = np.fromstring(key, dtype=np.int32)
+        A_some_importance_weights = np.fromstring(value, dtype=np.int32)
+        assert A_some_indices.shape == A_some_importance_weights.shape
+        L_indices.append(A_some_indices)
+        L_importance_weights.append(A_some_importance_weights)
+
+    A_unsorted_indices = np.hcat(L_indices)
+    A_unsorted_importance_weights = np.hcat(L_importance_weights)
+    assert A_unsorted_indices.shape == A_unsorted_importance_weights.shape
+
+    N = A_unsorted_indices.max()
+    nbr_of_present_importance_weights = A_unsorted_indices.shape[0]
+    A_importance_weights = np.zeros((N,), dtype=np.float32)
+    A_importance_weights[A_unsorted_indices] = A_unsorted_importance_weights
+    #return (A_indices, A_importance_weights)
+    return A_importance_weights, nbr_of_present_importance_weights
+
+def sample_indices_and_scaling_factors(rsconn, nbr_samples):
+    # Note that these are sampled with repetitions, which
+    # is what we want but which also goes against the traditional
+    # traversal of the training set through a minibatch iteration scheme.
+
+    # Note : If you plan on changing anything in this function,
+    #        then you will need to update the documentation at the
+    #        botton of this document.
+
+    A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
+    # You can get complaints from np.random.multinomial if you are in float32
+    # because rounding errors can bring your sum() to a little above 1.0.
+    A_importance_weights = A_importance_weights.astype(np.float64)
+    p = A_importance_weights / A_importance_weights.sum()
+
+    A_sampled_indices_counts = np.random.multinomial(nbr_samples, p)
+    # Find out where the non-zero values are.
+    I = np.where(0 < A_sampled_indices_counts)[0]
+    # For each such non-zero value, we need to repeat that index
+    # a corresponding number of times (and then concatenate everything).
+    A_sampled_indices = np.array(reduce(lambda x,y : x + y, [[i] * A_sampled_indices_counts[i] for i in I]))
+
+    A_unnormalized_scaling_factors = np.array([np.float64(1.0)/A_importance_weights[i] for i in A_sampled_indices])
+
+    # You could argue that we want to divide this by `nbr_samples`,
+    # but it depends on how you negociate the role of the minibatch size
+    # in the loss function.
+    #
+    # Since the scaling factors will end up being used in training and each
+    # attributed to one point from the minibatch, then we probably don't want
+    # to include `nbr_samples` in any way.
+    #
+    # Basically, if we had uniform importance weights, here we would be
+    # multiplying by Ntrain and dividing by Ntrain. We are doing the equivalent
+    # of that for importance sampling.
+    #
+    # Another thing worth noting is that we could basically return
+    #     A_importance_weights.mean() / A_importance_weights
+    # but then we would not be taking into consideration the situation in which
+    # only some of the importance weights were specified and many were missing.
+    # Maybe this is not necessary, though.
+    Z = ( nbr_of_present_importance_weights / A_importance_weights.sum())
+    A_scaling_factors = (A_unnormalized_scaling_factors / Z).astype(np.float64)
+
+    return A_sampled_indices, A_scaling_factors
 
 
 def run(server_ip, server_port, server_password):
 
-    rsconn = get_rsconn_with_timeout(server_ip, server_port, server_password, timeout=60)
+    rsconn = get_rsconn_with_timeout(server_ip, server_port, server_password,
+                                     timeout=60, wait_for_parameters_to_be_present=False)
+    config = read_config(rsconn)
+    L_measurements = config['L_measurements']
+    want_only_indices_for_master = config['want_only_indices_for_master']
+    model_api = ModelAPI()
 
+    if not want_only_indices_for_master:
+        print "Error. At the current time we support only the of feeding data to the master through indices (instead of actual data)."
+        quit()
 
-
-
-
-
-    model = MockModel()
 
     # The master splits its time between two tasks.
     #
     # (1) Publish the parameters back to the server,
     #     which triggers a cascade of re-evaluation of
-    #     importance weights for every batch on the workers.
+    #     importance weights for every minibatch on the workers.
     #
     # (2) Get samples representing training examples
     #     on which you perform training steps, taking into
@@ -78,11 +127,18 @@ def run(server_ip, server_port, server_password):
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 
+    # Pop values from the left, because the assistant
+    # is pushing fresh values to the right.
+    # TODO : Ponder whether we should nevertheless pop and push
+    #        from the same side, and the assistant would remove outdated
+    #        values from the other side. This is about tradeoffs.
+    queue_name = "L_master_train_minibatch_indices_and_info_QUEUE"
+
     while True:
 
         # Task (1)
 
-        current_parameters_str = model.get_parameters().tostring(order='C')
+        current_parameters_str = model_api.get_serialized_parameters().tostring(order='C')
         rsconn.set("parameters:current", current_parameters_str)
         rsconn.set("parameters:current_timestamp", time.time())
         # potentially not used
@@ -93,6 +149,8 @@ def run(server_ip, server_port, server_password):
         # Task (2)
 
         for _ in range(nbr_batch_processed_per_public_parameter_update):
+
+            # Version 2 : You are now at this point.
 
             batch_name_triplet = rsconn.lpop("importance_samples:L_(batch_name, weight, total_weights)")
             nbr_batch_name_triplet_remaining = rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)") # for debugging, potentially oudated value
@@ -172,4 +230,41 @@ if __name__ == "__main__":
 """
     python run_service_master.py --server_port=5982 --server_password="patate"
 
+"""
+
+
+
+
+# Extra debugging information for `sample_indices_and_scaling_factors`
+# as it was first successfully written. This is documentation.
+"""
+nbr_samples = 10
+A_importance_weights = np.array([0, 0, 5, 10, 0], np.float64)
+nbr_of_present_importance_weights = 5
+
+A_importance_weights = A_importance_weights.astype(np.float64)
+p = A_importance_weights / A_importance_weights.sum()
+A_sampled_indices_counts = np.random.multinomial(nbr_samples, p)
+I = np.where(0 < A_sampled_indices_counts)[0]
+A_sampled_indices = np.array(reduce(lambda x,y : x + y, [[i] * A_sampled_indices_counts[i] for i in I]))
+A_unnormalized_scaling_factors = np.array([np.float64(1.0)/A_importance_weights[i] for i in A_sampled_indices])
+Z = ( nbr_of_present_importance_weights / A_importance_weights.sum())
+A_scaling_factors = (A_unnormalized_scaling_factors / Z).astype(np.float64)
+
+>>> A_importance_weights
+array([  0.,   0.,   5.,  10.,   0.])
+>>> p
+array([ 0.        ,  0.        ,  0.33333333,  0.66666667,  0.        ])
+>>> A_sampled_indices_counts
+array([0, 0, 3, 7, 0])
+>>> I
+array([2, 3])
+>>> A_sampled_indices
+array([2, 2, 2, 3, 3, 3, 3, 3, 3, 3])
+>>> A_unnormalized_scaling_factors
+array([ 0.2,  0.2,  0.2,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1])
+>>> Z
+0.33333333333333331
+>>> A_scaling_factors
+array([ 0.6,  0.6,  0.6,  0.3,  0.3,  0.3,  0.3,  0.3,  0.3,  0.3])
 """
