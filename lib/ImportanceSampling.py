@@ -7,7 +7,7 @@ def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
 
     freshness_threshold = 1
 
-    epsilon = 0.0
+    epsilon = 0.1
 
 
     cMap = {}
