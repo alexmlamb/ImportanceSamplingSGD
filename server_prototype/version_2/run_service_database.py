@@ -70,7 +70,7 @@ def configure(  rsconn,
                 continue
 
             # The data points corresponding to `upper_index` are NOT to be included.
-            upper_index = np.min([lower_index + workers_minibatch_size, Ntrain])
+            upper_index = np.min([lower_index + workers_minibatch_size, N])
 
             if want_exclude_partial_minibatch and (upper_index - lower_index < workers_minibatch_size):
                 continue
@@ -85,7 +85,7 @@ def configure(  rsconn,
 
             for measurement in L_measurements:
                 # Write 0.0 as default value in all the measurements.
-                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, np.zeros(A_indices.shape, dtype=np.float32))
+                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, np.zeros(A_indices.shape, dtype=np.float32).tostring(order='C'))
                 rsconn.hset("H_%s_minibatch_%s_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
 
                 #print "H_%s_minibatch_%s" % (segment, measurement)

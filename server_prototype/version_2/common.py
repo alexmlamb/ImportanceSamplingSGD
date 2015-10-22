@@ -70,10 +70,10 @@ def read_config(rsconn):
     L_measurements = rsconn.lrange("config:L_measurements", 0, rsconn.llen("config:L_measurements"))
     L_segments = rsconn.lrange("config:L_segments", 0, rsconn.llen("config:L_segments"))
 
-    workers_minibatch_size = rsconn.get("config:workers_minibatch_size")
-    master_minibatch_size = rsconn.get("config:master_minibatch_size")
-    want_only_indices_for_master = rsconn.get("config:want_only_indices_for_master")
-    want_exclude_partial_minibatch = rsconn.get("config:want_exclude_partial_minibatch")
+    workers_minibatch_size = int(rsconn.get("config:workers_minibatch_size"))
+    master_minibatch_size = int(rsconn.get("config:master_minibatch_size"))
+    want_only_indices_for_master = rsconn.get("config:want_only_indices_for_master") in ["1", "true", "True"]
+    want_exclude_partial_minibatch = rsconn.get("config:want_exclude_partial_minibatch") in ["1", "true", "True"]
 
     #return dict(dataset_name=dataset_name,
     #L_measurements=L_measurements, workers_minibatch_size=workers_minibatch_size)

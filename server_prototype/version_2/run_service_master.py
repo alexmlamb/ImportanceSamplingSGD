@@ -24,18 +24,27 @@ def get_importance_weights(rsconn):
 
     L_indices = []
     L_importance_weights = []
-    for (key, value) in rsconn.hgetall("H_%s_minibatch_%s" % (segment, measurement)):
+    for (key, value) in rsconn.hgetall("H_%s_minibatch_%s" % (segment, measurement)).items():
         A_some_indices = np.fromstring(key, dtype=np.int32)
-        A_some_importance_weights = np.fromstring(value, dtype=np.int32)
-        assert A_some_indices.shape == A_some_importance_weights.shape
+        A_some_importance_weights = np.fromstring(value, dtype=np.float32)
+        #print "key"
+        #print
+        print "A_some_indices"
+        print A_some_indices
+        print "A_some_importance_weights"
+        print A_some_importance_weights
+        assert A_some_indices.shape == A_some_importance_weights.shape, "Failed assertion that %s == %s." % (A_some_indices.shape, A_some_importance_weights.shape)
         L_indices.append(A_some_indices)
         L_importance_weights.append(A_some_importance_weights)
 
-    A_unsorted_indices = np.hcat(L_indices)
-    A_unsorted_importance_weights = np.hcat(L_importance_weights)
+    A_unsorted_indices = np.hstack(L_indices)
+    A_unsorted_importance_weights = np.hstack(L_importance_weights)
     assert A_unsorted_indices.shape == A_unsorted_importance_weights.shape
 
-    N = A_unsorted_indices.max()
+    # Find out how large you have to make your array.
+    # You need to add +1 because the largest index has to represent a valid index.
+    # There is no harm in using a larger value of N than necessary.
+    N = A_unsorted_indices.max() + 1
     nbr_of_present_importance_weights = A_unsorted_indices.shape[0]
     A_importance_weights = np.zeros((N,), dtype=np.float32)
     A_importance_weights[A_unsorted_indices] = A_unsorted_importance_weights
@@ -52,6 +61,14 @@ def sample_indices_and_scaling_factors(rsconn, nbr_samples):
     #        botton of this document.
 
     A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
+
+    if A_importance_weights.sum() < 1e-16:
+        print "All the importance_weight are zero. There is nothing to be done with this."
+        print "The only possibility is to report them to be as though they were all 1.0."
+        #import pdb; pdb.set_trace()
+        A_sampled_indices = np.random.randint(low=0, high=A_importance_weights.shape[0], size=nbr_samples).astype(np.int32)
+        return A_sampled_indices, np.ones(A_sampled_indices.shape, dtype=np.float64)
+
     # You can get complaints from np.random.multinomial if you are in float32
     # because rounding errors can bring your sum() to a little above 1.0.
     A_importance_weights = A_importance_weights.astype(np.float64)
@@ -60,6 +77,8 @@ def sample_indices_and_scaling_factors(rsconn, nbr_samples):
     A_sampled_indices_counts = np.random.multinomial(nbr_samples, p)
     # Find out where the non-zero values are.
     I = np.where(0 < A_sampled_indices_counts)[0]
+
+
     # For each such non-zero value, we need to repeat that index
     # a corresponding number of times (and then concatenate everything).
     A_sampled_indices = np.array(reduce(lambda x,y : x + y, [[i] * A_sampled_indices_counts[i] for i in I]))
@@ -96,11 +115,21 @@ def run(server_ip, server_port, server_password):
     config = read_config(rsconn)
     L_measurements = config['L_measurements']
     want_only_indices_for_master = config['want_only_indices_for_master']
+    master_minibatch_size = config['master_minibatch_size']
     model_api = ModelAPI()
 
     if not want_only_indices_for_master:
         print "Error. At the current time we support only the of feeding data to the master through indices (instead of actual data)."
         quit()
+
+    # Run just a simple test to make sure that the importance weights have been
+    # set to something. In theory, there should always be valid values in there,
+    # so this is just a sanity check.
+    segment = "train"
+    measurement = "importance_weight"
+    nbr_of_present_importance_weights = rsconn.hlen("H_%s_minibatch_%s" % (segment, measurement))
+    assert 0 < nbr_of_present_importance_weights, "Error. The database should have been set up to have dummy importance weights at least."
+    print "Master found %d importance weights in the database." % nbr_of_present_importance_weights
 
 
     # The master splits its time between two tasks.
@@ -149,38 +178,9 @@ def run(server_ip, server_port, server_password):
         # Task (2)
 
         for _ in range(nbr_batch_processed_per_public_parameter_update):
-
-            # Version 2 : You are now at this point.
-
-            batch_name_triplet = rsconn.lpop("importance_samples:L_(batch_name, weight, total_weights)")
-            nbr_batch_name_triplet_remaining = rsconn.llen("importance_samples:L_(batch_name, weight, total_weights)") # for debugging, potentially oudated value
-
-            if batch_name_triplet is None or len(batch_name_triplet) == 0:
-                # Note that the "batch:L_names_todo" might be temporarily gone
-                # from the server because that's how the assistant is updating it
-                # to put fresh values in there. The worker just needs to stay calm
-                # when that happens and not quit() in despair.
-                print "The master has nothing to do. Might as well sleep."
-                # TODO : Adjust the duration of the sleep.
-                time.sleep(0.2)
-                continue
-
-            (batch_name, lower_index, upper_index, suffix, weight, total_weights) = decode_batch_name_triplet(batch_name_triplet)
-
-            print "The master is processing %s. There are %d left." % (batch_name, nbr_batch_name_triplet_remaining)
-            #print "(batch_name, lower_index, upper_index, suffix, weight, total_weights)"
-            #print (batch_name, lower_index, upper_index, suffix, weight, total_weights)
-
-            # TODO : Actually use a real model here.
-            model.train(batch_name, lower_index, upper_index, suffix, weight, total_weights)
-
-            # Sleep to simulate work time.
-            time.sleep(SIMULATED_BATCH_UPDATE_TIME)
-
-            print ""
-
-
-
+            (A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn, master_minibatch_size)
+            model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+            print "The master has processed a minibatch."
 
 
 
