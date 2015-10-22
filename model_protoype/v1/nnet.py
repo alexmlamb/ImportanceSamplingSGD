@@ -34,47 +34,64 @@ def sgd(cost, params, lr=0.05):
         updates.append([p, p - g * lr])
     return updates
 
-def model(X, w_h):
-    h0 = T.nnet.sigmoid(T.dot(X, w_h[0]))
-    pyx = T.nnet.softmax(T.dot(h0,w_h[1]))
-    return pyx
+def model(X, w_h, num_layers, Layer_inputs):
+    print num_layers
+    for i in range(0,num_layers-1):
+        print num_layers
+        Layer_inputs.append(T.nnet.sigmoid(T.dot(Layer_inputs[i], w_h[i])))
+    return T.nnet.softmax(T.dot(Layer_inputs[num_layers-1],w_h[num_layers-1]))
 
-def first_layer_out
+# output is a list of squared norm of gradients per example
+# input is input matrix and
+def compute_grad_norms(X, cost, layerLst):
+  gradient_norm_f = 0.0
 
-def compute_grads_and_weights_mnist(A_indices, segment, L_measurements,ntrain=50000,ntest=10000,mb_size=128,nhidden=625 ):
+  for index in range(1, len(layerLst)):
+      output_layer = layerLst[index]
+      input_layer = layerLst[index - 1]
+      gradient_norm_f += (input_layer**2).sum(axis = 1) * (T.grad(cost, output_layer)**2).sum(axis = 1)
+
+  gradient_norm_f = T.sqrt(gradient_norm_f)
+  return gradient_norm_f
+
+
+def compute_grads_and_weights_mnist(A_indices, segment, L_measurements,ntrain=50000,ntest=10000,mb_size=128,nhidden=625,nhidden_layers=1 ):
     trX, teX, trY, teY = mnist(ntrain=ntrain,ntest=ntest,onehot=True)
     seq = mnist_with_noise([trX,trY],0)
     X = T.fmatrix()
     Y = T.fmatrix()
-    w_h = [init_weights((784, nhidden)), init_weights((nhidden, 10))]
-    py_x = model(X, w_h)
+    nlayers = nhidden_layers + 1
+    w_h = [init_weights((784, nhidden))]*nhidden_layers + [init_weights((nhidden, 10))]
+
+    Layers = [X]
+    py_x = model(X, w_h,nlayers,Layers)
     y_x = T.argmax(py_x, axis=1)
 
     cost = T.mean(T.nnet.categorical_crossentropy(py_x, Y))
     params = w_h
     updates = sgd(cost, params)
-    grads = T.grad(cost=cost,wrt=params)
-    grad_for_norm = T.grad(cost=cost,wrt=params)
+    squared_norm_var = compute_grad_norms(X,cost,Layers)
 
-    train = theano.function(inputs=[X, Y], outputs=[cost,grads[0],grads[1]], updates=updates, allow_input_downcast=True)
+    #train = theano.function(inputs=[X, Y], outputs=[cost], updates=updates, allow_input_downcast=True)
     predict = theano.function(inputs=[X], outputs=[y_x,py_x], allow_input_downcast=True)
-    get_grad = theano.function(inputs=[X,Y],outputs=[cost,grad_for_norm[0],grad_for_norm[1]], allow_input_downcast=True)
 
     for i in range(1):
-        for start, end in zip(range(0, len(trX), mb_size), range(mb_size, len(trX), mb_size)):
-            cost,grads0,grads1 = train(trX[start:end], trY[start:end])
+        #for start, end in zip(range(0, len(trX), mb_size), range(mb_size, len(trX), mb_size)):
+        #    cost= train(trX[start:end], trY[start:end])
         y,p_y =  predict(teX)
-        print np.mean(np.argmax(teY, axis=1) == y)
+        print p_y[0]#np.mean(np.argmax(teY, axis=1) == y)
 
 def main_loop( ):
     ntrain = 5000
     ntest  = 1000
     nhidden_units = 625
+    nhidden_layers = 2
     A_indices = np.array([1,2,3,4])
     segment = "train"
     L_measurements = ["gradient_square_norm"]
     compute_grads_and_weights_mnist(A_indices,segment,L_measurements,
-                                    ntrain=ntrain,ntest=ntest,nhidden=nhidden_units)
+                                    ntrain=ntrain,ntest=ntest,nhidden=nhidden_units,
+                                    nhidden_layers=nhidden_layers)
 
 if __name__ == "__main__":
     main_loop()
