@@ -131,7 +131,7 @@ def run(server_ip, server_port, server_password):
                 assert type(A_values) == np.ndarray, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements, but now those values are not even numpy arrays. They are %s instead." % type(A_values)
                 assert A_values.dtype == np.float32, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements, but now that array has dtype %s instead." % A_values.dtype
                 # Write 0.0 as default value in all the measurements.
-                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values)
+                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))
 
                 previous_update_timestamp = float(rsconn.hget("H_%s_minibatch_%s_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str))
                 current_update_timestamp = time.time()

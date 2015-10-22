@@ -1,6 +1,11 @@
 
 import numpy as np
 
+import time
+
+SIMULATED_WORKER_PROCESS_MINIBATCH_TIME = 0.2
+SIMULATED_MASTER_PROCESS_MINIBATCH_TIME = 1.0
+
 class ModelAPI():
 
     def __init__(self):
@@ -10,7 +15,7 @@ class ModelAPI():
         return np.random.rand(*self.serialized_parameters_shape).astype(np.float32)
 
     def set_serialized_parameters(self, serialized_parameters):
-        assert type(serialized_parameters) == np.array
+        assert type(serialized_parameters) == np.ndarray
         assert serialized_parameters.dtype == np.float32
 
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
@@ -27,16 +32,23 @@ class ModelAPI():
         for key in L_measurements:
             assert key in ["importance_weight", "gradient_square_norm", "loss"]
 
+        # Sleep to simulate work time.
+        time.sleep(SIMULATED_WORKER_PROCESS_MINIBATCH_TIME)
+
         res = {}
         for key in L_measurements:
-            res[key] = np.zeros(A_indices.shape, dtype=np.float32)
+            res[key] = np.random.rand(*A_indices.shape).astype(np.float32)
 
         # Returns a full array for every data point in the minibatch.
         return res
 
 
-    def master_process_minibatch(self, A_indices, segment):
+    def master_process_minibatch(self, A_indices, A_scaling_factors, segment):
+        assert A_indices.shape == A_scaling_factors.shape, "Failed to assertion that %s == %s." % (A_indices.shape, A_scaling_factors.shape)
         assert segment in ["train"]
+
+        # Sleep to simulate work time.
+        time.sleep(SIMULATED_MASTER_PROCESS_MINIBATCH_TIME)
 
         # Returns nothing. The master should have used this call to
         # update its internal parameters.
