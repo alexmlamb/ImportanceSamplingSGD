@@ -12,11 +12,12 @@ class ModelAPI():
         self.serialized_parameters_shape = (100,)
 
     def get_serialized_parameters(self):
-        return np.random.rand(*self.serialized_parameters_shape).astype(np.float32)
+        return np.random.rand(*self.serialized_parameters_shape).astype(np.float32).tostring(order='C')
 
     def set_serialized_parameters(self, serialized_parameters):
-        assert type(serialized_parameters) == np.ndarray
-        assert serialized_parameters.dtype == np.float32
+        pass
+        #assert type(serialized_parameters) == np.ndarray
+        #assert serialized_parameters.dtype == np.float32
 
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]

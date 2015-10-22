@@ -28,6 +28,8 @@ def configure(  rsconn,
     # `want_only_indices_for_master` determines whether the master will be given arrays of indices or minibatch data directly.
     # `want_exclude_partial_minibatch` indicates if we want to forget about the data that doesn't fit in a complete minibatch.
 
+    # This could be an argument, but right now we don't see why it could be changed.
+    serialized_parameters_format ="opaque_string"
 
     rsconn.delete("initialization_is_done")
 
@@ -112,6 +114,8 @@ def configure(  rsconn,
     rsconn.set("config:master_minibatch_size", master_minibatch_size)
     rsconn.set("config:want_only_indices_for_master", want_only_indices_for_master)
     rsconn.set("config:want_exclude_partial_minibatch", want_exclude_partial_minibatch)
+    assert serialized_parameters_format in ["opaque_string", "ndarray_float32_tostring"]
+    rsconn.set("config:serialized_parameters_format", serialized_parameters_format)
 
     rsconn.set("initialization_is_done", True)
 

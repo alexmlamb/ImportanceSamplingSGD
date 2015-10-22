@@ -116,6 +116,7 @@ def run(server_ip, server_port, server_password):
     L_measurements = config['L_measurements']
     want_only_indices_for_master = config['want_only_indices_for_master']
     master_minibatch_size = config['master_minibatch_size']
+    serialized_parameters_format = config['serialized_parameters_format']
     model_api = ModelAPI()
 
     if not want_only_indices_for_master:
@@ -167,7 +168,14 @@ def run(server_ip, server_port, server_password):
 
         # Task (1)
 
-        current_parameters_str = model_api.get_serialized_parameters().tostring(order='C')
+        if serialized_parameters_format == "opaque_string":
+            current_parameters_str = model_api.get_serialized_parameters()
+        elif serialized_parameters_format == "ndarray_float32_tostring":
+            current_parameters_str = model_api.get_serialized_parameters().tostring(order='C')
+        else:
+            print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
+            quit()
+
         rsconn.set("parameters:current", current_parameters_str)
         rsconn.set("parameters:current_timestamp", time.time())
         # potentially not used
