@@ -1,0 +1,38 @@
+
+
+def get_config():
+
+    config = {}
+
+    #Importance sampling or vanilla sgd.  
+    config["importance_algorithm"] = "isgd"
+    #config["importance_algorithm"] = "sgd"
+
+    #Momentum rate, where 0.0 corresponds to not using momentum
+    config["momentum_rate"] = 0.9
+
+    #The learning rate to use on the gradient averaged over a minibatch
+    config["learning_rate"] = 0.01
+
+    #config["dataset"] = "mnist"
+    config["dataset"] = "svhn"
+
+    config["mnist_file"] = ""
+    config["svhn_file_train"] = "/u/lambalex/DeepLearning/train_32x32.mat"
+    config["svhn_file_extra"] = "/u/lambalex/DeepLearning/extra_32x32.mat"
+    config["svhn_file_test"] = "/u/lambalex/DeepLearning/test_32x32.mat"
+
+    config["hidden_sizes"] = [1024,1024,1024]
+
+    config["seed"] = 9999494
+
+    #Weights are initialized to N(0,1) * initial_weight_size
+    config["initial_weight_size"] = 0.01
+
+    #Hold this fraction of the instances in the validation dataset
+    config["fraction_validation"] = 0.05
+    
+
+    return config
+
+
