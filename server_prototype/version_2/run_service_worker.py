@@ -18,7 +18,7 @@ def run(server_ip, server_port, server_password):
                                      timeout=60, wait_for_parameters_to_be_present=True)
     config = read_config(rsconn)
     L_measurements = config['L_measurements']
-
+    serialized_parameters_format = config['serialized_parameters_format']
     model_api = ModelAPI()
 
     #D_segment_priorities = {'train' : 50, 'valid' : 1, 'test' : 1}
@@ -80,11 +80,21 @@ def run(server_ip, server_port, server_password):
                     m = 0
                     continue
                 else:
-                    current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
-                    parameters_current_timestamp = new_parameters_current_timestamp
-                    model_api.set_serialized_parameters(current_parameters)
-                    m = 0
-                    continue
+
+                    if serialized_parameters_format == "opaque_string":
+                        parameters_current_timestamp = new_parameters_current_timestamp
+                        model_api.set_serialized_parameters(current_parameters_str)
+                        m = 0
+                        continue
+                    elif serialized_parameters_format == "ndarray_float32_tostring":
+                        current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
+                        parameters_current_timestamp = new_parameters_current_timestamp
+                        model_api.set_serialized_parameters(current_parameters)
+                        m = 0
+                        continue
+                    else:
+                        print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
+                        quit()
 
             else:
                 # Go on to Task (2).

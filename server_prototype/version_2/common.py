@@ -74,6 +74,7 @@ def read_config(rsconn):
     master_minibatch_size = int(rsconn.get("config:master_minibatch_size"))
     want_only_indices_for_master = rsconn.get("config:want_only_indices_for_master") in ["1", "true", "True"]
     want_exclude_partial_minibatch = rsconn.get("config:want_exclude_partial_minibatch") in ["1", "true", "True"]
+    serialized_parameters_format = rsconn.get("config:serialized_parameters_format")
 
     #return dict(dataset_name=dataset_name,
     #L_measurements=L_measurements, workers_minibatch_size=workers_minibatch_size)
