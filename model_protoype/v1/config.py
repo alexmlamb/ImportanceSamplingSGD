@@ -17,10 +17,10 @@ def get_config():
     #config["dataset"] = "mnist"
     config["dataset"] = "svhn"
 
-    config["mnist_file"] = ""
-    config["svhn_file_train"] = "/u/lambalex/DeepLearning/train_32x32.mat"
-    config["svhn_file_extra"] = "/u/lambalex/DeepLearning/extra_32x32.mat"
-    config["svhn_file_test"] = "/u/lambalex/DeepLearning/test_32x32.mat"
+    config["mnist_file"] = "/data/lisatmp3/lambalex/mnist/mnist.pkl.gz"
+    config["svhn_file_train"] = "/data/lisatmp3/lambalex/svhn/train_32x32.mat"
+    config["svhn_file_extra"] = "/data/lisatmp3/lambalex/svhn/extra_32x32.mat"
+    config["svhn_file_test"] = "/data/lisatmp3/lambalex/svhn/test_32x32.mat"
 
     config["hidden_sizes"] = [1024,1024,1024]
 
