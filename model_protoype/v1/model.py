@@ -8,7 +8,9 @@ from theano import function
 import scipy as sp
 from scipy import signal
 from PIL import Image
-
+from load_data import load_data
+from config import get_config
+from nnet import compute_grads_and_weights,get_data
 
 import numpy as np
 
@@ -22,6 +24,8 @@ class ModelAPI():
 
     def __init__(self):
         self.serialized_parameters_shape = (100,)
+        self.config = get_config()
+
 
     def get_serialized_parameters(self):
         return np.random.rand(*self.serialized_parameters_shape).astype(np.float32)
@@ -29,6 +33,12 @@ class ModelAPI():
     def set_serialized_parameters(self, serialized_parameters):
         assert type(serialized_parameters) == np.ndarray
         assert serialized_parameters.dtype == np.float32
+
+        # You store a copy of the parameters that I pass you here.
+        # You transfer them to the parameters.
+
+    def update_data(self):
+        self.data = load_data(self.config)
 
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]
@@ -45,11 +55,9 @@ class ModelAPI():
             assert key in ["importance_weight", "gradient_square_norm", "loss"]
 
         # Sleep to simulate work time.
-        time.sleep(SIMULATED_WORKER_PROCESS_MINIBATCH_TIME)
-
-        res = {}
-        for key in L_measurements:
-            res[key] = np.random.rand(*A_indices.shape).astype(np.float32)
+        #time.sleep(SIMULATED_WORKER_PROCESS_MINIBATCH_TIME)
+        curr_data = get_data(A_indices,self.data)
+        res = compute_grads_and_weights(curr_data,segment,L_measurements)
 
         # Returns a full array for every data point in the minibatch.
         return res
@@ -60,7 +68,7 @@ class ModelAPI():
         assert segment in ["train"]
 
         # Sleep to simulate work time.
-        time.sleep(SIMULATED_MASTER_PROCESS_MINIBATCH_TIME)
+        #time.sleep(SIMULATED_MASTER_PROCESS_MINIBATCH_TIME)
 
         # Returns nothing. The master should have used this call to
         # update its internal parameters.

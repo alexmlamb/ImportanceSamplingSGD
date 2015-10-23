@@ -71,7 +71,8 @@ def load_data_svhn(config):
     print "Validation Set", valid_X.shape, valid_Y.shape
     print "Test Set", test_X.shape, test_Y.shape
 
-    return [(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
+    return [train_X, train_Y.flatten().tolist(), valid_X, valid_Y.flatten().tolist(), test_X, test_Y.flatten().tolist()]
+    #[(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
 
 
 def load_data_mnist(config):
@@ -85,8 +86,9 @@ def load_data_mnist(config):
     valid_set_x, valid_set_y = valid_set
     train_set_x, train_set_y = train_set
 
-    rval = [(train_set_x, train_set_y), (valid_set_x, valid_set_y),
-            (test_set_x, test_set_y)]
+    rval = [train_set_x, train_set_y, valid_set_x, valid_set_y, test_set_x, test_set_y]
+    #[(train_set_x, train_set_y), (valid_set_x, valid_set_y),
+           # (test_set_x, test_set_y)]
 
     return rval
 
