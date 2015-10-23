@@ -1,10 +1,9 @@
-import numpy as np
-
+import numpy
 
 #Returns list of tuples containing training, validation, and test instances.  
 def load_data_svhn(config):
 
-    np.random.seed(config["seed"])
+    numpy.random.seed(config["seed"])
 
     import scipy.io as sio
     train_file = config["svhn_file_train"]
@@ -15,6 +14,8 @@ def load_data_svhn(config):
     extra_object = sio.loadmat(extra_file)
     test_object = sio.loadmat(test_file)
 
+    print "objects loaded"
+
     train_X = numpy.asarray(train_object["X"], dtype = 'float32')
     extra_X = numpy.asarray(extra_object["X"], dtype = 'float32')
     test_X = numpy.asarray(test_object["X"], dtype = 'float32')
@@ -22,6 +23,10 @@ def load_data_svhn(config):
     train_Y = numpy.asarray(train_object["y"], dtype = 'int8')
     extra_Y = numpy.asarray(extra_object["y"], dtype = 'int8')
     test_Y = numpy.asarray(test_object["y"], dtype = 'int8')
+
+    del train_object
+    del extra_object
+    del test_object
 
     #By default SVHN labels are from 1 to 10.  
     #This shifts them to be between 0 and 9.  
@@ -62,6 +67,9 @@ def load_data_svhn(config):
     valid_X = numpy.reshape(valid_X, (valid_X.shape[0],valid_X.shape[1] * valid_X.shape[2] * valid_X.shape[3]))
     test_X = numpy.reshape(test_X, (test_X.shape[0],test_X.shape[1] * test_X.shape[2] * test_X.shape[3]))
 
+    print "Training Set", train_X.shape, train_Y.shape
+    print "Validation Set", valid_X.shape, valid_Y.shape
+    print "Test Set", test_X.shape, test_Y.shape
 
     return [(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
 
@@ -97,9 +105,15 @@ def load_data(config):
 
 
 
+if __name__ == "__main__":
 
+    from config import get_config
 
+    config = get_config()
 
+    print "config loaded"
+
+    load_data(config)
 
 
 
