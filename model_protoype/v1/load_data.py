@@ -74,6 +74,7 @@ def load_data_svhn(config):
     return [train_X, train_Y.flatten().tolist(), valid_X, valid_Y.flatten().tolist(), test_X, test_Y.flatten().tolist()]
     #[(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
 
+    
 
 def load_data_mnist(config):
     dataset = config["mnist_file"]

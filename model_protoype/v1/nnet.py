@@ -59,6 +59,7 @@ def compute_grad_norms(X, cost, layerLst):
   return gradient_norm_f
 
 def get_data(A_indices,rval):
+
     res =[]
     for i in range(len(rval)):
         res.append( (rval[i])[A_indices] )

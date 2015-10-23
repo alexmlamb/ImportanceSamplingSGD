@@ -56,7 +56,8 @@ class ModelAPI():
 
         # Sleep to simulate work time.
         #time.sleep(SIMULATED_WORKER_PROCESS_MINIBATCH_TIME)
-        curr_data = get_data(A_indices,self.data)
+        curr_data = (self.data[segment][0][A_indices], self.data[segment][1][A_indices])
+
         res = compute_grads_and_weights(curr_data,segment,L_measurements)
 
         # Returns a full array for every data point in the minibatch.
@@ -70,7 +71,11 @@ class ModelAPI():
         # Sleep to simulate work time.
         #time.sleep(SIMULATED_MASTER_PROCESS_MINIBATCH_TIME)
 
+        
+
         # Returns nothing. The master should have used this call to
         # update its internal parameters.
         return
+
+
 
