@@ -7,7 +7,7 @@ def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
 
     freshness_threshold = 1
 
-    epsilon = 0.1
+    epsilon = 0.0
 
 
     cMap = {}
@@ -48,7 +48,7 @@ def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
     sumSelected = 0.0
     for index in selectedIndices:
         newIndexLst += [cmKeys[index]]
-        impWeightLst += [1.0]#[avgCost * 1.0 / cMap[cmKeys[index]]]
+        impWeightLst += [avgCost * 1.0 / cMap[cmKeys[index]]]
         sumSelected += cMap[cmKeys[index]]
 
     return newIndexLst, impWeightLst

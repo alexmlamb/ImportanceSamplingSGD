@@ -43,6 +43,8 @@ config = {}
 #config["dataset"] = "mnist"
 config["dataset"] = "svhn"
 
+config["momentum_rate"] = 0.9
+
 #config["algo"] = "sgd"
 config["algo"] = "isgd"
 
@@ -366,7 +368,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
         for param, gparam_mom in zip(classifier.params, gparams_mom)
     ]
 
-    momentum_rate = 0.0
+    momentum_rate = config["momentum_rate"]
     print "running with momentum rate", momentum_rate
 
     for i in range(0, len(gparams_mom)):
@@ -485,7 +487,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
         #Compute cost over all instances.  
 
         if config["algo"] == "isgd": 
-            grad_consider = 100000
+            grad_consider = 700000
         if config["algo"] == "sgd":
             grad_consider = 10
 
