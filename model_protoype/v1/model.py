@@ -69,6 +69,11 @@ class ModelAPI():
         assert A_indices.shape == A_scaling_factors.shape, "Failed to assertion that %s == %s." % (A_indices.shape, A_scaling_factors.shape)
         assert segment in ["train"]
 
+        X = self.data[segment][A_indices]
+        Y = self.data[segment][A_indices]
+
+        self.nnet.train(X, Y)
+
         # Sleep to simulate work time.
         #time.sleep(SIMULATED_MASTER_PROCESS_MINIBATCH_TIME)
 

@@ -43,9 +43,12 @@ def model1(X, w_h, num_layers, Layer_inputs):
 #N x 1024,1
 #N x 10, 2
 def model(X, w_h, Layer_inputs):
-    Layer_inputs.append(T.nnet.sigmoid(T.dot(Layer_inputs[0], w_h[0])))
-    Layer_inputs.append(T.nnet.softmax(T.dot(Layer_inputs[1],w_h[1])))
-    return Layer_inputs[2]
+    for i in range(0, len(w_h) - 1):
+        Layer_inputs.append(T.nnet.sigmoid(T.dot(Layer_inputs[i], w_h[i])))
+
+    Layer_inputs.append(T.nnet.softmax(T.dot(Layer_inputs[-1],w_h[-1])))
+
+    return Layer_inputs[-1]
 
 # output is a list of squared norm of gradients per example
 # input is input matrix and
@@ -60,6 +63,15 @@ def compute_grad_norms(X, cost, layerLst):
     #gradient_norm_f = T.sqrt(gradient_norm_f)
     return gradient_norm_f
 
+def init_parameters(num_input, num_output, hidden_sizes):
+    w_h = [init_weights((num_input, hidden_sizes[0]))]
+    
+    for i in range(1, len(hidden_sizes) - 1):
+        w_h += [init_weights((hidden_sizes[i], hidden_sizes[i + 1]))]
+
+    w_h += [init_weights((hidden_sizes[-1], num_output))]
+
+    return w_h
 
 class nnet:
 
@@ -74,9 +86,11 @@ class nnet:
         Y = T.imatrix()
         num_input = 784
         num_output = 10
-        
 
-        w_h = [init_weights((num_input, nhidden)), init_weights((nhidden, num_output))]
+        w_h = init_parameters(num_input, num_output, config["hidden_sizes"])
+
+        print w_h
+
         Layers = [X]
 
 
@@ -119,9 +133,6 @@ class nnet:
         return Layer_inputs[2]
 
 
-
-    def train_on_data(self):
-        pass
 
     def compute_grads_and_weights(self, data, L_measurements):
         X, Y = data
