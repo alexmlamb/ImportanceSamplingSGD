@@ -66,7 +66,7 @@ class ModelAPI():
         #time.sleep(SIMULATED_WORKER_PROCESS_MINIBATCH_TIME)
         curr_data = (self.data[segment][0][A_indices], self.data[segment][1][A_indices])
 
-        res = compute_grads_and_weights(curr_data,segment,L_measurements)
+        res = self.nnet.compute_grads_and_weights(curr_data,L_measurements)
 
         # Returns a full array for every data point in the minibatch.
         return res
@@ -76,8 +76,10 @@ class ModelAPI():
         assert A_indices.shape == A_scaling_factors.shape, "Failed to assertion that %s == %s." % (A_indices.shape, A_scaling_factors.shape)
         assert segment in ["train"]
 
-        X = self.data[segment][A_indices]
-        Y = self.data[segment][A_indices]
+        X = self.data[segment][0][A_indices]
+        Y = self.data[segment][1][A_indices]
+
+        Y = np.reshape(Y, (Y.shape[0], 1))
 
         self.nnet.train(X, Y)
 

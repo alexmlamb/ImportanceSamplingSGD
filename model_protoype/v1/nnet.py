@@ -26,7 +26,7 @@ def floatX(X):
 def init_weights(shape):
     return theano.shared(floatX(np.random.randn(*shape) * 0.01))
 
-def sgd(cost, params, lr=0.05):
+def sgd(cost, params, lr=0.01):
     grads = T.grad(cost=cost, wrt=params)
     updates = []
     for p, g in zip(params, grads):
@@ -35,7 +35,7 @@ def sgd(cost, params, lr=0.05):
 
 def model(X, w_h, Layer_inputs):
     for i in range(0, len(w_h) - 1):
-        Layer_inputs.append(T.nnet.sigmoid(T.dot(Layer_inputs[i], w_h[i])))
+        Layer_inputs.append(T.maximum(0.0, T.dot(Layer_inputs[i], w_h[i])))
 
     Layer_inputs.append(T.nnet.softmax(T.dot(Layer_inputs[-1],w_h[-1])))
 
@@ -70,12 +70,9 @@ class nnet:
 
         config = get_config()
 
-        nhidden_layers = len(config["hidden_sizes"])
-        nhidden = config["hidden_sizes"][0]
-
         X = T.fmatrix()
         Y = T.imatrix()
-        num_input = 784
+        num_input = config["num_input"]
         num_output = 10
 
         w_h = init_parameters(num_input, num_output, config["hidden_sizes"])
