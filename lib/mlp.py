@@ -487,7 +487,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
         #Compute cost over all instances.  
 
         if config["algo"] == "isgd": 
-            grad_consider = 700000
+            grad_consider = 200000
         if config["algo"] == "sgd":
             grad_consider = 10
 
