@@ -88,13 +88,13 @@ def mnist_with_noise(samples, percent):
     classes = samples[1]
     num_noisy_samples = (percent/100.0)*len(images)
     seq = np.arange(len(images))
-    convert_to_image(images[4999],"before.jpg")
+    #convert_to_image(images[4999],"before.jpg")
     #noise = np.random.randn(*(images[:num_noisy_samples].shape))
     #noise = np.random.uniform(0,1,size=(images[:num_noisy_samples].shape))
     noise = np.ones_like(images[:num_noisy_samples])
     images[:num_noisy_samples] = noise
     #images[:num_noisy_samples] = add_guassian_noise(images[:num_noisy_samples])
-    convert_to_image(images[4999],"after.jpg")
+    #convert_to_image(images[4999],"after.jpg")
     images[images>1]=1.0
     images[images<0]=0.0
     bundle = zip(images,classes,seq)

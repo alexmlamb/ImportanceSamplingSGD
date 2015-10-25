@@ -26,6 +26,7 @@ class ModelAPI():
         self.serialized_parameters_shape = (100,)
         self.config = get_config()
 
+        self.nnet = nnet()
 
     def get_serialized_parameters(self):
         return np.random.rand(*self.serialized_parameters_shape).astype(np.float32)
