@@ -10,7 +10,9 @@ from scipy import signal
 from PIL import Image
 from load_data import load_data
 from config import get_config
-from nnet import compute_grads_and_weights,get_data
+import nnet
+
+import cPickle
 
 import numpy as np
 
@@ -26,10 +28,12 @@ class ModelAPI():
         self.serialized_parameters_shape = (100,)
         self.config = get_config()
 
-        self.nnet = nnet()
+        self.nnet = nnet.nnet()
 
     def get_serialized_parameters(self):
-        return np.random.rand(*self.serialized_parameters_shape).astype(np.float32)
+        #return np.random.rand(*self.serialized_parameters_shape).astype(np.float32)
+
+        return cPickle.dumps(self.nnet.parameters, cPickle.HIGHEST_PROTOCOL)
 
     def set_serialized_parameters(self, serialized_parameters):
         assert type(serialized_parameters) == np.ndarray
@@ -37,6 +41,9 @@ class ModelAPI():
 
         # You store a copy of the parameters that I pass you here.
         # You transfer them to the parameters.
+
+        self.nnet.parameters = cPickle.loads(serialized_parameters)
+
 
     def update_data(self):
         self.data = load_data(self.config)
@@ -88,4 +95,6 @@ if __name__ == "__main__":
 
     #Run "unit tests".  
 
-    
+    from unit_tests import all_tests
+
+    all_tests()
