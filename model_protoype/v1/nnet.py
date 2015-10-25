@@ -80,7 +80,7 @@ class nnet:
 
         w_h = init_parameters(num_input, num_output, config["hidden_sizes"])
 
-        print w_h
+        self.parameters = w_h
 
         Layers = [X]
 
@@ -90,8 +90,7 @@ class nnet:
 
         individual_cost = -1.0 * (T.log(py_x)[T.arange(Y.shape[0]), Y])
         cost = T.mean(individual_cost)
-        params = w_h
-        updates = sgd(cost, params)
+        updates = sgd(cost, self.parameters)
         squared_norm_var = compute_grad_norms(X,cost,Layers)
 
         self.train = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, individual_cost], updates=updates, allow_input_downcast=True)
