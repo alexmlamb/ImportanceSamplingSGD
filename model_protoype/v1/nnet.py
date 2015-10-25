@@ -153,9 +153,8 @@ class nnet:
         for i in len(params):
             self.W[i].set_value(params[i])
 
-    def compute_grads_and_weights(self, A_indices, L_measurements, segment):
-        X = self.data[segment][0][A_indices]
-        Y = self.data[segment][1][A_indices]
+    def compute_grads_and_weights(self, data, L_measurements):
+        X, Y = data
 
         cost,sq_grad_norm,individual_cost = self.train(X, Y)
 
