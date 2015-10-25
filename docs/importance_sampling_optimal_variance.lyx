@@ -1,0 +1,325 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Subsection*
+Optimal proposal distribution 
+\begin_inset Formula $q^{*}(x)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This argument is basically the same as the one that we found online (we'll
+ find the reference later).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In our case, the value 
+\begin_inset Formula $f(x)$
+\end_inset
+
+ is a vector instead of a scalar, so we can ask ourselves that it means
+ to have the smallest variance.
+ Two natural proposals are 
+\begin_inset Formula $Tr(\Sigma)$
+\end_inset
+
+, which corresponds to the sums of the variances along each dimension, but
+ we could also argue for some other quantity such as
+\begin_inset Formula $\left\Vert \Sigma\right\Vert _{F}^{2}$
+\end_inset
+
+.
+ We could argue that the choice here depends on what we intend to do with
+ that estimator later.
+ Here we will seek to minimize 
+\begin_inset Formula $Tr(\Sigma)$
+\end_inset
+
+, which also happens to be the sum of all the eigenvalues of the covariance
+\begin_inset Formula $\Sigma$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When sampling from 
+\begin_inset Formula $q(x)$
+\end_inset
+
+ instead of 
+\begin_inset Formula $p(x)$
+\end_inset
+
+, we are looking at how the unbiased estimator
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathbb{E}_{q(x)}\left[\frac{p(x)}{q(x)}f(x)\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which has mean 
+\begin_inset Formula $\mu$
+\end_inset
+
+ and covariance 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+.
+ The covariance is given by
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\Sigma=\mathbb{E}_{q(x)}\left[\left(\frac{p(x)}{q(x)}f(x)-\mu\right)\left(\frac{p(x)}{q(x)}f(x)-\mu\right)^{T}\right]=\mathbb{E}_{q(x)}\left[\left(\frac{p(x)}{q(x)}f(x)\right)\left(\frac{p(x)}{q(x)}f(x)\right)^{T}\right]-\mu\mu^{T}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+so this means that
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{eqnarray*}
+Tr\left(\Sigma\right) & = & Tr\left(\mathbb{E}_{q(x)}\left[\left(\frac{p(x)}{q(x)}f(x)\right)\left(\frac{p(x)}{q(x)}f(x)\right)^{T}\right]-\mu\mu^{T}\right)\\
+ & = & \mathbb{E}_{q(x)}\left[Tr\left(\left(\frac{p(x)}{q(x)}f(x)\right)\left(\frac{p(x)}{q(x)}f(x)\right)^{T}\right)\right]-\left\Vert \mu\right\Vert _{2}^{2}\\
+ & = & \mathbb{E}_{q(x)}\left[\left\Vert \frac{p(x)}{q(x)}f(x)\right\Vert _{2}^{2}\right]-\left\Vert \mu\right\Vert _{2}^{2}.
+\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+There is nothing to do about the 
+\begin_inset Formula $\left\Vert \mu\right\Vert _{2}^{2}$
+\end_inset
+
+ term since it does not depend on the proposal 
+\begin_inset Formula $q(x)$
+\end_inset
+
+.
+ Using Jensen's inequality, we get that
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathbb{E}_{q(x)}\left[\left\Vert \frac{p(x)}{q(x)}f(x)\right\Vert _{2}^{2}\right]\geq\mathbb{E}_{q(x)}\left[\left\Vert \frac{p(x)}{q(x)}f(x)\right\Vert _{2}\right]^{2}=\left(\int q(x)\frac{p(x)}{q(x)}\left\Vert f(x)\right\Vert ^{2}dx\right)^{2}=\mathbb{E}_{p(x)}\left[\left\Vert f(x)\right\Vert _{2}\right]^{2}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This means that, for any proposal 
+\begin_inset Formula $q(x)$
+\end_inset
+
+, we cannot do better than 
+\begin_inset Formula $Tr(\Sigma)=\mathbb{E}_{p(x)}\left[\left\Vert f(x)\right\Vert _{2}\right]^{2}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We show here how the following proposal 
+\begin_inset Formula $q^{*}(x)$
+\end_inset
+
+ achieves that value, and it therefore optimal.
+ Let
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+q^{*}(x)=\frac{p(x)\left\Vert f(x)\right\Vert _{2}}{\int p(x)\left\Vert f(x)\right\Vert _{2}dx},
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+then we get that
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{eqnarray*}
+\mathbb{E}_{q^{*}(x)}\left[\left\Vert \frac{p(x)}{q^{*}(x)}f(x)\right\Vert _{2}^{2}\right] & = & \int q^{*}(x)\left(\frac{p(x)}{q^{*}(x)}\right)^{2}\left\Vert f(x)\right\Vert _{2}^{2}dx\\
+ & = & \int\frac{p(x)^{2}}{q^{*}(x)}\left\Vert f(x)\right\Vert _{2}^{2}dx\\
+ & = & \mathbb{E}_{p(x)}\left[\left\Vert f(x)\right\Vert _{2}\right]^{2}
+\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which is the mimimum value achievable.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Phantom VPhantom
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that this optimal proposal 
+\begin_inset Formula $q^{*}(x)$
+\end_inset
+
+ is equivalent to the 
+\begin_inset Formula $p(x)\left|f(x)\right|$
+\end_inset
+
+ that we find in the case where 
+\begin_inset Formula $f(x)\in\mathbb{R}$
+\end_inset
+
+ instead of being multi-dimensional.
+ Note also that the 
+\begin_inset Formula $q^{*}(x)$
+\end_inset
+
+ follows from a decision to minimize 
+\begin_inset Formula $Tr(\Sigma)$
+\end_inset
+
+ instead of some other quantity that could have also been a valid choice
+ to minimize.
+\end_layout
+
+\end_body
+\end_document
