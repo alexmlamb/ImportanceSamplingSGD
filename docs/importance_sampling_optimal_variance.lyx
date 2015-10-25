@@ -208,7 +208,7 @@ There is nothing to do about the
 \begin_layout Standard
 \begin_inset Formula 
 \[
-\mathbb{E}_{q(x)}\left[\left\Vert \frac{p(x)}{q(x)}f(x)\right\Vert _{2}^{2}\right]\geq\mathbb{E}_{q(x)}\left[\left\Vert \frac{p(x)}{q(x)}f(x)\right\Vert _{2}\right]^{2}=\left(\int q(x)\frac{p(x)}{q(x)}\left\Vert f(x)\right\Vert ^{2}dx\right)^{2}=\mathbb{E}_{p(x)}\left[\left\Vert f(x)\right\Vert _{2}\right]^{2}.
+\mathbb{E}_{q(x)}\left[\left\Vert \frac{p(x)}{q(x)}f(x)\right\Vert _{2}^{2}\right]\geq\mathbb{E}_{q(x)}\left[\left\Vert \frac{p(x)}{q(x)}f(x)\right\Vert _{2}\right]^{2}=\left(\int q(x)\frac{p(x)}{q(x)}\left\Vert f(x)\right\Vert _{2}dx\right)^{2}=\left(\mathbb{E}_{p(x)}\left[\left\Vert f(x)\right\Vert _{2}\right]\right)^{2}.
 \]
 
 \end_inset
@@ -246,7 +246,7 @@ We show here how the following proposal
 \begin_inset Formula $q^{*}(x)$
 \end_inset
 
- achieves that value, and it therefore optimal.
+ achieves that value, and is therefore optimal.
  Let
 \end_layout
 
@@ -270,7 +270,7 @@ then we get that
 \begin{eqnarray*}
 \mathbb{E}_{q^{*}(x)}\left[\left\Vert \frac{p(x)}{q^{*}(x)}f(x)\right\Vert _{2}^{2}\right] & = & \int q^{*}(x)\left(\frac{p(x)}{q^{*}(x)}\right)^{2}\left\Vert f(x)\right\Vert _{2}^{2}dx\\
  & = & \int\frac{p(x)^{2}}{q^{*}(x)}\left\Vert f(x)\right\Vert _{2}^{2}dx\\
- & = & \mathbb{E}_{p(x)}\left[\left\Vert f(x)\right\Vert _{2}\right]^{2}
+ & = & \left(\mathbb{E}_{p(x)}\left[\left\Vert f(x)\right\Vert _{2}\right]\right)^{2}
 \end{eqnarray*}
 
 \end_inset

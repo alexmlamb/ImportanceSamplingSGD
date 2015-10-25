@@ -27,11 +27,16 @@ def floatX(X):
 def init_weights(shape, scale = 0.01):
     return theano.shared(floatX(np.random.randn(*shape)) * scale)
 
-def sgd(cost, params, lr):
+#nestorov momentum
+def sgd(cost, params, momemtum, lr, mr):
     grads = T.grad(cost=cost, wrt=params)
     updates = []
-    for p, g in zip(params, grads):
-        updates.append([p, p - g * lr])
+    for p, g, v in zip(params, grads, momemtum):
+        v_prev = v
+        updates.append([v, mr * v - g * lr])
+        v = mr*v - g*lr
+        updates.append([p, p  - mr*v_prev + (1 + mr)*v ])
+
     return updates
 
 def model(X, w_h, b_h, Layer_inputs):
@@ -55,15 +60,15 @@ def compute_grad_norms(X, cost, layerLst):
     #gradient_norm_f = T.sqrt(gradient_norm_f)
     return gradient_norm_f
 
-def init_parameters(num_input, num_output, hidden_sizes):
-    w_h = [init_weights((num_input, hidden_sizes[0]))]
+def init_parameters(num_input, num_output, hidden_sizes, scale):
+    w_h = [init_weights((num_input, hidden_sizes[0]), scale)]
     b_h = [init_weights((hidden_sizes[0],), scale = 0.0)]
 
     for i in range(1, len(hidden_sizes) - 1):
-        w_h += [init_weights((hidden_sizes[i], hidden_sizes[i + 1]))]
+        w_h += [init_weights((hidden_sizes[i], hidden_sizes[i + 1]), scale)]
         b_h += [init_weights((hidden_sizes[i + 1],), scale = 0.0)]
 
-    w_h += [init_weights((hidden_sizes[-1], num_output))]
+    w_h += [init_weights((hidden_sizes[-1], num_output), scale)]
     b_h += [init_weights((num_output,), scale = 0.0)]
 
     return w_h, b_h
@@ -83,9 +88,10 @@ class nnet:
         num_input = config["num_input"]
         num_output = 10
 
-        w_h, b_h = init_parameters(num_input, num_output, config["hidden_sizes"])
-
+        w_h, b_h = init_parameters(num_input, num_output, config["hidden_sizes"],scale=0.01)
+        w_m, b_m, = init_parameters(num_input, num_output, config["hidden_sizes"],scale=0.0)
         self.parameters = w_h + b_h
+        self.momentum   = w_m + b_m
 
         Layers = [X]
 
@@ -96,7 +102,7 @@ class nnet:
 
         individual_cost = -1.0 * (T.log(py_x)[T.arange(Y.shape[0]), Y])
         cost = T.mean(individual_cost)
-        updates = sgd(cost, self.parameters, config["learning_rate"])
+        updates = sgd(cost, self.parameters, self.momentum, config["learning_rate"], config["momentum_rate"])
         squared_norm_var = compute_grad_norms(X,cost,Layers)
 
         self.train = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, individual_cost], updates=updates, allow_input_downcast=True)
@@ -119,7 +125,7 @@ class nnet:
         W.append(self.get_weight((num_h,num_o)))
         return W
 
-    def sgd(self,cost, params, lr=0.01):
+    def sgd(self,cost, params, lr=0.01, mr=0.0):
         grads = T.grad(cost=cost, wrt=params)
         updates = []
         for p, g in zip(params, grads):
