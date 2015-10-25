@@ -33,15 +33,6 @@ def sgd(cost, params, lr=0.05):
         updates.append([p, p - g * lr])
     return updates
 
-def model1(X, w_h, num_layers, Layer_inputs):
-    for i in range(0,num_layers-2):
-        print num_layers
-        Layer_inputs.append(T.nnet.sigmoid(T.dot(Layer_inputs[i], w_h[i])))
-    return T.nnet.softmax(T.dot(Layer_inputs[num_layers-2],w_h[num_layers-1]))
-
-#N x 784, 0
-#N x 1024,1
-#N x 10, 2
 def model(X, w_h, Layer_inputs):
     for i in range(0, len(w_h) - 1):
         Layer_inputs.append(T.nnet.sigmoid(T.dot(Layer_inputs[i], w_h[i])))
