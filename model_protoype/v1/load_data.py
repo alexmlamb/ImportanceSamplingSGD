@@ -73,7 +73,7 @@ def load_data_svhn(config):
     print "Validation Set", valid_X.shape, valid_Y.shape
     print "Test Set", test_X.shape, test_Y.shape
 
-    return {"train": (train_X, train_Y), "valid" : (valid_X, valid_Y), "test" : (test_X, test_Y)}
+    return {"train": (train_X, train_Y.flatten()), "valid" : (valid_X, valid_Y.flatten()), "test" : (test_X, test_Y.flatten())}
 
     #[(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
 

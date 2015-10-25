@@ -79,7 +79,6 @@ class ModelAPI():
         X = self.data[segment][0][A_indices]
         Y = self.data[segment][1][A_indices]
 
-        Y = np.reshape(Y, (Y.shape[0], 1))
 
         self.nnet.train(X, Y)
 

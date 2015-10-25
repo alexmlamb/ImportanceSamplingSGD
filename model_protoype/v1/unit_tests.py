@@ -13,6 +13,7 @@ def test_train():
         indices = np.random.choice(range(50000), mb_size, replace = False)
         scaling_factors = np.ones(mb_size)
 
+
         myModel.master_process_minibatch(indices, scaling_factors, "train")
 
         if i % 1000 == 0:
