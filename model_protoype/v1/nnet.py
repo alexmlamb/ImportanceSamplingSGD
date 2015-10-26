@@ -85,6 +85,7 @@ class nnet:
         print "hidden_units_per_layer :",nhidden
         X = T.fmatrix()
         Y = T.ivector()
+        scaling_factors = T.fvector()
         num_input = config["num_input"]
         num_output = 10
 
@@ -100,15 +101,17 @@ class nnet:
 
         y_x = T.argmax(py_x, axis=1)
 
-        individual_cost = -1.0 * (T.log(py_x)[T.arange(Y.shape[0]), Y])
+        individual_cost = -1.0 * scaling_factors * (T.log(py_x)[T.arange(Y.shape[0]), Y])
         cost = T.mean(individual_cost)
         updates = sgd(cost, self.parameters, self.momentum, config["learning_rate"], config["momentum_rate"])
         squared_norm_var = compute_grad_norms(X,cost,Layers)
 
-        self.train = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, individual_cost], updates=updates, allow_input_downcast=True)
+        accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
+
+        self.train = theano.function(inputs=[X, Y, scaling_factors], outputs=[cost,squared_norm_var, individual_cost, accuracy], updates=updates, allow_input_downcast=True)
         self.predict = theano.function(inputs=[X], outputs=[y_x,py_x], allow_input_downcast=True)
 
-
+        self.get_attributes = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, individual_cost, accuracy], allow_input_downcast=True)
 
 
     def compute_grads_and_weights(self, data, L_measurements):
@@ -162,7 +165,7 @@ class nnet:
     def compute_grads_and_weights(self, data, L_measurements):
         X, Y = data
 
-        cost,sq_grad_norm,individual_cost = self.train(X, Y)
+        cost,sq_grad_norm,individual_cost, accuracy = self.get_attributes(X, Y)
 
         res = {}
         for key in L_measurements:
@@ -172,6 +175,8 @@ class nnet:
                 res[key] = sq_grad_norm
             if key == "loss":
                 res[key] = individual_cost
+            if key == "accuracy":
+                res[key] = accuracy
         return res
 
 def main_loop( ):

@@ -60,7 +60,7 @@ class ModelAPI():
         # because that it going to be used.
 
         for key in L_measurements:
-            assert key in ["importance_weight", "gradient_square_norm", "loss"]
+            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy"]
 
         # Sleep to simulate work time.
         #time.sleep(SIMULATED_WORKER_PROCESS_MINIBATCH_TIME)
@@ -79,8 +79,7 @@ class ModelAPI():
         X = self.data[segment][0][A_indices]
         Y = self.data[segment][1][A_indices]
 
-
-        self.nnet.train(X, Y)
+        self.nnet.train(X, Y, A_scaling_factors)
 
         # Sleep to simulate work time.
         #time.sleep(SIMULATED_MASTER_PROCESS_MINIBATCH_TIME)

@@ -12,7 +12,7 @@ def get_config():
     config["momentum_rate"] = 0.9
 
     #The learning rate to use on the gradient averaged over a minibatch
-    config["learning_rate"] = 0.01
+    config["learning_rate"] = 0.1
 
     #config["dataset"] = "mnist"
     config["dataset"] = "svhn"
@@ -22,10 +22,10 @@ def get_config():
     elif config["dataset"] == "svhn":
         config["num_input"] = 3072
 
-    config["mnist_file"] = "/data/lisatmp3/lambalex/mnist/mnist.pkl.gz"
-    config["svhn_file_train"] = "/data/lisatmp3/lambalex/svhn/train_32x32.mat"
-    config["svhn_file_extra"] = "/data/lisatmp3/lambalex/svhn/extra_32x32.mat"
-    config["svhn_file_test"] = "/data/lisatmp3/lambalex/svhn/test_32x32.mat"
+    config["mnist_file"] = "/data/lisatmp4/lambalex/mnist/mnist.pkl.gz"
+    config["svhn_file_train"] = "/data/lisatmp4/lambalex/svhn/train_32x32.mat"
+    config["svhn_file_extra"] = "/data/lisatmp4/lambalex/svhn/extra_32x32.mat"
+    config["svhn_file_test"] = "/data/lisatmp4/lambalex/svhn/test_32x32.mat"
 
     config["hidden_sizes"] = [2048, 2048,2048,2048]
 
