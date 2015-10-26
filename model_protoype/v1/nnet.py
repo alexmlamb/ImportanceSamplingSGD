@@ -101,9 +101,13 @@ class nnet:
 
         y_x = T.argmax(py_x, axis=1)
 
-        individual_cost = -1.0 * scaling_factors * (T.log(py_x)[T.arange(Y.shape[0]), Y])
+        individual_cost = -1.0 * (T.log(py_x)[T.arange(Y.shape[0]), Y])
         cost = T.mean(individual_cost)
-        updates = sgd(cost, self.parameters, self.momentum, config["learning_rate"], config["momentum_rate"])
+
+        scaled_individual_cost = scaling_factors * individual_cost
+        scaled_cost = T.mean(scaled_individual_cost)
+
+        updates = sgd(scaled_cost, self.parameters, self.momentum, config["learning_rate"], config["momentum_rate"])
         squared_norm_var = compute_grad_norms(X,cost,Layers)
 
         accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
@@ -112,7 +116,7 @@ class nnet:
         self.predict = theano.function(inputs=[X], outputs=[y_x,py_x], allow_input_downcast=True)
 
         self.get_attributes = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, individual_cost, accuracy], allow_input_downcast=True)
-
+        #self.get_attributes = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, accuracy], allow_input_downcast=True)
 
     def compute_grads_and_weights(self, data, L_measurements):
         X, Y = data
