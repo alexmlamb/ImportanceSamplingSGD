@@ -8,7 +8,7 @@ SIMULATED_MASTER_PROCESS_MINIBATCH_TIME = 1.0
 
 class ModelAPI():
 
-    def __init__(self):
+    def __init__(self, model_config=None):
         self.serialized_parameters_shape = (100,)
 
     def get_serialized_parameters(self):
