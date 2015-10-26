@@ -31,7 +31,7 @@ class ModelAPI():
         # because that it going to be used.
 
         for key in L_measurements:
-            assert key in ["importance_weight", "gradient_square_norm", "loss"]
+            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy"]
 
         # Sleep to simulate work time.
         time.sleep(SIMULATED_WORKER_PROCESS_MINIBATCH_TIME)

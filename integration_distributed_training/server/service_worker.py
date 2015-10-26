@@ -8,18 +8,24 @@ import re
 import sys, os
 import getopt
 
-from mocked_model import ModelAPI
+# Change this to the real model once you want to plug it in.
+from integration_distributed_training.model.mocked_model import ModelAPI
 
-from common import get_rsconn_with_timeout, read_config
+from common import get_rsconn_with_timeout
 
-def run(server_ip, server_port, server_password):
+def run(DD_config, D_server_desc):
 
-    rsconn = get_rsconn_with_timeout(server_ip, server_port, server_password,
+    # TODO : Get rid of this cheap hack to circumvent my OSX's inability to see itself.
+    D_server_desc['hostname'] = "localhost"
+
+    rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
                                      timeout=60, wait_for_parameters_to_be_present=True)
-    config = read_config(rsconn)
-    L_measurements = config['L_measurements']
-    serialized_parameters_format = config['serialized_parameters_format']
-    model_api = ModelAPI()
+
+    L_measurements = DD_config['database']['L_measurements']
+    serialized_parameters_format = DD_config['database']['serialized_parameters_format']
+
+    model_api = ModelAPI(DD_config['model'])
+
 
     #D_segment_priorities = {'train' : 50, 'valid' : 1, 'test' : 1}
     segment_priorities_p = np.array([50, 1, 1], dtype=np.float32)
@@ -162,52 +168,3 @@ def run(server_ip, server_port, server_password):
 
                 m += 1
                 continue
-
-
-def usage():
-    print ""
-
-def main(argv):
-    """
-    """
-
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hv", ["server_ip=", "server_port=", "server_password="])
-    except getopt.GetoptError as err:
-        # print help information and exit:
-        print str(err) # will print something like "option -a not recognized"
-        usage()
-        sys.exit(2)
-
-    server_ip = "localhost"
-    server_port = None
-    server_password = None
-
-    verbose = False
-    for o, a in opts:
-        if o == "-v":
-            verbose = True
-        elif o in ("-h", "--help"):
-            usage()
-            sys.exit()
-        elif o in ("--server_ip"):
-            server_ip = a
-        elif o in ("--server_port"):
-            server_port = int(a)
-        elif o in ("--server_password"):
-            server_password = a
-        else:
-            assert False, "unhandled option"
-
-
-    run(server_ip, server_port, server_password)
-
-
-if __name__ == "__main__":
-    main(sys.argv)
-
-
-"""
-    python run_service_worker.py --server_port=5982 --server_password="patate"
-
-"""
