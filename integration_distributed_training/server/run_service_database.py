@@ -1,5 +1,4 @@
 
-
 import redis
 import numpy as np
 import json
@@ -7,7 +6,6 @@ import time
 
 import sys, os
 import getopt
-
 
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
@@ -45,7 +43,7 @@ def configure(  rsconn,
     for segment in L_segments:
 
         # That's a bit of a hacky way to specify Ntrain/Nvalid/Ntest.
-        N = dataset_config['N%s' % segment]
+        N = {'train':Ntrain, 'valid':Nvalid, 'test':Ntest}[segment]
 
         rsconn.delete("L_workers_%s_minibatch_indices_QUEUE" % segment)
         rsconn.delete("L_workers_%s_minibatch_indices_ALL" % segment)
@@ -90,131 +88,15 @@ def configure(  rsconn,
 
 
 
-def run(server_scratch_path, server_port, server_password,
-        workers_minibatch_size, master_minibatch_size,
-        dataset_name,
-        Ntrain, Nvalid, Ntest):
-
-    if server_scratch_path is None:
-        server_scratch_path = "."
-
-    if server_port is None:
-        server_port = np.random.randint(low=1025, high=65535)
-
-    # password can be None.
-    # Consider maybe generating one at random, shared with workers later.
-
-    assert workers_minibatch_size is not None and 0 < workers_minibatch_size
-    assert master_minibatch_size is not None and 0 < master_minibatch_size
-    assert dataset_name is not None
-    assert Ntrain is not None and 0 < Ntrain
-    assert Nvalid is not None
-    assert Ntest is not None
-
-    # The ip of the server will have to be communicated in some way
-    # to the other workers on the helios cluster.
-    # We'll write to a file. Later. Not important for now.
-
-    rserv = redis_server_wrapper.EphemeralRedisServer(  scratch_path=server_scratch_path,
-                                                        port=server_port, password=server_password)
-    rserv.start()
-    time.sleep(5)
-    rsconn = rserv.get_client()
-    print "pinging master server : %s" % (rsconn.ping(),)
-
-    # Hardcode those two measurements for now.
-    # Moreover, we're using the gradient_square_norm as importance_weight
-    # so it's going to be the same value.
-    L_measurements = ["importance_weight", "gradient_square_norm", "loss"]
+def run(DD_config, rsconn):
 
     configure(  rsconn,
-                workers_minibatch_size=workers_minibatch_size, master_minibatch_size=master_minibatch_size,
-                dataset_name=dataset_name,
-                Ntrain=Ntrain, Nvalid=Nvalid, Ntest=Ntest,
-                L_measurements=L_measurements)
+                **DD_config['database'])
 
 
     # You might want to do something to shutdown the redis server more gracefully upon hitting ctrl-c
     # or have some other way of closing it. Not important for now.
+    # If you decide to add this, then you'll need to pass `rserv` to this function.
     while True:
         print "..running server.."
         time.sleep(5)
-
-
-
-def usage():
-    print ""
-
-def main(argv):
-    """
-    """
-
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hv", ["server_scratch_path=", "server_port=", "server_password=",
-                                                        "workers_minibatch_size=", "master_minibatch_size=",
-                                                        "dataset_name=",
-                                                        "Ntrain=", "Nvalid=", "Ntest="])
-    except getopt.GetoptError as err:
-        # print help information and exit:
-        print str(err) # will print something like "option -a not recognized"
-        usage()
-        sys.exit(2)
-
-    server_scratch_path = None
-    server_port = None
-    server_password = None
-
-    workers_minibatch_size = 256
-    master_minibatch_size = 256
-    dataset_name = None # "SVHN2"
-    Ntrain = 0
-    Nvalid = 0
-    Ntest = 0
-
-
-
-    verbose = False
-    for o, a in opts:
-        if o == "-v":
-            verbose = True
-        elif o in ("-h", "--help"):
-            usage()
-            sys.exit()
-        elif o in ("--server_scratch_path"):
-            server_scratch_path = a
-        elif o in ("--server_port"):
-            server_port = int(a)
-        elif o in ("--server_password"):
-            server_password = a
-        elif o in ("--workers_minibatch_size"):
-            workers_minibatch_size = int(a)
-        elif o in ("--master_minibatch_size"):
-            master_minibatch_size = int(a)
-        elif o in ("--dataset_name"):
-            dataset_name = a
-        elif o in ("--Ntrain"):
-            Ntrain = int(a)
-        elif o in ("--Nvalid"):
-            Nvalid = int(a)
-        elif o in ("--Ntest"):
-            Ntest = int(a)
-        else:
-            assert False, "unhandled option"
-
-    # The validity of the arguments is verified in the `run` function.
-    run(server_scratch_path, server_port, server_password,
-        workers_minibatch_size, master_minibatch_size,
-        dataset_name,
-        Ntrain, Nvalid, Ntest)
-
-
-if __name__ == "__main__":
-    main(sys.argv)
-
-
-"""
-    python run_service_database.py --server_port=5982 --server_password="patate" --workers_minibatch_size=128 --master_minibatch_size=512 --Ntrain=2000 --dataset_name=SVHN2
-
-    python run_service_database.py --Ntrain=512 --dataset_name=SVHN2
-
-"""
