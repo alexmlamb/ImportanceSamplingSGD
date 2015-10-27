@@ -69,21 +69,17 @@ def load_data_svhn(config):
     valid_X = (valid_X - x_mean) / x_std
     test_X = (test_X - x_mean) / x_std
 
-    # Note from Guillaume : This is how it's done.
     train_X = numpy.reshape(train_X, (train_X.shape[0], -1))
     valid_X = numpy.reshape(valid_X, (valid_X.shape[0], -1))
     test_X  = numpy.reshape(test_X,  (test_X.shape[0], -1))
-    #train_X = numpy.reshape(train_X, (train_X.shape[0],train_X.shape[1] * train_X.shape[2] * train_X.shape[3]))
-    #valid_X = numpy.reshape(valid_X, (valid_X.shape[0],valid_X.shape[1] * valid_X.shape[2] * valid_X.shape[3]))
-    #test_X = numpy.reshape(test_X, (test_X.shape[0],test_X.shape[1] * test_X.shape[2] * test_X.shape[3]))
 
     print "Training Set", train_X.shape, train_Y.shape
     print "Validation Set", valid_X.shape, valid_Y.shape
     print "Test Set", test_X.shape, test_Y.shape
 
+    # Note from Guillaume : You need to keep around the mean/std here to be
+    # able to divide them when on a minibatch.
     return {"train": (train_X, train_Y.flatten()), "valid" : (valid_X, valid_Y.flatten()), "test" : (test_X, test_Y.flatten())}
-
-    #[(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
 
 
 
