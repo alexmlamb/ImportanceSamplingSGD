@@ -22,13 +22,13 @@ def load_data_svhn(config):
     # This is loading the data and converting it into an 8 GB array.
     # We had agreed to store this as uint8 temporarily and do the
     # conversion on a mini-batch basis.
-    train_X = numpy.asarray(train_object["X"], dtype = 'float32')
-    extra_X = numpy.asarray(extra_object["X"], dtype = 'float32')
-    test_X = numpy.asarray(test_object["X"], dtype = 'float32')
+    train_X = numpy.asarray(train_object["X"], dtype = 'uint8')
+    extra_X = numpy.asarray(extra_object["X"], dtype = 'uint8')
+    test_X = numpy.asarray(test_object["X"], dtype = 'uint8')
 
-    train_Y = numpy.asarray(train_object["y"], dtype = 'int8')
-    extra_Y = numpy.asarray(extra_object["y"], dtype = 'int8')
-    test_Y = numpy.asarray(test_object["y"], dtype = 'int8')
+    train_Y = numpy.asarray(train_object["y"], dtype = 'uint8')
+    extra_Y = numpy.asarray(extra_object["y"], dtype = 'uint8')
+    test_Y = numpy.asarray(test_object["y"], dtype = 'uint8')
 
 
     del train_object
@@ -67,14 +67,6 @@ def load_data_svhn(config):
     x_std = train_X.std(axis = (0))
 
 
-    train_X = (train_X - x_mean) / x_std
-    valid_X = (valid_X - x_mean) / x_std
-    test_X = (test_X - x_mean) / x_std
-
-    train_X = numpy.reshape(train_X, (train_X.shape[0], -1))
-    valid_X = numpy.reshape(valid_X, (valid_X.shape[0], -1))
-    test_X  = numpy.reshape(test_X,  (test_X.shape[0], -1))
-
     print "Training Set", train_X.shape, train_Y.shape
     print "Validation Set", valid_X.shape, valid_Y.shape
     print "Test Set", test_X.shape, test_Y.shape
@@ -103,10 +95,8 @@ def load_data_mnist(config):
     return rval
 
 def normalizeMatrix(X, mean, std):
-    #new_X = (X - mean) / std
-    #new_X = numpy.reshape(X, (X.shape[0], -1)).astype('float32')
-
-    new_X = X
+    new_X = (X - mean) / std
+    new_X = numpy.reshape(new_X, (new_X.shape[0], -1)).astype('float32')
 
     return new_X
 

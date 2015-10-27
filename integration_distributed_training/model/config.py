@@ -27,7 +27,7 @@ def get_config():
     config["svhn_file_extra"] = "/data/lisatmp4/lambalex/svhn/extra_32x32.mat"
     config["svhn_file_test"] = "/data/lisatmp4/lambalex/svhn/test_32x32.mat"
 
-    config["hidden_sizes"] = [512,512]
+    config["hidden_sizes"] = [2048, 2048, 2048, 2048]
 
     config["seed"] = 9999494
 
