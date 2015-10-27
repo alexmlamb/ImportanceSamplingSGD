@@ -2,7 +2,7 @@ import numpy
 import gzip
 import cPickle
 
-#Returns list of tuples containing training, validation, and test instances.  
+#Returns list of tuples containing training, validation, and test instances.
 def load_data_svhn(config):
 
     numpy.random.seed(config["seed"])
@@ -18,6 +18,10 @@ def load_data_svhn(config):
 
     print "objects loaded"
 
+    # Note from Guillaume : This is NOT what we agreed on.
+    # This is loading the data and converting it into an 8 GB array.
+    # We had agreed to store this as uint8 temporarily and do the
+    # conversion on a mini-batch basis.
     train_X = numpy.asarray(train_object["X"], dtype = 'float32')
     extra_X = numpy.asarray(extra_object["X"], dtype = 'float32')
     test_X = numpy.asarray(test_object["X"], dtype = 'float32')
@@ -30,8 +34,8 @@ def load_data_svhn(config):
     del extra_object
     del test_object
 
-    #By default SVHN labels are from 1 to 10.  
-    #This shifts them to be between 0 and 9.  
+    #By default SVHN labels are from 1 to 10.
+    #This shifts them to be between 0 and 9.
     train_Y -= 1
     extra_Y -= 1
     test_Y -= 1
@@ -57,7 +61,7 @@ def load_data_svhn(config):
     train_X = train_X[train_indices]
     train_Y = train_Y[train_indices]
 
-    #get mean and std for each filter and each pixel.  
+    #get mean and std for each filter and each pixel.
     x_mean = train_X.mean(axis = (0))
     x_std = train_X.std(axis = (0))
 
@@ -65,9 +69,13 @@ def load_data_svhn(config):
     valid_X = (valid_X - x_mean) / x_std
     test_X = (test_X - x_mean) / x_std
 
-    train_X = numpy.reshape(train_X, (train_X.shape[0],train_X.shape[1] * train_X.shape[2] * train_X.shape[3]))
-    valid_X = numpy.reshape(valid_X, (valid_X.shape[0],valid_X.shape[1] * valid_X.shape[2] * valid_X.shape[3]))
-    test_X = numpy.reshape(test_X, (test_X.shape[0],test_X.shape[1] * test_X.shape[2] * test_X.shape[3]))
+    # Note from Guillaume : This is how it's done.
+    train_X = numpy.reshape(train_X, (train_X.shape[0], -1))
+    valid_X = numpy.reshape(valid_X, (valid_X.shape[0], -1))
+    test_X  = numpy.reshape(test_X,  (test_X.shape[0], -1))
+    #train_X = numpy.reshape(train_X, (train_X.shape[0],train_X.shape[1] * train_X.shape[2] * train_X.shape[3]))
+    #valid_X = numpy.reshape(valid_X, (valid_X.shape[0],valid_X.shape[1] * valid_X.shape[2] * valid_X.shape[3]))
+    #test_X = numpy.reshape(test_X, (test_X.shape[0],test_X.shape[1] * test_X.shape[2] * test_X.shape[3]))
 
     print "Training Set", train_X.shape, train_Y.shape
     print "Validation Set", valid_X.shape, valid_Y.shape
@@ -77,7 +85,7 @@ def load_data_svhn(config):
 
     #[(train_X, train_Y.flatten().tolist()), (valid_X, valid_Y.flatten().tolist()), (test_X, test_Y.flatten().tolist())]
 
-    
+
 
 def load_data_mnist(config):
     dataset = config["mnist_file"]
@@ -106,24 +114,3 @@ def load_data(config):
         return load_data_mnist(config)
     else:
         raise Exception("Dataset must be either svhn or mnist")
-
-
-
-
-
-
-if __name__ == "__main__":
-
-    from config import get_config
-
-    config = get_config()
-
-    print "config loaded"
-
-    load_data(config)
-
-
-
-
-
-

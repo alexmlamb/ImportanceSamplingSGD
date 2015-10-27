@@ -1,44 +1,54 @@
 
+import os
+
 def get_model_config():
 
-    config = {}
+    model_config = {}
 
     #Importance sampling or vanilla sgd.
-    config["importance_algorithm"] = "isgd"
-    #config["importance_algorithm"] = "sgd"
+    model_config["importance_algorithm"] = "isgd"
+    #model_config["importance_algorithm"] = "sgd"
 
     #Momentum rate, where 0.0 corresponds to not using momentum
-    config["momentum_rate"] = 0.9
+    model_config["momentum_rate"] = 0.9
 
     #The learning rate to use on the gradient averaged over a minibatch
-    config["learning_rate"] = 0.1
+    model_config["learning_rate"] = 0.1
 
-    #config["dataset"] = "mnist"
-    config["dataset"] = "svhn"
+    #model_config["dataset"] = "mnist"
+    model_config["dataset"] = "svhn"
 
-    if config["dataset"] == "mnist":
-        config["num_input"] = 784
-    elif config["dataset"] == "svhn":
-        config["num_input"] = 3072
+    if model_config["dataset"] == "mnist":
+        model_config["num_input"] = 784
+    elif model_config["dataset"] == "svhn":
+        model_config["num_input"] = 3072
 
-    config["mnist_file"] = "/data/lisatmp4/lambalex/mnist/mnist.pkl.gz"
-    config["svhn_file_train"] = "/data/lisatmp4/lambalex/svhn/train_32x32.mat"
-    config["svhn_file_extra"] = "/data/lisatmp4/lambalex/svhn/extra_32x32.mat"
-    config["svhn_file_test"] = "/data/lisatmp4/lambalex/svhn/test_32x32.mat"
+    # Pick one, depending where you run this.
+    # This could be done differently too by looking at fuelrc
+    # or at the hostname.
+    #data_root = "/data/lisatmp4/lambalex"
+    data_root = "/Users/gyomalin/Documents/fuel_data"
 
-    config["hidden_sizes"] = [2048, 2048,2048,2048]
+    model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
+    model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
+    model_config["svhn_file_extra"] = os.path.join(data_root, "svhn/extra_32x32.mat")
+    model_config["svhn_file_test"] = os.path.join(data_root, "svhn/test_32x32.mat")
 
-    config["seed"] = 9999494
+    model_config["hidden_sizes"] = [2048, 2048,2048,2048]
 
-    config["learning_rate"] = 0.01
+    # Note from Guillaume : I'm not fond at all of using seeds in a context
+    # where we don't need them.
+    model_config["seed"] = 9999494
+
+    model_config["learning_rate"] = 0.01
 
     #Weights are initialized to N(0,1) * initial_weight_size
-    config["initial_weight_size"] = 0.01
+    model_config["initial_weight_size"] = 0.01
 
     #Hold this fraction of the instances in the validation dataset
-    config["fraction_validation"] = 0.05
+    model_config["fraction_validation"] = 0.05
 
-    return config
+    return model_config
 
 
 def get_database_config():

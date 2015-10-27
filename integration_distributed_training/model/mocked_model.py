@@ -12,9 +12,11 @@ class ModelAPI():
         self.serialized_parameters_shape = (100,)
 
     def get_serialized_parameters(self):
+        # This is only called on the master.
         return np.random.rand(*self.serialized_parameters_shape).astype(np.float32).tostring(order='C')
 
     def set_serialized_parameters(self, serialized_parameters):
+        # This is only called on the worker.
         pass
         #assert type(serialized_parameters) == np.ndarray
         #assert serialized_parameters.dtype == np.float32

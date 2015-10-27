@@ -2,7 +2,6 @@ __author__ = 'chinna'
 import theano
 from theano import tensor as T
 import numpy as np
-import matplotlib.pyplot as plt
 from theano import shared
 from theano import function
 
@@ -18,7 +17,6 @@ import numpy as np
 from PIL import Image
 from scipy import signal
 from load_data import load_data
-from config import get_config
 import cPickle as pickle
 
 def floatX(X):
@@ -75,22 +73,21 @@ def init_parameters(num_input, num_output, hidden_sizes, scale):
 
 class nnet:
 
-    def __init__(self):
-        config = get_config()
-        self.data = load_data(config)
-        print "%s data loaded..." %config["dataset"]
-        nhidden_layers = len(config["hidden_sizes"])
-        nhidden = config["hidden_sizes"][0]
+    def __init__(self, model_config):
+        self.data = load_data(model_config)
+        print "%s data loaded..." % model_config["dataset"]
+        nhidden_layers = len(model_config["hidden_sizes"])
+        nhidden = model_config["hidden_sizes"][0]
         print "num_hidden_layers      :",nhidden_layers
         print "hidden_units_per_layer :",nhidden
         X = T.fmatrix()
         Y = T.ivector()
         scaling_factors = T.fvector()
-        num_input = config["num_input"]
+        num_input = model_config["num_input"]
         num_output = 10
 
-        w_h, b_h = init_parameters(num_input, num_output, config["hidden_sizes"],scale=0.01)
-        w_m, b_m, = init_parameters(num_input, num_output, config["hidden_sizes"],scale=0.0)
+        w_h, b_h = init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.01)
+        w_m, b_m, = init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.0)
         self.parameters = w_h + b_h
         self.momentum   = w_m + b_m
 
@@ -107,15 +104,19 @@ class nnet:
         scaled_individual_cost = scaling_factors * individual_cost
         scaled_cost = T.mean(scaled_individual_cost)
 
-        updates = sgd(scaled_cost, self.parameters, self.momentum, config["learning_rate"], config["momentum_rate"])
+        updates = sgd(scaled_cost, self.parameters, self.momentum, model_config["learning_rate"], model_config["momentum_rate"])
         squared_norm_var = compute_grad_norms(X,cost,Layers)
 
         accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
 
-        self.train = theano.function(inputs=[X, Y, scaling_factors], outputs=[cost,squared_norm_var, individual_cost, accuracy], updates=updates, allow_input_downcast=True)
+        self.train = theano.function(inputs=[X, Y, scaling_factors],
+                                     outputs=[cost, squared_norm_var, individual_cost, accuracy],
+                                     updates=updates, allow_input_downcast=True)
         self.predict = theano.function(inputs=[X], outputs=[y_x,py_x], allow_input_downcast=True)
 
-        self.get_attributes = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, individual_cost, accuracy], allow_input_downcast=True)
+        self.get_attributes = theano.function(  inputs=[X, Y],
+                                                outputs=[cost, squared_norm_var, individual_cost, accuracy],
+                                                allow_input_downcast=True)
         #self.get_attributes = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, accuracy], allow_input_downcast=True)
 
     def compute_grads_and_weights(self, data, L_measurements):
@@ -145,6 +146,10 @@ class nnet:
     def model(self,X, W, num_hlayers, layer_inputs):
         layer_inputs.append(X)
         for i in range(num_hlayers):
+            # Note from Guillaume : Wait. So I get that this is a ReLU
+            # instead of a sigmoid, but
+            # 1) Why not use the theano ReLU ?
+            # 2) Where are the biases ?
             #layer_inputs.append(T.nnet.sigmoid(T.dot(layer_inputs[i], W[i])))
             layer_inputs.append(T.maximum(0.0, T.dot(layer_inputs[i], W[i])))
         layer_inputs.append(T.nnet.softmax(T.dot(layer_inputs[num_hlayers],W[num_hlayers])))
@@ -156,11 +161,17 @@ class nnet:
         for index in range(1, len(layerLst)):
             output_layer = layerLst[index]
             input_layer = layerLst[index - 1]
+            # TODO. Note by Guillaume : Are you using a bias in here ?
+            #       I think that this formula looks slightly wrong.
+            #       Also, T.sqr might be slightly better than **2.
+            #       Also, iterating with a zip would be nicer in python.
             gradient_norm_f += (input_layer**2).sum(axis = 1) * (T.grad(cost, output_layer)**2).sum(axis = 1)
 
         #gradient_norm_f = T.sqrt(gradient_norm_f)
         return gradient_norm_f
 
+    # Note from Guillaume : This is a teaching moment
+    # about style in python.
     def update_params(self, params):
         params = pickle.loads(params)
         for i in len(params):
@@ -183,6 +194,8 @@ class nnet:
                 res[key] = accuracy
         return res
 
+# This no longer works without specifying a particular configuration file
+# because nnet needs one.
 def main_loop( ):
     myNet = nnet()
     A_indices = np.array([1,2,3,4])

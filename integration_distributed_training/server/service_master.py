@@ -9,7 +9,12 @@ import sys, os
 import getopt
 
 # Change this to the real model once you want to plug it in.
-from integration_distributed_training.model.mocked_model import ModelAPI
+
+# Mocked ModelAPI. Used for debugging certain things.
+#from integration_distributed_training.model.mocked_model import ModelAPI
+#
+# The actual model that runs on SVHN.
+from integration_distributed_training.model.model import ModelAPI
 
 
 from common import get_rsconn_with_timeout
