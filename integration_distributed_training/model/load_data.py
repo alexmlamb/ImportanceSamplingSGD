@@ -30,6 +30,7 @@ def load_data_svhn(config):
     extra_Y = numpy.asarray(extra_object["y"], dtype = 'int8')
     test_Y = numpy.asarray(test_object["y"], dtype = 'int8')
 
+
     del train_object
     del extra_object
     del test_object
@@ -65,6 +66,7 @@ def load_data_svhn(config):
     x_mean = train_X.mean(axis = (0))
     x_std = train_X.std(axis = (0))
 
+
     train_X = (train_X - x_mean) / x_std
     valid_X = (valid_X - x_mean) / x_std
     test_X = (test_X - x_mean) / x_std
@@ -79,8 +81,7 @@ def load_data_svhn(config):
 
     # Note from Guillaume : You need to keep around the mean/std here to be
     # able to divide them when on a minibatch.
-    return {"train": (train_X, train_Y.flatten()), "valid" : (valid_X, valid_Y.flatten()), "test" : (test_X, test_Y.flatten())}
-
+    return {"train": (train_X, train_Y.flatten()), "valid" : (valid_X, valid_Y.flatten()), "test" : (test_X, test_Y.flatten()), "mean" : x_mean, "std" : x_std}
 
 
 def load_data_mnist(config):
@@ -101,7 +102,13 @@ def load_data_mnist(config):
 
     return rval
 
+def normalizeMatrix(X, mean, std):
+    #new_X = (X - mean) / std
+    #new_X = numpy.reshape(X, (X.shape[0], -1)).astype('float32')
 
+    new_X = X
+
+    return new_X
 
 def load_data(config):
     if config["dataset"] == "svhn":
@@ -110,3 +117,6 @@ def load_data(config):
         return load_data_mnist(config)
     else:
         raise Exception("Dataset must be either svhn or mnist")
+
+
+

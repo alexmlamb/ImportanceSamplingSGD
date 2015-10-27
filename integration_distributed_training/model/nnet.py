@@ -16,65 +16,73 @@ import scipy as sp
 import numpy as np
 from PIL import Image
 from scipy import signal
-from load_data import load_data
+from load_data import load_data, normalizeMatrix
 import cPickle as pickle
 
-def floatX(X):
-    return np.asarray(X, dtype=theano.config.floatX)
+class NeuralNetwork: 
 
-def init_weights(shape, scale = 0.01):
-    return theano.shared(floatX(np.random.randn(*shape)) * scale)
+    @staticmethod
+    def floatX(X):
+        return np.asarray(X, dtype=theano.config.floatX)
 
-#nestorov momentum
-def sgd(cost, params, momemtum, lr, mr):
-    grads = T.grad(cost=cost, wrt=params)
-    updates = []
-    for p, g, v in zip(params, grads, momemtum):
-        v_prev = v
-        updates.append([v, mr * v - g * lr])
-        v = mr*v - g*lr
-        updates.append([p, p  - mr*v_prev + (1 + mr)*v ])
+    @staticmethod
+    def init_weights(shape, scale = 0.01):
+        return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape)) * scale)
 
-    return updates
+    @staticmethod
+    def sgd(cost, params, momemtum, lr, mr):
+        grads = T.grad(cost=cost, wrt=params)
+        updates = []
+        for p, g, v in zip(params, grads, momemtum):
+            v_prev = v
+            updates.append([v, mr * v - g * lr])
+            v = mr*v - g*lr
+            updates.append([p, p  - mr*v_prev + (1 + mr)*v ])
 
-def model(X, w_h, b_h, Layer_inputs):
-    for i in range(0, len(w_h) - 1):
-        Layer_inputs.append(T.maximum(0.0, b_h[i] + T.dot(Layer_inputs[i], w_h[i])))
+        return updates
 
-    Layer_inputs.append(T.nnet.softmax(b_h[-1] + T.dot(Layer_inputs[-1],w_h[-1])))
+    @staticmethod
+    def model(X, w_h, b_h, Layer_inputs):
+        for i in range(0, len(w_h) - 1):
+            Layer_inputs.append(T.maximum(0.0, b_h[i] + T.dot(Layer_inputs[i], w_h[i])))
 
-    return Layer_inputs[-1]
+        Layer_inputs.append(T.nnet.softmax(b_h[-1] + T.dot(Layer_inputs[-1],w_h[-1])))
 
-# output is a list of squared norm of gradients per example
-# input is input matrix and
-def compute_grad_norms(X, cost, layerLst):
-    gradient_norm_f = 0.0
+        return Layer_inputs[-1]
 
-    for index in range(1, len(layerLst)):
-        output_layer = layerLst[index]
-        input_layer = layerLst[index - 1]
-        gradient_norm_f += (input_layer**2).sum(axis = 1) * (T.grad(cost, output_layer)**2).sum(axis = 1)
+    # output is a list of squared norm of gradients per example
+    # input is input matrix and
+    @staticmethod
+    def compute_grad_norms(X, cost, layerLst):
+        gradient_norm_f = 0.0
 
-    #gradient_norm_f = T.sqrt(gradient_norm_f)
-    return gradient_norm_f
+        for index in range(1, len(layerLst)):
+            output_layer = layerLst[index]
+            input_layer = layerLst[index - 1]
+            gradient_norm_f += (input_layer**2).sum(axis = 1) * (T.grad(cost, output_layer)**2).sum(axis = 1)
 
-def init_parameters(num_input, num_output, hidden_sizes, scale):
-    w_h = [init_weights((num_input, hidden_sizes[0]), scale)]
-    b_h = [init_weights((hidden_sizes[0],), scale = 0.0)]
+        #gradient_norm_f = T.sqrt(gradient_norm_f)
+        return gradient_norm_f
 
-    for i in range(1, len(hidden_sizes) - 1):
-        w_h += [init_weights((hidden_sizes[i], hidden_sizes[i + 1]), scale)]
-        b_h += [init_weights((hidden_sizes[i + 1],), scale = 0.0)]
+    @staticmethod
+    def init_parameters(num_input, num_output, hidden_sizes, scale):
+        w_h = [NeuralNetwork.init_weights((num_input, hidden_sizes[0]), scale)]
+        b_h = [NeuralNetwork.init_weights((hidden_sizes[0],), scale = 0.0)]
 
-    w_h += [init_weights((hidden_sizes[-1], num_output), scale)]
-    b_h += [init_weights((num_output,), scale = 0.0)]
+        for i in range(1, len(hidden_sizes) - 1):
+            w_h += [NeuralNetwork.init_weights((hidden_sizes[i], hidden_sizes[i + 1]), scale)]
+            b_h += [NeuralNetwork.init_weights((hidden_sizes[i + 1],), scale = 0.0)]
 
-    return w_h, b_h
+        w_h += [NeuralNetwork.init_weights((hidden_sizes[-1], num_output), scale)]
+        b_h += [NeuralNetwork.init_weights((num_output,), scale = 0.0)]
 
-class nnet:
+        return w_h, b_h
+
 
     def __init__(self, model_config):
         self.data = load_data(model_config)
+        self.mean = self.data["mean"]
+        self.std = self.data["std"]
         print "%s data loaded..." % model_config["dataset"]
         nhidden_layers = len(model_config["hidden_sizes"])
         nhidden = model_config["hidden_sizes"][0]
@@ -86,15 +94,15 @@ class nnet:
         num_input = model_config["num_input"]
         num_output = 10
 
-        w_h, b_h = init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.01)
-        w_m, b_m, = init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.0)
+        w_h, b_h = NeuralNetwork.init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.01)
+        w_m, b_m, = NeuralNetwork.init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.0)
         self.parameters = w_h + b_h
         self.momentum   = w_m + b_m
 
         Layers = [X]
 
 
-        py_x = model(X, w_h, b_h, Layers)
+        py_x = NeuralNetwork.model(X, w_h, b_h, Layers)
 
         y_x = T.argmax(py_x, axis=1)
 
@@ -104,8 +112,8 @@ class nnet:
         scaled_individual_cost = scaling_factors * individual_cost
         scaled_cost = T.mean(scaled_individual_cost)
 
-        updates = sgd(scaled_cost, self.parameters, self.momentum, model_config["learning_rate"], model_config["momentum_rate"])
-        squared_norm_var = compute_grad_norms(X,cost,Layers)
+        updates = NeuralNetwork.sgd(scaled_cost, self.parameters, self.momentum, model_config["learning_rate"], model_config["momentum_rate"])
+        squared_norm_var = NeuralNetwork.compute_grad_norms(X,cost,Layers)
 
         accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
 
@@ -117,58 +125,9 @@ class nnet:
         self.get_attributes = theano.function(  inputs=[X, Y],
                                                 outputs=[cost, squared_norm_var, individual_cost, accuracy],
                                                 allow_input_downcast=True)
-        #self.get_attributes = theano.function(inputs=[X, Y], outputs=[cost,squared_norm_var, accuracy], allow_input_downcast=True)
 
-    def compute_grads_and_weights(self, data, L_measurements):
-        X, Y = data
 
-    def get_weight(self,shape):
-        return theano.shared(floatX(np.random.randn(*shape) * 0.01))
 
-    def init_weights(self,num_i,num_o,num_h,num_hlayers):
-        W = []
-        W.append(self.get_weight((num_i,num_h)))
-        for i in range(num_hlayers-1):
-            W.append(self.get_weight((num_h,num_h)))
-        W.append(self.get_weight((num_h,num_o)))
-        return W
-
-    def sgd(self,cost, params, lr=0.01, mr=0.0):
-        grads = T.grad(cost=cost, wrt=params)
-        updates = []
-        for p, g in zip(params, grads):
-            updates.append([p, p - g * lr])
-        return updates
-
-    # input  -> layer[0],
-    # hidden ->layer[1:n_hidden+1]
-    # output -> layer[n_hidden+1]
-    def model(self,X, W, num_hlayers, layer_inputs):
-        layer_inputs.append(X)
-        for i in range(num_hlayers):
-            # Note from Guillaume : Wait. So I get that this is a ReLU
-            # instead of a sigmoid, but
-            # 1) Why not use the theano ReLU ?
-            # 2) Where are the biases ?
-            #layer_inputs.append(T.nnet.sigmoid(T.dot(layer_inputs[i], W[i])))
-            layer_inputs.append(T.maximum(0.0, T.dot(layer_inputs[i], W[i])))
-        layer_inputs.append(T.nnet.softmax(T.dot(layer_inputs[num_hlayers],W[num_hlayers])))
-        return layer_inputs[num_hlayers+1]
-
-    def compute_grad_norms(self, X, cost, layerLst):
-        gradient_norm_f = 0.0
-
-        for index in range(1, len(layerLst)):
-            output_layer = layerLst[index]
-            input_layer = layerLst[index - 1]
-            # TODO. Note by Guillaume : Are you using a bias in here ?
-            #       I think that this formula looks slightly wrong.
-            #       Also, T.sqr might be slightly better than **2.
-            #       Also, iterating with a zip would be nicer in python.
-            gradient_norm_f += (input_layer**2).sum(axis = 1) * (T.grad(cost, output_layer)**2).sum(axis = 1)
-
-        #gradient_norm_f = T.sqrt(gradient_norm_f)
-        return gradient_norm_f
 
     # Note from Guillaume : This is a teaching moment
     # about style in python.
@@ -194,15 +153,6 @@ class nnet:
                 res[key] = accuracy
         return res
 
-# This no longer works without specifying a particular configuration file
-# because nnet needs one.
-def main_loop( ):
-    myNet = nnet()
-    A_indices = np.array([1,2,3,4])
-    segment = "train"
-    L_measurements = ["gradient_square_norm","loss"]
-    res = myNet.compute_grads_and_weights(A_indices,L_measurements,segment)
-    print res
 
-if __name__ == "__main__":
-    main_loop()
+
+

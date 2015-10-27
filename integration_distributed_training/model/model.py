@@ -6,7 +6,7 @@ import numpy as np
 from theano import shared
 from theano import function
 
-from load_data import load_data
+from load_data import load_data, normalizeMatrix
 import nnet
 
 import cPickle
@@ -14,13 +14,12 @@ import cPickle
 import numpy as np
 
 import time
-from nnet import main_loop
 
 class ModelAPI():
 
     def __init__(self, model_config):
         self.model_config = model_config
-        self.nnet = nnet.nnet(model_config)
+        self.nnet = nnet.NeuralNetwork(model_config)
 
     def get_serialized_parameters(self):
         return cPickle.dumps(self.nnet.parameters, cPickle.HIGHEST_PROTOCOL)
@@ -38,7 +37,7 @@ class ModelAPI():
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]
 
-        print "Call to worker_process_minibatch."
+        #print "Call to worker_process_minibatch."
 
         # This assumes that the worker knows how to get the data,
         # which puts the burden on the actual implementations.
@@ -51,7 +50,7 @@ class ModelAPI():
         for key in L_measurements:
             assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy"]
 
-        curr_data = (self.nnet.data[segment][0][A_indices], self.nnet.data[segment][1][A_indices])
+        curr_data = (normalizeMatrix(self.nnet.data[segment][0][A_indices], self.nnet.mean, self.nnet.std), self.nnet.data[segment][1][A_indices])
 
         res = self.nnet.compute_grads_and_weights(curr_data,L_measurements)
 
@@ -63,9 +62,9 @@ class ModelAPI():
         assert A_indices.shape == A_scaling_factors.shape, "Failed to assertion that %s == %s." % (A_indices.shape, A_scaling_factors.shape)
         assert segment in ["train"]
 
-        print "Call to master_process_minibatch."
+        #print "Call to master_process_minibatch."
 
-        X = self.nnet.data[segment][0][A_indices]
+        X = normalizeMatrix(self.nnet.data[segment][0][A_indices], self.nnet.mean, self.nnet.std)
         Y = self.nnet.data[segment][1][A_indices]
 
         self.nnet.train(X, Y, A_scaling_factors)

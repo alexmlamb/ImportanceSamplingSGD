@@ -1,11 +1,12 @@
 import model
 import numpy as np
+from config import get_config
 
 def test_train():
-    myModel = model.ModelAPI()
-    myModel.update_data()
 
-    print myModel.data["test"][1].shape
+    config = get_config()
+
+    myModel = model.ModelAPI(config)
 
 
     print "model initialized"
