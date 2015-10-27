@@ -22,20 +22,32 @@ class ModelAPI():
         self.nnet = nnet.NeuralNetwork(model_config)
 
     def get_serialized_parameters(self):
-        return cPickle.dumps(self.nnet.parameters, cPickle.HIGHEST_PROTOCOL)
+
+        parameter_numpy_object_dict = {}
+
+        for param in self.nnet.parameters:
+            parameter_numpy_object_dict[param.name] = param.get_value(borrow=True)
+
+
+        return cPickle.dumps(parameter_numpy_object_dict, cPickle.HIGHEST_PROTOCOL)
 
     def set_serialized_parameters(self, serialized_parameters):
 
         # You store a copy of the parameters that I pass you here.
         # You transfer them to the parameters.
 
-        self.nnet.parameters = cPickle.loads(serialized_parameters)
+        parameter_numpy_object_dict = cPickle.loads(serialized_parameters)
 
+        
+
+        for param in self.nnet.parameters:
+            saved_value = parameter_numpy_object_dict[param.name]
+            param.set_value(saved_value)
 
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]
 
-        print "Call to worker_process_minibatch."
+        #print "Call to worker_process_minibatch."
 
         # This assumes that the worker knows how to get the data,
         # which puts the burden on the actual implementations.
@@ -60,7 +72,7 @@ class ModelAPI():
         assert A_indices.shape == A_scaling_factors.shape, "Failed to assertion that %s == %s." % (A_indices.shape, A_scaling_factors.shape)
         assert segment in ["train"]
 
-        print "Call to master_process_minibatch."
+        #print "Call to master_process_minibatch."
 
         X = normalizeMatrix(self.nnet.data[segment][0][A_indices], self.nnet.mean, self.nnet.std)
         Y = self.nnet.data[segment][1][A_indices]

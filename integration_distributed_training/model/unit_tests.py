@@ -20,6 +20,13 @@ def test_train():
 
         myModel.master_process_minibatch(indices, scaling_factors, "train")
 
+        if i == 2000:
+            print "SAVING VALUES"
+            paramStr = myModel.get_serialized_parameters()
+
+        if i == 8000:
+            print "LOADING OLD VALUES"
+            myModel.set_serialized_parameters(paramStr)
 
         if i % 1000 == 0:
             loss = 0.0

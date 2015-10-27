@@ -23,10 +23,6 @@ class NeuralNetwork:
 
 
     def __init__(self, model_config):
-        self.data = load_data(model_config)
-        self.mean = self.data["mean"]
-        self.std = self.data["std"]
-        print "%s data loaded..." % model_config["dataset"]
         nhidden_layers = len(model_config["hidden_sizes"])
         nhidden = model_config["hidden_sizes"][0]
         print "num_hidden_layers      :",nhidden_layers
@@ -42,7 +38,9 @@ class NeuralNetwork:
         self.parameters = L_W + L_b
         self.momentum   = L_W_momentum + L_b_momentum
 
-        (L_layer_inputs, L_layer_desc) = NeuralNetwork.model(X, L_W, L_b)
+        print self.parameters
+
+        (L_layer_inputs, L_layer_desc) = NeuralNetwork.build_layers(X, L_W, L_b)
         py_x = L_layer_inputs[-1]
 
         y_x = T.argmax(py_x, axis=1)
@@ -59,33 +57,40 @@ class NeuralNetwork:
         sgsnav = SumGradSquareNormAndVariance()
         for layer_desc in L_layer_desc:
             sgsnav.add_layer_for_gradient_square_norm(input=layer_desc['input'], weight=layer_desc['weight'],
-                                                      bias=layer_desc['bias'], output=layer_desc['output'])
+                                                      bias=layer_desc['bias'], output=layer_desc['output'], cost = cost)
 
             sgsnav.add_layer_for_gradient_variance( input=layer_desc['input'], weight=layer_desc['weight'],
-                                                    bias=layer_desc['bias'], output=layer_desc['output'])
+                                                    bias=layer_desc['bias'], output=layer_desc['output'], cost = cost)
 
-        individual_gradient_squared_norm = sgsnav.accumulated_sum_gradient_square_norm()
-        individual_gradient_variance = sgsnav.get_sum_gradient_variance()
-
+        individual_gradient_squared_norm = sgsnav.accumulated_sum_gradient_square_norm
+        individual_gradient_variance = sgsnav.get_sum_gradient_variance
 
 
         accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
 
         self.train = theano.function(inputs=[X, Y, scaling_factors],
-                                     outputs=[cost, squared_norm_var, individual_cost, accuracy],
+                                     outputs=[cost, individual_gradient_squared_norm, individual_cost, accuracy],
                                      updates=updates, allow_input_downcast=True)
         self.predict = theano.function(inputs=[X], outputs=[y_x,py_x], allow_input_downcast=True)
 
         self.get_attributes = theano.function(  inputs=[X, Y],
-                                                outputs=[cost, squared_norm_var, individual_cost, accuracy],
+                                                outputs=[cost, individual_gradient_squared_norm, individual_cost, accuracy],
                                                 allow_input_downcast=True)
+
+        print "Model compilation complete"
+        self.data = load_data(model_config)
+        self.mean = self.data["mean"]
+        self.std = self.data["std"]
+        print "%s data loaded..." % model_config["dataset"]
 
 
     @staticmethod
     def build_layers(X, L_W, L_b):
         L_layer_inputs = [X]
         L_layer_desc = []
-        for i in range(0, len(w_h) - 1):
+        for i in range(0, len(L_W)):
+
+            print "accessing layer", i
 
             # the next inputs are always the last ones in the list
             inputs = L_layer_inputs[-1]
@@ -93,7 +98,7 @@ class NeuralNetwork:
             biases = L_b[i]
             activations = biases + T.dot(inputs, weights)
 
-            if i < len(w_h) - 1:
+            if i < len(L_W) - 1:
                 # all other layers except the last
                 layer_outputs = T.maximum(0.0, activations)
             else:
@@ -117,7 +122,7 @@ class NeuralNetwork:
 
     @staticmethod
     def init_weights(shape, name, scale = 0.01):
-        return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape)) * scale, , name=name)
+        return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape) * scale), name=name)
 
     @staticmethod
     def sgd(cost, params, momemtum, lr, mr):
@@ -142,12 +147,12 @@ class NeuralNetwork:
         L_b = []
 
         for (layer_number, (dim_in, dim_out)) in enumerate(zip(L_sizes, L_sizes[1:])):
-            W = NeuralNetwork.init_weights((dim_in, dim_out), scale=scale, name=("%0.3d_weight%s"%(layer_number, name_suffix))
-            b = NeuralNetwork.init_weights((dim_out,), scale=0.0, name=("%0.3d_bias%s"%(layer_number, name_suffix))
+            W = NeuralNetwork.init_weights((dim_in, dim_out), scale=scale, name=("%0.3d_weight%s"%(layer_number, name_suffix)))
+            b = NeuralNetwork.init_weights((dim_out,), scale=0.0, name=("%0.3d_bias%s"%(layer_number, name_suffix)))
             L_W.append(W)
             L_b.append(b)
 
-        return L_w, L_b
+        return L_W, L_b
 
 
     def compute_grads_and_weights(self, data, L_measurements):
