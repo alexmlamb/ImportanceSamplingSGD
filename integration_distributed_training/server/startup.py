@@ -103,7 +103,7 @@ def start_redis_server(database_config):
 
     import socket
     hostname = socket.gethostname()
-
+    
     D_server_desc = {'hostname' : hostname, 'port' : server_port, 'password' : server_password}
     return (rserv, rsconn, D_server_desc)
 
