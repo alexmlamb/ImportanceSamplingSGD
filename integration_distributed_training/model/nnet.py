@@ -1,82 +1,25 @@
 __author__ = 'chinna'
+
 import theano
 from theano import tensor as T
 import numpy as np
 from theano import shared
 from theano import function
 
-import theano
 from theano import tensor as T
-import numpy as np
 from load import mnist
 from load import mnist_with_noise
-from PIL import Image
 from scipy.misc import imsave
 import scipy as sp
-import numpy as np
-from PIL import Image
+
 from scipy import signal
 from load_data import load_data, normalizeMatrix
 import cPickle as pickle
 
-class NeuralNetwork: 
+# Tool to get the special formulas for gradient norms and variance.
+from fast_individual_gradient_norms.expression_builder import SumGradSquareNormAndVariance
 
-    @staticmethod
-    def floatX(X):
-        return np.asarray(X, dtype=theano.config.floatX)
-
-    @staticmethod
-    def init_weights(shape, scale = 0.01):
-        return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape)) * scale)
-
-    @staticmethod
-    def sgd(cost, params, momemtum, lr, mr):
-        grads = T.grad(cost=cost, wrt=params)
-        updates = []
-        for p, g, v in zip(params, grads, momemtum):
-            v_prev = v
-            updates.append([v, mr * v - g * lr])
-            v = mr*v - g*lr
-            updates.append([p, p  - mr*v_prev + (1 + mr)*v ])
-
-        return updates
-
-    @staticmethod
-    def model(X, w_h, b_h, Layer_inputs):
-        for i in range(0, len(w_h) - 1):
-            Layer_inputs.append(T.maximum(0.0, b_h[i] + T.dot(Layer_inputs[i], w_h[i])))
-
-        Layer_inputs.append(T.nnet.softmax(b_h[-1] + T.dot(Layer_inputs[-1],w_h[-1])))
-
-        return Layer_inputs[-1]
-
-    # output is a list of squared norm of gradients per example
-    # input is input matrix and
-    @staticmethod
-    def compute_grad_norms(X, cost, layerLst):
-        gradient_norm_f = 0.0
-
-        for index in range(1, len(layerLst)):
-            output_layer = layerLst[index]
-            input_layer = layerLst[index - 1]
-            gradient_norm_f += (input_layer**2).sum(axis = 1) * (T.grad(cost, output_layer)**2).sum(axis = 1)
-
-        #gradient_norm_f = T.sqrt(gradient_norm_f)
-        return gradient_norm_f
-
-    @staticmethod
-    def init_parameters(num_input, num_output, hidden_sizes, scale):
-        w_h = [NeuralNetwork.init_weights((num_input, hidden_sizes[0]), scale)]
-        b_h = [NeuralNetwork.init_weights((hidden_sizes[0],), scale = 0.0)]
-
-        for i in range(1, len(hidden_sizes) - 1):
-            w_h += [NeuralNetwork.init_weights((hidden_sizes[i], hidden_sizes[i + 1]), scale)]
-            b_h += [NeuralNetwork.init_weights((hidden_sizes[i + 1],), scale = 0.0)]
-
-        w_h += [NeuralNetwork.init_weights((hidden_sizes[-1], num_output), scale)]
-        b_h += [NeuralNetwork.init_weights((num_output,), scale = 0.0)]
-
-        return w_h, b_h
+class NeuralNetwork:
 
 
     def __init__(self, model_config):
@@ -94,15 +37,13 @@ class NeuralNetwork:
         num_input = model_config["num_input"]
         num_output = 10
 
-        w_h, b_h = NeuralNetwork.init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.01)
-        w_m, b_m, = NeuralNetwork.init_parameters(num_input, num_output, model_config["hidden_sizes"],scale=0.0)
-        self.parameters = w_h + b_h
-        self.momentum   = w_m + b_m
+        L_W, L_b = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=0.01)
+        L_W_momentum, L_b_momentum, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=0.0, name_suffix="_momentum")
+        self.parameters = L_W + L_b
+        self.momentum   = L_W_momentum + L_b_momentum
 
-        Layers = [X]
-
-
-        py_x = NeuralNetwork.model(X, w_h, b_h, Layers)
+        (L_layer_inputs, L_layer_desc) = NeuralNetwork.model(X, L_W, L_b)
+        py_x = L_layer_inputs[-1]
 
         y_x = T.argmax(py_x, axis=1)
 
@@ -113,7 +54,20 @@ class NeuralNetwork:
         scaled_cost = T.mean(scaled_individual_cost)
 
         updates = NeuralNetwork.sgd(scaled_cost, self.parameters, self.momentum, model_config["learning_rate"], model_config["momentum_rate"])
-        squared_norm_var = NeuralNetwork.compute_grad_norms(X,cost,Layers)
+
+
+        sgsnav = SumGradSquareNormAndVariance()
+        for layer_desc in L_layer_desc:
+            sgsnav.add_layer_for_gradient_square_norm(input=layer_desc['input'], weight=layer_desc['weight'],
+                                                      bias=layer_desc['bias'], output=layer_desc['output'])
+
+            sgsnav.add_layer_for_gradient_variance( input=layer_desc['input'], weight=layer_desc['weight'],
+                                                    bias=layer_desc['bias'], output=layer_desc['output'])
+
+        individual_gradient_squared_norm = sgsnav.accumulated_sum_gradient_square_norm()
+        individual_gradient_variance = sgsnav.get_sum_gradient_variance()
+
+
 
         accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
 
@@ -127,14 +81,74 @@ class NeuralNetwork:
                                                 allow_input_downcast=True)
 
 
+    @staticmethod
+    def build_layers(X, L_W, L_b):
+        L_layer_inputs = [X]
+        L_layer_desc = []
+        for i in range(0, len(w_h) - 1):
+
+            # the next inputs are always the last ones in the list
+            inputs = L_layer_inputs[-1]
+            weights = L_W[i]
+            biases = L_b[i]
+            activations = biases + T.dot(inputs, weights)
+
+            if i < len(w_h) - 1:
+                # all other layers except the last
+                layer_outputs = T.maximum(0.0, activations)
+            else:
+                # last layer
+                layer_outputs = T.nnet.softmax(activations)
+
+            L_layer_inputs.append(layer_outputs)
+
+            # This is formatted to be fed to the "fast_individual_gradient_norms".
+            # The naming changes a bit because of that, because we're realling referring
+            # to the linear component itself and not the stuff that happens after.
+            layer_desc = {'weight' : weights, 'bias' : biases, 'output':activations, 'input':inputs}
+            L_layer_desc.append(layer_desc)
+
+        return L_layer_inputs, L_layer_desc
 
 
-    # Note from Guillaume : This is a teaching moment
-    # about style in python.
-    def update_params(self, params):
-        params = pickle.loads(params)
-        for i in len(params):
-            self.W[i].set_value(params[i])
+    @staticmethod
+    def floatX(X):
+        return np.asarray(X, dtype=theano.config.floatX)
+
+    @staticmethod
+    def init_weights(shape, name, scale = 0.01):
+        return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape)) * scale, , name=name)
+
+    @staticmethod
+    def sgd(cost, params, momemtum, lr, mr):
+        grads = T.grad(cost=cost, wrt=params)
+        updates = []
+        for p, g, v in zip(params, grads, momemtum):
+            v_prev = v
+            updates.append([v, mr * v - g * lr])
+            v = mr*v - g*lr
+            updates.append([p, p  - mr*v_prev + (1 + mr)*v ])
+
+        return updates
+
+
+    @staticmethod
+    def build_parameters(num_input, num_output, hidden_sizes, scale, name_suffix=""):
+
+        # The name suffix is to be used in the case of the momentum.
+
+        L_sizes = [num_input] + hidden_sizes + [num_output]
+        L_W = []
+        L_b = []
+
+        for (layer_number, (dim_in, dim_out)) in enumerate(zip(L_sizes, L_sizes[1:])):
+            W = NeuralNetwork.init_weights((dim_in, dim_out), scale=scale, name=("%0.3d_weight%s"%(layer_number, name_suffix))
+            b = NeuralNetwork.init_weights((dim_out,), scale=0.0, name=("%0.3d_bias%s"%(layer_number, name_suffix))
+            L_W.append(W)
+            L_b.append(b)
+
+        return L_w, L_b
+
 
     def compute_grads_and_weights(self, data, L_measurements):
         X, Y = data
@@ -152,7 +166,3 @@ class NeuralNetwork:
             if key == "accuracy":
                 res[key] = accuracy
         return res
-
-
-
-

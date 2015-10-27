@@ -22,7 +22,8 @@ from common import get_rsconn_with_timeout
 def run(DD_config, D_server_desc):
 
     # TODO : Get rid of this cheap hack to circumvent my OSX's inability to see itself.
-    D_server_desc['hostname'] = "localhost"
+    if D_server_desc['hostname'] in ["szkmbp"]:
+        D_server_desc['hostname'] = "localhost"
 
     rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
                                      timeout=60, wait_for_parameters_to_be_present=True)

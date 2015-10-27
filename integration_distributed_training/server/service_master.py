@@ -33,12 +33,10 @@ def get_importance_weights(rsconn):
     for (key, value) in rsconn.hgetall("H_%s_minibatch_%s" % (segment, measurement)).items():
         A_some_indices = np.fromstring(key, dtype=np.int32)
         A_some_importance_weights = np.fromstring(value, dtype=np.float32)
-        #print "key"
-        #print
-        print "A_some_indices"
-        print A_some_indices
-        print "A_some_importance_weights"
-        print A_some_importance_weights
+        #print "A_some_indices"
+        #print A_some_indices
+        #print "A_some_importance_weights"
+        #print A_some_importance_weights
         assert A_some_indices.shape == A_some_importance_weights.shape, "Failed assertion that %s == %s." % (A_some_indices.shape, A_some_importance_weights.shape)
         L_indices.append(A_some_indices)
         L_importance_weights.append(A_some_importance_weights)
@@ -116,8 +114,8 @@ def sample_indices_and_scaling_factors(rsconn, nbr_samples):
 
 def run(DD_config, D_server_desc):
 
-    # TODO : Get rid of this cheap hack to circumvent my OSX's inability to see itself.
-    D_server_desc['hostname'] = "localhost"
+    if D_server_desc['hostname'] in ["szkmbp"]:
+        D_server_desc['hostname'] = "localhost"
 
     rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
                                      timeout=60, wait_for_parameters_to_be_present=False)

@@ -56,7 +56,7 @@ def get_database_config():
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
 
-    (Ntrain, Nvalid, Ntest) = (10000, 0, 1000)
+    (Ntrain, Nvalid, Ntest) = (1000, 0, 1000)
 
     serialized_parameters_format ="opaque_string"
 
