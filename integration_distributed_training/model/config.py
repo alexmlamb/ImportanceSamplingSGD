@@ -27,6 +27,11 @@ def get_config():
     config["svhn_file_extra"] = "/data/lisatmp4/lambalex/svhn/extra_32x32.mat"
     config["svhn_file_test"] = "/data/lisatmp4/lambalex/svhn/test_32x32.mat"
 
+    config["save_svhn_normalization_to_file"] = False
+    config["load_svhn_normalization_from_file"] = True
+
+    config["svhn_normalization_value_file"] = "/data/lisatmp4/lambalex/svhn/svhn_normalization_values.pkl"
+
     config["hidden_sizes"] = [2048, 2048, 2048, 2048]
 
     config["seed"] = 9999494

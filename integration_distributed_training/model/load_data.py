@@ -30,6 +30,7 @@ def load_data_svhn(config):
     extra_Y = numpy.asarray(extra_object["y"], dtype = 'uint8')
     test_Y = numpy.asarray(test_object["y"], dtype = 'uint8')
 
+    print "converted to numpy arrays"
 
     del train_object
     del extra_object
@@ -50,11 +51,17 @@ def load_data_svhn(config):
 
     test_X = numpy.swapaxes(test_X, 0,3)
 
+    print "axes swapped"
+
     train_X = numpy.vstack((train_X, extra_X))
     train_Y = numpy.vstack((train_Y, extra_Y))
 
+    print "vstacked"
+
     train_indices = numpy.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
     valid_indices = numpy.setdiff1d(range(0,train_X.shape[0]), train_indices)
+
+    print "indices collected"
 
     valid_X = train_X[valid_indices]
     valid_Y = train_Y[valid_indices]
@@ -62,10 +69,22 @@ def load_data_svhn(config):
     train_X = train_X[train_indices]
     train_Y = train_Y[train_indices]
 
-    #get mean and std for each filter and each pixel.
-    x_mean = train_X.mean(axis = (0))
-    x_std = train_X.std(axis = (0))
+    print "indices indexed"
 
+    assert not (config["load_svhn_normalization_from_file"] and config["save_svhn_normalization_to_file"])
+
+    #get mean and std for each filter and each pixel.
+    if not config["load_svhn_normalization_from_file"]:
+        x_mean = train_X.mean(axis = (0))
+        x_std = train_X.std(axis = (0))
+        if config["save_svhn_normalization_to_file"]:
+            cPickle.dump({"mean" : x_mean, "std" : x_std}, open(config["svhn_normalization_value_file"], "w"), protocol = cPickle.HIGHEST_PROTOCOL)
+    else:
+        svhn_normalization_values = cPickle.load(open(config["svhn_normalization_value_file"]))
+        x_mean = svhn_normalization_values["mean"]
+        x_std = svhn_normalization_values["std"]
+
+    print "computed mean and var"
 
     print "Training Set", train_X.shape, train_Y.shape
     print "Validation Set", valid_X.shape, valid_Y.shape
