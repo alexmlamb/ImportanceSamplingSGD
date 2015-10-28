@@ -57,10 +57,10 @@ class NeuralNetwork:
         sgsnav = SumGradSquareNormAndVariance()
         for layer_desc in L_layer_desc:
             sgsnav.add_layer_for_gradient_square_norm(input=layer_desc['input'], weight=layer_desc['weight'],
-                                                      bias=layer_desc['bias'], output=layer_desc['output'], cost = cost)
+                                                      bias=layer_desc['bias'], output=layer_desc['output'], cost=cost)
 
             sgsnav.add_layer_for_gradient_variance( input=layer_desc['input'], weight=layer_desc['weight'],
-                                                    bias=layer_desc['bias'], output=layer_desc['output'], cost = cost)
+                                                    bias=layer_desc['bias'], output=layer_desc['output'], cost=cost)
 
         individual_gradient_squared_norm = sgsnav.accumulated_sum_gradient_square_norm
         individual_gradient_variance = sgsnav.get_sum_gradient_variance
@@ -158,7 +158,16 @@ class NeuralNetwork:
     def compute_grads_and_weights(self, data, L_measurements):
         X, Y = data
 
-        cost,sq_grad_norm,individual_cost, accuracy = self.get_attributes(X, Y)
+        cost, sq_grad_norm, individual_cost, accuracy = self.get_attributes(X, Y)
+
+        # DEBUG
+        number_of_invalid_values = np.logical_not(np.isfinite(sq_grad_norm)).sum()
+        if 0 < number_of_invalid_values:
+            print "In compute_grads_and_weights, you have %d invalid values for sq_grad_norm." % number_of_invalid_values
+
+        number_of_invalid_values = np.logical_not(np.isfinite(individual_cost)).sum()
+        if 0 < number_of_invalid_values:
+            print "In compute_grads_and_weights, you have %d invalid values for individual_cost." % number_of_invalid_values
 
         res = {}
         for key in L_measurements:

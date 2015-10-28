@@ -12,8 +12,10 @@ import nnet
 import cPickle
 
 import numpy as np
-
 import time
+
+import hashlib
+
 
 class ModelAPI():
 
@@ -26,10 +28,22 @@ class ModelAPI():
         parameter_numpy_object_dict = {}
 
         for param in self.nnet.parameters:
-            parameter_numpy_object_dict[param.name] = param.get_value(borrow=True)
+            value = param.get_value().copy().astype(np.float32)
+            parameter_numpy_object_dict[param.name] = value
+            number_of_invalid_values = np.logical_not(np.isfinite(value)).sum()
+            if 0 < number_of_invalid_values:
+                print "In get_serialized_parameters, you have %d invalid values for parameter %s." % (number_of_invalid_values, param.name)
+                print value
+                print "Starting debugger."
+                import pdb; pdb.set_trace()
 
+        parameters_str = cPickle.dumps(parameter_numpy_object_dict, cPickle.HIGHEST_PROTOCOL)
 
-        return cPickle.dumps(parameter_numpy_object_dict, cPickle.HIGHEST_PROTOCOL)
+        #print "DEBUG : Pickling values for parameters : "
+        #print sorted(parameter_numpy_object_dict.keys())
+        #print "DEBUG : Called get_serialized_parameters without a problem. Hashed sha256 : %s." % hashlib.sha256(parameters_str).hexdigest()
+
+        return parameters_str
 
     def set_serialized_parameters(self, serialized_parameters):
 
@@ -37,11 +51,22 @@ class ModelAPI():
         # You transfer them to the parameters.
 
         parameter_numpy_object_dict = cPickle.loads(serialized_parameters)
-
-        
+        #print "DEBUG : Entering set_serialized_parameters. Got argument with hash sha256 : %s." % hashlib.sha256(serialized_parameters).hexdigest()
+        #print "DEBUG : Reading pickled values for parameters : "
+        #print sorted(parameter_numpy_object_dict.keys())
 
         for param in self.nnet.parameters:
+
             saved_value = parameter_numpy_object_dict[param.name]
+
+            assert saved_value.dtype == np.float32, "Failed to get a numpy array of np.float32 for parameter %s. The dtype is %s." % (param.name, saved_value.dtype)
+            number_of_invalid_values = np.logical_not(np.isfinite(saved_value)).sum()
+            if 0 < number_of_invalid_values:
+                print "In set_serialized_parameters, you have %d invalid values for parameter %s." % (number_of_invalid_values, param.name)
+                print saved_value
+                print "Starting debugger."
+                import pdb; pdb.set_trace()
+
             param.set_value(saved_value)
 
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
@@ -62,7 +87,7 @@ class ModelAPI():
 
         curr_data = (normalizeMatrix(self.nnet.data[segment][0][A_indices], self.nnet.mean, self.nnet.std), self.nnet.data[segment][1][A_indices])
 
-        res = self.nnet.compute_grads_and_weights(curr_data,L_measurements)
+        res = self.nnet.compute_grads_and_weights(curr_data, L_measurements)
 
         # Returns a full array for every data point in the minibatch.
         return res
