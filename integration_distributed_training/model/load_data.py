@@ -58,8 +58,17 @@ def load_data_svhn(config):
 
     print "vstacked"
 
+    # BUG : YOU CAN'T SHUFFLE THE DATASETS AND EXPECT EVERYONE TO AGREE ON THE INDICES.
+    #       This would require setting the seed in advance.
+
+    print "train_X.shape"
+    print train_X.shape
+
     train_indices = numpy.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
     valid_indices = numpy.setdiff1d(range(0,train_X.shape[0]), train_indices)
+
+    print "train_X.shape"
+    print train_X.shape
 
     print "indices collected"
 
@@ -69,14 +78,22 @@ def load_data_svhn(config):
     train_X = train_X[train_indices]
     train_Y = train_Y[train_indices]
 
+    print "train_X.shape"
+    print train_X.shape
+
     print "indices indexed"
 
     assert not (config["load_svhn_normalization_from_file"] and config["save_svhn_normalization_to_file"])
 
     #get mean and std for each filter and each pixel.
     if not config["load_svhn_normalization_from_file"]:
-        x_mean = train_X.mean(axis = (0))
-        x_std = train_X.std(axis = (0))
+
+        import safe_mean_std_var
+
+        x_mean, x_std, _ = safe_mean_std_var.mean_std_var(train_X, axis=0)
+        #x_mean = train_X.mean(axis = (0))
+        #x_std = train_X.std(axis = (0))
+
         if config["save_svhn_normalization_to_file"]:
             cPickle.dump({"mean" : x_mean, "std" : x_std}, open(config["svhn_normalization_value_file"], "w"), protocol = cPickle.HIGHEST_PROTOCOL)
     else:
@@ -90,8 +107,6 @@ def load_data_svhn(config):
     print "Validation Set", valid_X.shape, valid_Y.shape
     print "Test Set", test_X.shape, test_Y.shape
 
-    # Note from Guillaume : You need to keep around the mean/std here to be
-    # able to divide them when on a minibatch.
     return {"train": (train_X, train_Y.flatten()), "valid" : (valid_X, valid_Y.flatten()), "test" : (test_X, test_Y.flatten()), "mean" : x_mean, "std" : x_std}
 
 
@@ -126,6 +141,3 @@ def load_data(config):
         return load_data_mnist(config)
     else:
         raise Exception("Dataset must be either svhn or mnist")
-
-
-

@@ -30,7 +30,9 @@ def get_importance_weights(rsconn):
 
     L_indices = []
     L_importance_weights = []
+    counter = 0
     for (key, value) in rsconn.hgetall("H_%s_minibatch_%s" % (segment, measurement)).items():
+        counter += 1
         A_some_indices = np.fromstring(key, dtype=np.int32)
         A_some_importance_weights = np.fromstring(value, dtype=np.float32)
         #print "A_some_indices"
@@ -40,6 +42,8 @@ def get_importance_weights(rsconn):
         assert A_some_indices.shape == A_some_importance_weights.shape, "Failed assertion that %s == %s." % (A_some_indices.shape, A_some_importance_weights.shape)
         L_indices.append(A_some_indices)
         L_importance_weights.append(A_some_importance_weights)
+
+    print 'DEBUG rsconn.hgetall("H_%s_minibatch_%s") returned %d entries' % (segment, measurement, counter)
 
     A_unsorted_indices = np.hstack(L_indices)
     A_unsorted_importance_weights = np.hstack(L_importance_weights)
@@ -65,6 +69,12 @@ def sample_indices_and_scaling_factors(rsconn, nbr_samples):
     #        botton of this document.
 
     A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
+
+    print "DEBUG : sample_indices_and_scaling_factors "
+    print "A_importance_weights.shape"
+    print A_importance_weights.shape
+    print "nbr_of_present_importance_weights : %d" % nbr_of_present_importance_weights
+    print "A_importance_weights.sum() : %f" % A_importance_weights.sum()
 
     if A_importance_weights.sum() < 1e-16:
         print "All the importance_weight are zero. There is nothing to be done with this."
@@ -161,7 +171,7 @@ def run(DD_config, D_server_desc):
     # are 1.0, so things could start with Task (2) since the assistant
     # would start by resampling the indices.
 
-    nbr_batch_processed_per_public_parameter_update = 32
+    nbr_batch_processed_per_public_parameter_update = 8
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 

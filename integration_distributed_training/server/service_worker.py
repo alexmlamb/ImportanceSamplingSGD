@@ -152,7 +152,18 @@ def run(DD_config, D_server_desc):
             for measurement in L_measurements:
                 A_values = DA_measurements[measurement]
                 assert type(A_values) == np.ndarray, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements, but now those values are not even numpy arrays. They are %s instead." % type(A_values)
+                if A_values.dtype == np.float64:
+                    # This conversion is acceptable.
+                    A_values = A_values.astype(np.float32)
                 assert A_values.dtype == np.float32, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements, but now that array has dtype %s instead." % A_values.dtype
+
+                number_of_invalid_values = np.logical_not(np.isfinite(A_values)).sum()
+                if 0 < number_of_invalid_values:
+                    print "You have %d invalid values returned for %s." % (number_of_invalid_values, measurement)
+                    print A_values
+                    print "Starting debugger."
+                    import pdb; pdb.set_trace()
+
                 # Write 0.0 as default value in all the measurements.
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))
 
