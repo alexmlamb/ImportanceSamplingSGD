@@ -1,11 +1,11 @@
-import numpy
+import numpy as np
 import gzip
 import cPickle
 
 #Returns list of tuples containing training, validation, and test instances.
 def load_data_svhn(config):
 
-    numpy.random.seed(config["seed"])
+    np.random.seed(config["seed"])
 
     import scipy.io as sio
     train_file = config["svhn_file_train"]
@@ -22,15 +22,15 @@ def load_data_svhn(config):
     # This is loading the data and converting it into an 8 GB array.
     # We had agreed to store this as uint8 temporarily and do the
     # conversion on a mini-batch basis.
-    train_X = numpy.asarray(train_object["X"], dtype = 'uint8')
-    extra_X = numpy.asarray(extra_object["X"], dtype = 'uint8')
-    test_X = numpy.asarray(test_object["X"], dtype = 'uint8')
+    train_X = np.asarray(train_object["X"], dtype = 'uint8')
+    extra_X = np.asarray(extra_object["X"], dtype = 'uint8')
+    test_X = np.asarray(test_object["X"], dtype = 'uint8')
 
-    train_Y = numpy.asarray(train_object["y"], dtype = 'uint8')
-    extra_Y = numpy.asarray(extra_object["y"], dtype = 'uint8')
-    test_Y = numpy.asarray(test_object["y"], dtype = 'uint8')
+    train_Y = np.asarray(train_object["y"], dtype = 'uint8')
+    extra_Y = np.asarray(extra_object["y"], dtype = 'uint8')
+    test_Y = np.asarray(test_object["y"], dtype = 'uint8')
 
-    print "converted to numpy arrays"
+    print "converted to np arrays"
 
     del train_object
     del extra_object
@@ -45,30 +45,27 @@ def load_data_svhn(config):
     assert train_Y.min() == 0
     assert train_Y.max() == 9
 
-    train_X = numpy.swapaxes(train_X, 0,3)
+    train_X = np.swapaxes(train_X, 0,3)
 
-    extra_X = numpy.swapaxes(extra_X, 0,3)
+    extra_X = np.swapaxes(extra_X, 0,3)
 
-    test_X = numpy.swapaxes(test_X, 0,3)
+    test_X = np.swapaxes(test_X, 0,3)
 
     print "axes swapped"
 
-    train_X = numpy.vstack((train_X, extra_X))
-    train_Y = numpy.vstack((train_Y, extra_Y))
+    train_X = np.vstack((train_X, extra_X))
+    train_Y = np.vstack((train_Y, extra_Y))
 
     print "vstacked"
 
-    # BUG : YOU CAN'T SHUFFLE THE DATASETS AND EXPECT EVERYONE TO AGREE ON THE INDICES.
-    #       This would require setting the seed in advance.
-
-    print "train_X.shape"
-    print train_X.shape
-
-    train_indices = numpy.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
-    valid_indices = numpy.setdiff1d(range(0,train_X.shape[0]), train_indices)
-
-    print "train_X.shape"
-    print train_X.shape
+    # It's super important that all the workers/master use the same shuffling scheme
+    # because otherwise we can't talk about the "importance weight of training example 17"
+    # if nobody agrees on which training example has index 17.
+    old_seed = np.random.rand()
+    np.random.seed(42.0)
+    train_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
+    valid_indices = np.setdiff1d(range(0,train_X.shape[0]), train_indices)
+    np.random.seed(old_seed)
 
     print "indices collected"
 
@@ -78,9 +75,6 @@ def load_data_svhn(config):
     train_X = train_X[train_indices]
     train_Y = train_Y[train_indices]
 
-    print "train_X.shape"
-    print train_X.shape
-
     print "indices indexed"
 
     assert not (config["load_svhn_normalization_from_file"] and config["save_svhn_normalization_to_file"])
@@ -88,11 +82,13 @@ def load_data_svhn(config):
     #get mean and std for each filter and each pixel.
     if not config["load_svhn_normalization_from_file"]:
 
-        import safe_mean_std_var
-
-        x_mean, x_std, _ = safe_mean_std_var.mean_std_var(train_X, axis=0)
-        #x_mean = train_X.mean(axis = (0))
-        #x_std = train_X.std(axis = (0))
+        # The commented-out alternative did not work properly.
+        #import safe_mean_std_var
+        #x_mean, x_std, _ = safe_mean_std_var.mean_std_var(train_X, axis=0)
+        #assert np.all(np.isfinite(x_mean))
+        #assert np.all(np.isfinite(x_std))
+        x_mean = train_X.mean(axis = (0))
+        x_std = train_X.std(axis = (0))
 
         if config["save_svhn_normalization_to_file"]:
             cPickle.dump({"mean" : x_mean, "std" : x_std}, open(config["svhn_normalization_value_file"], "w"), protocol = cPickle.HIGHEST_PROTOCOL)
@@ -130,7 +126,7 @@ def load_data_mnist(config):
 
 def normalizeMatrix(X, mean, std):
     new_X = (X - mean) / std
-    new_X = numpy.reshape(new_X, (new_X.shape[0], -1)).astype('float32')
+    new_X = np.reshape(new_X, (new_X.shape[0], -1)).astype('float32')
 
     return new_X
 

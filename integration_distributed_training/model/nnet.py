@@ -71,7 +71,7 @@ class NeuralNetwork:
         self.train = theano.function(inputs=[X, Y, scaling_factors],
                                      outputs=[cost, individual_gradient_squared_norm, individual_cost, accuracy],
                                      updates=updates, allow_input_downcast=True)
-        self.predict = theano.function(inputs=[X], outputs=[y_x,py_x], allow_input_downcast=True)
+        self.predict = theano.function(inputs=[X], outputs=[y_x, py_x], allow_input_downcast=True)
 
         self.get_attributes = theano.function(  inputs=[X, Y],
                                                 outputs=[cost, individual_gradient_squared_norm, individual_cost, accuracy],
@@ -156,18 +156,22 @@ class NeuralNetwork:
 
 
     def compute_grads_and_weights(self, data, L_measurements):
+
         X, Y = data
+
+        assert np.all(np.isfinite(X))
+        assert np.all(np.isfinite(Y))
 
         cost, sq_grad_norm, individual_cost, accuracy = self.get_attributes(X, Y)
 
         # DEBUG
-        number_of_invalid_values = np.logical_not(np.isfinite(sq_grad_norm)).sum()
-        if 0 < number_of_invalid_values:
-            print "In compute_grads_and_weights, you have %d invalid values for sq_grad_norm." % number_of_invalid_values
+        #number_of_invalid_values = np.logical_not(np.isfinite(sq_grad_norm)).sum()
+        #if 0 < number_of_invalid_values:
+        #    print "In compute_grads_and_weights, you have %d invalid values for sq_grad_norm." % number_of_invalid_values
 
-        number_of_invalid_values = np.logical_not(np.isfinite(individual_cost)).sum()
-        if 0 < number_of_invalid_values:
-            print "In compute_grads_and_weights, you have %d invalid values for individual_cost." % number_of_invalid_values
+        #number_of_invalid_values = np.logical_not(np.isfinite(individual_cost)).sum()
+        #if 0 < number_of_invalid_values:
+        #    print "In compute_grads_and_weights, you have %d invalid values for individual_cost." % number_of_invalid_values
 
         res = {}
         for key in L_measurements:

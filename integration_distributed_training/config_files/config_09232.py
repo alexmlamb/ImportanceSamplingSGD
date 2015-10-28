@@ -34,8 +34,9 @@ def get_model_config():
     model_config["svhn_file_extra"] = os.path.join(data_root, "svhn/extra_32x32.mat")
     model_config["svhn_file_test"] = os.path.join(data_root, "svhn/test_32x32.mat")
 
-    model_config["load_svhn_normalization_from_file"] = False
+    model_config["load_svhn_normalization_from_file"] = True
     model_config["save_svhn_normalization_to_file"] = False
+    model_config["svhn_normalization_value_file"] = os.path.join(data_root, "svhn/svhn_normalization_values.pkl")
 
     model_config["hidden_sizes"] = [2048, 2048,2048,2048]
 
