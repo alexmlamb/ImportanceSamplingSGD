@@ -43,7 +43,7 @@ def get_importance_weights(rsconn):
         L_indices.append(A_some_indices)
         L_importance_weights.append(A_some_importance_weights)
 
-    print 'DEBUG rsconn.hgetall("H_%s_minibatch_%s") returned %d entries' % (segment, measurement, counter)
+    #print 'DEBUG rsconn.hgetall("H_%s_minibatch_%s") returned %d entries' % (segment, measurement, counter)
 
     A_unsorted_indices = np.hstack(L_indices)
     A_unsorted_importance_weights = np.hstack(L_importance_weights)
@@ -70,11 +70,12 @@ def sample_indices_and_scaling_factors(rsconn, nbr_samples):
 
     A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
 
-    print "DEBUG : sample_indices_and_scaling_factors "
-    print "A_importance_weights.shape"
-    print A_importance_weights.shape
-    print "nbr_of_present_importance_weights : %d" % nbr_of_present_importance_weights
-    print "A_importance_weights.sum() : %f" % A_importance_weights.sum()
+    # Might be worth logging A_importance_weights.sum() as extra information.
+    #print "DEBUG : sample_indices_and_scaling_factors "
+    #print "A_importance_weights.shape"
+    #print A_importance_weights.shape
+    #print "nbr_of_present_importance_weights : %d" % nbr_of_present_importance_weights
+    #print "A_importance_weights.sum() : %f" % A_importance_weights.sum()
 
     if A_importance_weights.sum() < 1e-16:
         print "All the importance_weight are zero. There is nothing to be done with this."
@@ -148,7 +149,7 @@ def run(DD_config, D_server_desc):
     measurement = "importance_weight"
     nbr_of_present_importance_weights = rsconn.hlen("H_%s_minibatch_%s" % (segment, measurement))
     assert 0 < nbr_of_present_importance_weights, "Error. The database should have been set up to have dummy importance weights at least."
-    print "Master found %d importance weights in the database." % nbr_of_present_importance_weights
+    #print "Master found %d importance weights in the database." % nbr_of_present_importance_weights
 
 
     # The master splits its time between two tasks.

@@ -151,11 +151,11 @@ def run(DD_config, D_server_desc):
             # None of the measurements should be missing.
             for measurement in L_measurements:
                 A_values = DA_measurements[measurement]
-                assert type(A_values) == np.ndarray, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements, but now those values are not even numpy arrays. They are %s instead." % type(A_values)
+                assert type(A_values) == np.ndarray, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements (%s), but now those values are not even numpy arrays. They are %s instead." % (measurement, type(A_values))
                 if A_values.dtype == np.float64:
                     # This conversion is acceptable.
                     A_values = A_values.astype(np.float32)
-                assert A_values.dtype == np.float32, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements, but now that array has dtype %s instead." % A_values.dtype
+                assert A_values.dtype == np.float32, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements (%s), but now that array has dtype %s instead." % (measurement, A_values.dtype)
 
                 number_of_invalid_values = np.logical_not(np.isfinite(A_values)).sum()
                 if 0 < number_of_invalid_values:
@@ -178,11 +178,11 @@ def run(DD_config, D_server_desc):
                 #        be an interesting thing to record.
                 delay_between_measurement_refresh = previous_update_timestamp - current_update_timestamp
 
-                # Push back that minibatch to the right of the queue.
-                # It will eventually find its way back to some worker,
-                # but we will cover all the other ones before that happens.
-                rsconn.rpush(queue_name, current_minibatch_indices_str)
-                print "Processed one minibatch from (%s, %s). Pushed back to back of the line." % (segment, measurement)
+            # Push back that minibatch to the right of the queue.
+            # It will eventually find its way back to some worker,
+            # but we will cover all the other ones before that happens.
+            rsconn.rpush(queue_name, current_minibatch_indices_str)
+            print "Processed one minibatch from %s. Pushed back to back of the line." % (segment, )
 
-                m += 1
-                continue
+            m += 1
+            continue

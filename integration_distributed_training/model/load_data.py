@@ -61,8 +61,8 @@ def load_data_svhn(config):
     # It's super important that all the workers/master use the same shuffling scheme
     # because otherwise we can't talk about the "importance weight of training example 17"
     # if nobody agrees on which training example has index 17.
-    old_seed = np.random.rand()
-    np.random.seed(42.0)
+    old_seed = np.random.randint(low=0, high=np.iinfo(np.uint32).max)
+    np.random.seed(42)
     train_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
     valid_indices = np.setdiff1d(range(0,train_X.shape[0]), train_indices)
     np.random.seed(old_seed)

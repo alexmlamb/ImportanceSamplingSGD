@@ -1,4 +1,3 @@
-__author__ = 'chinna'
 
 import theano
 from theano import tensor as T
@@ -23,6 +22,7 @@ class NeuralNetwork:
 
 
     def __init__(self, model_config):
+
         nhidden_layers = len(model_config["hidden_sizes"])
         nhidden = model_config["hidden_sizes"][0]
         print "num_hidden_layers      :",nhidden_layers
@@ -62,20 +62,34 @@ class NeuralNetwork:
             sgsnav.add_layer_for_gradient_variance( input=layer_desc['input'], weight=layer_desc['weight'],
                                                     bias=layer_desc['bias'], output=layer_desc['output'], cost=cost)
 
-        individual_gradient_squared_norm = sgsnav.get_sum_gradient_square_norm()
+        individual_gradient_square_norm = sgsnav.get_sum_gradient_square_norm()
         individual_gradient_variance = sgsnav.get_sum_gradient_variance()
 
+        mean_gradient_square_norm = T.mean(individual_gradient_square_norm)
+        mean_gradient_variance = T.mean(individual_gradient_variance)
 
-        accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
+        individual_accuracy = T.eq(T.argmax(py_x, axis = 1), Y)
+        accuracy = T.mean(individual_accuracy)
 
-        self.train = theano.function(inputs=[X, Y, scaling_factors],
-                                     outputs=[cost, individual_gradient_squared_norm, individual_cost, accuracy],
+        # At this point we compile two auxiliary theano functions
+        # that are going to do all the heavy-lifting for the corresponding
+        # methods `worker_process_minibatch` and `master_process_minibatch`.
+
+        # Note the absence of updates in this function.
+        self.func_process_worker_minibatch = theano.function(inputs=[X, Y],
+                                                            outputs=[individual_cost,
+                                                                     individual_accuracy,
+                                                                     individual_gradient_square_norm,
+                                                                     individual_gradient_variance],
+                                                            allow_input_downcast=True)
+
+        self.func_master_process_minibatch = theano.function(inputs=[X, Y, scaling_factors],
+                                     outputs=[cost, accuracy, mean_gradient_square_norm, mean_gradient_variance],
                                      updates=updates, allow_input_downcast=True)
-        self.predict = theano.function(inputs=[X], outputs=[y_x, py_x], allow_input_downcast=True)
 
-        self.get_attributes = theano.function(  inputs=[X, Y],
-                                                outputs=[cost, individual_gradient_squared_norm, individual_cost, accuracy],
-                                                allow_input_downcast=True)
+        # This is just never getting used.
+        #self.predict = theano.function(inputs=[X], outputs=[y_x, py_x], allow_input_downcast=True)
+
 
         print "Model compilation complete"
         self.data = load_data(model_config)
@@ -155,32 +169,65 @@ class NeuralNetwork:
         return L_W, L_b
 
 
-    def compute_grads_and_weights(self, data, L_measurements):
 
-        X, Y = data
-
-        assert np.all(np.isfinite(X))
-        assert np.all(np.isfinite(Y))
-
-        cost, sq_grad_norm, individual_cost, accuracy = self.get_attributes(X, Y)
-
-        # DEBUG
-        #number_of_invalid_values = np.logical_not(np.isfinite(sq_grad_norm)).sum()
-        #if 0 < number_of_invalid_values:
-        #    print "In compute_grads_and_weights, you have %d invalid values for sq_grad_norm." % number_of_invalid_values
-
-        #number_of_invalid_values = np.logical_not(np.isfinite(individual_cost)).sum()
-        #if 0 < number_of_invalid_values:
-        #    print "In compute_grads_and_weights, you have %d invalid values for individual_cost." % number_of_invalid_values
-
-        res = {}
+    def worker_process_minibatch(self, A_indices, segment, L_measurements):
+        assert segment in ["train", "valid", "test"]
         for key in L_measurements:
-            if key == "importance_weight":
-                res[key] = sq_grad_norm
-            if key == "gradient_square_norm":
-                res[key] = sq_grad_norm
-            if key == "loss":
-                res[key] = individual_cost
-            if key == "accuracy":
-                res[key] = accuracy
+            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy"]
+
+        X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
+        Y_minibatch = self.data[segment][1][A_indices]
+        assert np.all(np.isfinite(X_minibatch))
+        assert np.all(np.isfinite(Y_minibatch))
+
+        # These numpy arrays here have the same names as theano variables
+        # elsewhere in this class. Don't get confused.
+        (individual_cost, individual_accuracy, individual_gradient_square_norm, individual_gradient_variance) = self.func_process_worker_minibatch(X_minibatch, Y_minibatch)
+
+        # The individual_gradient_square_norm.mean() and individual_gradient_variance.mean()
+        # are not written to the database, but they would be really nice to log to have a
+        # good idea of what is happening on the worker.
+
+        # Note for Alex : This should be something that goes in the python logger.
+        print "** Worker **"
+        print "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (individual_cost.mean(), individual_accuracy.mean(), individual_gradient_square_norm.mean(), individual_gradient_variance.mean())
+
+
+        # We can change the quantity that corresponds to 'importance_weight'
+        # by changing the entry in the `mapping` dictionary below.
+        mapping = { 'importance_weight' : individual_gradient_square_norm,
+                    'cost' : individual_cost,
+                    'loss' : individual_cost,
+                    'accuracy' : individual_accuracy.astype(dtype=np.float32),
+                    'gradient_square_norm' : individual_gradient_square_norm,
+                    'individual_gradient_variance' : individual_gradient_variance}
+
+        # Returns a full array for every data point in the minibatch.
+        res = dict((measurement, mapping[measurement]) for measurement in L_measurements)
         return res
+
+
+    def master_process_minibatch(self, A_indices, A_scaling_factors, segment):
+        assert A_indices.shape == A_scaling_factors.shape, "Failed to assertion that %s == %s." % (A_indices.shape, A_scaling_factors.shape)
+        assert segment in ["train"]
+
+        X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
+        Y_minibatch = self.data[segment][1][A_indices]
+        assert np.all(np.isfinite(X_minibatch))
+        assert np.all(np.isfinite(Y_minibatch))
+
+        # These numpy arrays here have the same names as theano variables
+        # elsewhere in this class. Don't get confused.
+        (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance) = self.func_master_process_minibatch(X_minibatch, Y_minibatch, A_scaling_factors)
+
+        # Note for Alex : This should be something that goes in the python logger.
+        print "** Master **"
+        print "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance)
+
+        # The mean_gradient_square_norm and mean_gradient_variance
+        # are not written to the database, but they would be really nice to log to have a
+        # good idea of what is happening on the master.
+
+        # Returns nothing. The master should have used this call to
+        # update its internal parameters.
+        return
