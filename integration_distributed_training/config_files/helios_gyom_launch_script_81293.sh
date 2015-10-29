@@ -21,14 +21,6 @@
 
 export IMPORTANCE_SAMPLING_SGD_ROOT:${HOME}/Documents/ImportanceSamplingSGD
 export PYTHONPATH=${PYTHONPATH}:${IMPORTANCE_SAMPLING_SGD_ROOT}
-
-# Usually this belongs to the .bash_profile but let's list
-# this here as a reminder.
-export PYTHONPATH=${PYTHONPATH}:${HOME}/deep-learning-suite/fuel
-export PYTHONPATH=${PYTHONPATH}:${HOME}/deep-learning-suite/theano
-export PYTHONPATH=${PYTHONPATH}:${HOME}/deep-learning-suite/picklable_itertools
-export PYTHONPATH=${PYTHONPATH}:${HOME}/deep-learning-suite/blocks
-
 export IMPORTANCE_SAMPLING_SGD_BIN:${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/bin
 
 export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/config_files/config_09232.py
