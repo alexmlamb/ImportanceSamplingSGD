@@ -7,13 +7,15 @@
 #PBS -m bea
 #PBS -t [0-2]%3
 
+
+# Use msub on helios1 to submit this.
+
 # Note that the range above includes both the first and last number.
 # The %3 sign after is to instruct the scheduler that we want to run
 # as much as %3 simultaneous jobs. For our uses, there isn't much
 # of a reason to launch anything less since we're not dealing
 # with sequential and independent jobs.
 
-"""#PBS -M guillaume.alain.umontreal@gmail.com"""
 
 # Before running this, check out a copy of ImportanceSamplingSGD locally.
 # Not sure why again, but it works for the HTTP address and not the SSH address.
