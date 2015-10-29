@@ -62,8 +62,8 @@ class NeuralNetwork:
             sgsnav.add_layer_for_gradient_variance( input=layer_desc['input'], weight=layer_desc['weight'],
                                                     bias=layer_desc['bias'], output=layer_desc['output'], cost=cost)
 
-        individual_gradient_squared_norm = sgsnav.accumulated_sum_gradient_square_norm
-        individual_gradient_variance = sgsnav.get_sum_gradient_variance
+        individual_gradient_squared_norm = sgsnav.get_sum_gradient_square_norm()
+        individual_gradient_variance = sgsnav.get_sum_gradient_variance()
 
 
         accuracy = T.mean(T.eq(T.argmax(py_x, axis = 1), Y))
