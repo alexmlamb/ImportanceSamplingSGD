@@ -70,6 +70,7 @@ def sample_indices_and_scaling_factors(rsconn, nbr_samples):
 
     A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
 
+
     # Might be worth logging A_importance_weights.sum() as extra information.
     #print "DEBUG : sample_indices_and_scaling_factors "
     #print "A_importance_weights.shape"
@@ -183,6 +184,8 @@ def run(DD_config, D_server_desc):
     #        values from the other side. This is about tradeoffs.
     queue_name = "L_master_train_minibatch_indices_and_info_QUEUE"
 
+    num_minibatches_processed = 0
+
     while True:
 
         # Task (1)
@@ -206,9 +209,13 @@ def run(DD_config, D_server_desc):
 
         for _ in range(nbr_batch_processed_per_public_parameter_update):
             (A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn, master_minibatch_size)
-            model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
-            print "The master has processed a minibatch."
 
+            print "scaling factors", A_scaling_factors
+
+            model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+
+            print "The master has processed minibatch", num_minibatches_processed
+            num_minibatches_processed += 1
 
 
 
