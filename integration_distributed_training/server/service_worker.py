@@ -167,16 +167,15 @@ def run(DD_config, D_server_desc):
                 # Write 0.0 as default value in all the measurements.
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))
 
-                previous_update_timestamp = float(rsconn.hget("H_%s_minibatch_%s_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str))
+                previous_update_timestamp = float(rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str))
                 current_update_timestamp = time.time()
-                rsconn.hset("H_%s_minibatch_%s_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
+                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
 
-                # TODO : Not sure yet where we would want to log this. Figure it out.
-                #        It would need to be in a place where the segment/measurement
-                #        are also recorded, because we can't expect the "valid" and "test"
-                #        measurements to be averaged with the "train". That would not
-                #        be an interesting thing to record.
-                delay_between_measurement_refresh = previous_update_timestamp - current_update_timestamp
+                delay_between_measurement_update = float(current_update_timestamp) - float(previous_update_timestamp)
+                delay_between_measurement_update_and_parameter_update = float(current_update_timestamp) - float(parameters_current_timestamp)
+
+                rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update)
+                rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update_and_parameter_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update_and_parameter_update)
 
             # Push back that minibatch to the right of the queue.
             # It will eventually find its way back to some worker,
