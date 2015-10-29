@@ -125,4 +125,18 @@ def get_database_config():
 def get_helios_config():
     # Optional.
 
-    return {}
+    # Let's say we force quit after 6 hours.
+    # We're going to get stopped by the walltime of the helios launch script in any case.
+    force_quit_after_total_duration = 6*3600
+
+    experiment_id = "001"
+
+    experiment_output_root = "/rap/jvb-000-aa/data/alaingui/experiments_ISGD/"
+    experiment_output_dir = os.path.join(experiment_output_root, experiment_id)
+
+    # Read ${MOAB_JOBARRAYINDEX} from environment.
+    jobid = 0
+
+    return {'force_quit_after_total_duration' : force_quit_after_total_duration,
+            'experiment_output_root' : experiment_output_root,
+            'jobid' : jobid}
