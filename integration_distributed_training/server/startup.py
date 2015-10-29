@@ -53,7 +53,10 @@ def main_entry_point_for_all_executable_scripts(argv, want_start_redis_server_an
     # wait for bootstrap file to be available (if you're not the one writing to it)
     # read stuff from the boostrap file
 
+    print "Will load the config_file : %s." % config_file
+
     DD_config = load_config_file(config_file)
+    print "config_file loaded."
 
     if want_start_redis_server_and_create_bootstrap_file:
         (rserv, rsconn, D_server_desc) = start_redis_server(DD_config['database'])
@@ -103,7 +106,7 @@ def start_redis_server(database_config):
 
     import socket
     hostname = socket.gethostname()
-    
+
     D_server_desc = {'hostname' : hostname, 'port' : server_port, 'password' : server_password}
     return (rserv, rsconn, D_server_desc)
 
