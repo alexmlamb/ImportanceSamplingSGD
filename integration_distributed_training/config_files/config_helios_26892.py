@@ -1,4 +1,4 @@
-
+import numpy as np
 import os
 
 def get_model_config():
@@ -27,7 +27,8 @@ def get_model_config():
     # This could be done differently too by looking at fuelrc
     # or at the hostname.
     #data_root = "/data/lisatmp4/lambalex"
-    data_root = "/Users/gyomalin/Documents/fuel_data"
+    #data_root = "/Users/gyomalin/Documents/fuel_data"
+    data_root = "/rap/jvb-000-aa/data/alaingui"
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
@@ -66,6 +67,15 @@ def get_database_config():
     # Test Set (26032, 32, 3, 32) (26032, 1)
     # svhn data loaded...
 
+    # This was first set to 0.0.
+    # Then we discussed how using a small epsilon instead
+    # would make all the data potentially a candidate.
+    # Now we've set to this be NaN because that's
+    # a way to indicate that they've never been sampled,
+    # and the master can then wait for all of them
+    # to be updated at least once before starting the training.
+    default_importance_weight = np.NaN
+    want_master_to_wait_for_all_importance_weights_to_be_present = True
 
     serialized_parameters_format ="opaque_string"
 
@@ -120,7 +130,9 @@ def get_database_config():
                 L_segments=L_segments,
                 want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
-                serialized_parameters_format=serialized_parameters_format)
+                serialized_parameters_format=serialized_parameters_format,
+                default_importance_weight=default_importance_weight,
+                want_master_to_wait_for_all_importance_weights_to_be_present=want_master_to_wait_for_all_importance_weights_to_be_present)
 
 def get_helios_config():
     # Optional.

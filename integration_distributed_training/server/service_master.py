@@ -22,8 +22,13 @@ from common import get_rsconn_with_timeout
 
 
 def get_importance_weights(rsconn):
-
     # Helper function for `sample_indices_and_scaling_factors`.
+
+    # Note : There is a bit too much code here because this was written
+    #        with the idea that not all the importance weights would be present
+    #        in the database. In practice, we ended up filling up all the
+    #        importance weights with a default value, so much of this section
+    #        could be simplified.
 
     segment = "train"
     measurement = "importance_weight"
@@ -59,24 +64,32 @@ def get_importance_weights(rsconn):
     #return (A_indices, A_importance_weights)
     return A_importance_weights, nbr_of_present_importance_weights
 
-def sample_indices_and_scaling_factors(rsconn, nbr_samples):
-    # Note that these are sampled with repetitions, which
+def sample_indices_and_scaling_factors(rsconn, nbr_samples, want_master_to_wait_for_all_importance_weights_to_be_present):
+
+    A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
+
+    ratio_of_finite_importance_weights = np.isfinite(A_importance_weights).mean()
+
+    if want_master_to_wait_for_all_importance_weights_to_be_present and ratio_of_finite_importance_weights < 1.0:
+        print "Master has only %f of the importance weights. Waiting for all of them to be present." % ratio_of_finite_importance_weights
+        return ('wait_and_retry', None, None)
+    else:
+        A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples)
+        return ('proceed', A_sampled_indices, A_scaling_factors)
+
+
+
+def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples):
+
+    # A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
+
+    # Note that these are sampled with replacements, which
     # is what we want but which also goes against the traditional
     # traversal of the training set through a minibatch iteration scheme.
 
     # Note : If you plan on changing anything in this function,
     #        then you will need to update the documentation at the
     #        botton of this document.
-
-    A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
-
-
-    # Might be worth logging A_importance_weights.sum() as extra information.
-    #print "DEBUG : sample_indices_and_scaling_factors "
-    #print "A_importance_weights.shape"
-    #print A_importance_weights.shape
-    #print "nbr_of_present_importance_weights : %d" % nbr_of_present_importance_weights
-    #print "A_importance_weights.sum() : %f" % A_importance_weights.sum()
 
     if A_importance_weights.sum() < 1e-16:
         print "All the importance_weight are zero. There is nothing to be done with this."
@@ -124,6 +137,13 @@ def sample_indices_and_scaling_factors(rsconn, nbr_samples):
     return A_sampled_indices, A_scaling_factors
 
 
+def recipe2(A_importance_weights, nbr_of_present_importance_weights, nbr_samples):
+    # If you want to add another method, you can do it here.
+    pass
+
+
+
+
 def run(DD_config, D_server_desc):
 
     if D_server_desc['hostname'] in ["szkmbp"]:
@@ -136,6 +156,7 @@ def run(DD_config, D_server_desc):
     want_only_indices_for_master = DD_config['database']['want_only_indices_for_master']
     master_minibatch_size = DD_config['database']['master_minibatch_size']
     serialized_parameters_format = DD_config['database']['serialized_parameters_format']
+    want_master_to_wait_for_all_importance_weights_to_be_present = DD_config['database'].get('want_master_to_wait_for_all_importance_weights_to_be_present', False)
 
     model_api = ModelAPI(DD_config['model'])
 
@@ -177,11 +198,6 @@ def run(DD_config, D_server_desc):
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 
-    # Pop values from the left, because the assistant
-    # is pushing fresh values to the right.
-    # TODO : Ponder whether we should nevertheless pop and push
-    #        from the same side, and the assistant would remove outdated
-    #        values from the other side. This is about tradeoffs.
     queue_name = "L_master_train_minibatch_indices_and_info_QUEUE"
 
     num_minibatches_processed = 0
@@ -208,15 +224,27 @@ def run(DD_config, D_server_desc):
         # Task (2)
 
         for _ in range(nbr_batch_processed_per_public_parameter_update):
-            (A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn, master_minibatch_size)
 
-            print "scaling factors", A_scaling_factors
+            while True:
 
-            model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+                (intent, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn, master_minibatch_size, want_master_to_wait_for_all_importance_weights_to_be_present)
 
-            print "The master has processed minibatch", num_minibatches_processed
-            num_minibatches_processed += 1
+                if intent == 'wait_and_retry':
+                    print "Master would like to wait for all importance weights to be present before starting."
+                    print "Sleeping for 5s."
+                    time.sleep(5.0)
+                    # this "continue" call will retry fetching the importance weights
+                    # and we'll be stuck here forever if the importance weights never
+                    # become all non-Nan.
+                    continue
 
+                if intent == 'proceed':
+                    print "scaling factors", A_scaling_factors
+                    model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+                    print "The master has processed minibatch", num_minibatches_processed
+                    num_minibatches_processed += 1
+                    # breaking will continue to the main looping section
+                    break
 
 
 # Extra debugging information for `sample_indices_and_scaling_factors`

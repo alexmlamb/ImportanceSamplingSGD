@@ -15,6 +15,7 @@ def configure(  rsconn,
                 L_segments,
                 want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
+                default_importance_weight=0.0,
                 **kwargs):
 
     # `workers_minibatch_size` is an int describing how large are the minibatches for the workers.
@@ -68,8 +69,9 @@ def configure(  rsconn,
             rsconn.rpush("L_workers_%s_minibatch_indices_ALL" % segment, A_indices_str)
 
             for measurement in L_measurements:
-                # Write 0.0 as default value in all the measurements.
-                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, np.zeros(A_indices.shape, dtype=np.float32).tostring(order='C'))
+                # Write 0.0 as default value in all the measurements when
+                # `default_importance_weight` is not specified.
+                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
                 rsconn.hset("H_%s_minibatch_%s_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
 
                 #print "H_%s_minibatch_%s" % (segment, measurement)
