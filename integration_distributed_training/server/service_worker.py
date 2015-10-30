@@ -167,7 +167,12 @@ def run(DD_config, D_server_desc):
                 # Write 0.0 as default value in all the measurements.
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))
 
-                previous_update_timestamp = float(rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str))
+                previous_update_timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
+                if previous_update_timestamp_str is None or len(previous_update_timestamp_str) == 0:
+                    # This is a garbage value, but it's going to be used the first around, and only then.
+                    previous_update_timestamp = 0.0
+                else:
+                    previous_update_timestamp = float(previous_update_timestamp_str)
                 current_update_timestamp = time.time()
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
 
@@ -176,6 +181,12 @@ def run(DD_config, D_server_desc):
 
                 rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update)
                 rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update_and_parameter_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update_and_parameter_update)
+
+                #print "delay_between_measurement_update : %f seconds" % delay_between_measurement_update
+                #print "delay_between_measurement_update_and_parameter_update : %f seconds" % delay_between_measurement_update_and_parameter_update
+
+                # Be careful. If you re-indent the next block deeper,
+                # you'll mess up everything with the re-queuing of the minibatches.
 
             # Push back that minibatch to the right of the queue.
             # It will eventually find its way back to some worker,
