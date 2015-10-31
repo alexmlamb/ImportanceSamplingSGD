@@ -5,10 +5,10 @@ import random
 def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
     #freshness_threshold = 1
 
-    freshness_threshold = 1
+    freshness_threshold = 999999999999999999999
 
     epsilon = 0.0
-
+    sampleWithReplacement = True
 
     cMap = {}
     for key in cMap_unsmoothed:
@@ -36,7 +36,7 @@ def sampleInstances(indexLst, cMap_unsmoothed, batch_size, fMap, mbIndex):
         weightLst += [weightMap[key]]
 
 
-    selectedIndicesRaw = numpy.random.choice(len(weightMap),batch_size,p=weightLst, replace = False).tolist()
+    selectedIndicesRaw = numpy.random.choice(len(weightMap),batch_size,p=weightLst, replace = sampleWithReplacement).tolist()
     selectedIndices = [usedKeys[j] for j in selectedIndicesRaw]
     cmKeys = cMap.keys()
     newIndexLst = []

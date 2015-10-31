@@ -173,6 +173,9 @@ def run(DD_config, D_server_desc):
                     previous_update_timestamp = 0.0
                 else:
                     previous_update_timestamp = float(previous_update_timestamp_str)
+
+                print "timestamp delta", time.time() - previous_update_timestamp
+
                 current_update_timestamp = time.time()
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
 

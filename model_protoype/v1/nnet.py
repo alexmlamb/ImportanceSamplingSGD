@@ -89,6 +89,7 @@ class nnet:
         num_input = config["num_input"]
         num_output = 10
 
+        
         w_h, b_h = init_parameters(num_input, num_output, config["hidden_sizes"],scale=0.01)
         w_m, b_m, = init_parameters(num_input, num_output, config["hidden_sizes"],scale=0.0)
         self.parameters = w_h + b_h

@@ -20,6 +20,10 @@ def test_train():
 
         myModel.master_process_minibatch(indices, scaling_factors, "train")
 
+        worker_vals = myModel.worker_process_minibatch(indices, "train", ["importance_weight", "gradient_square_norm", "loss", "accuracy"])
+
+        print worker_vals
+
         if i == 2000:
             print "SAVING VALUES"
             paramStr = myModel.get_serialized_parameters()

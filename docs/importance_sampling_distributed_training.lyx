@@ -60,18 +60,16 @@
 \begin_body
 
 \begin_layout Section*
-NoteNets: Accelerating Deep Learning with Distributed Importance Sampling
+Accelerating Deep Learning with Distributed Importance Sampling
 \end_layout
 
 Abstract: 
 
--Humans are able to accelerate learning by selecting training material that is both informative and at an appropriate difficulty level.  As a person learns more about a subject, one benefits from looking at increasingly difficult and complicated examples.  On the other hand, the majority of the Deep Learning models sample the training data uniformly at random.  
+-While training deep neural networks with SGD has been highly successful, state of the art models trained on large datasets often take frustratingly long to train.  
 
--We propose a distributed framework in which one set of workers search the training dataset to find the most interesting examples and another set of workers train on those instances.  
-
-
-
--Theory suggests
+-Propose to achieve data parallelism by having a set of machines compute importance weights while a single machine updates the model by doing SGD with importance sampling.  
+-
+-An advantage of this approach over asgd is that the model updates using an unbiased estimate of the total gradient, even when the importance weights are stale.  
 
 \begin_layout Standard
 Let 

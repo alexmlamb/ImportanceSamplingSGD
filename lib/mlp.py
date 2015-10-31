@@ -43,7 +43,7 @@ config = {}
 #config["dataset"] = "mnist"
 config["dataset"] = "svhn"
 
-config["momentum_rate"] = 0.9
+config["momentum_rate"] = 0.0
 
 #config["algo"] = "sgd"
 config["algo"] = "isgd"
@@ -472,8 +472,8 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
 
         t1 = time.time()
 
-        cost_mb_size = 2000
-        grad_mb_size = 2000
+        cost_mb_size = 100
+        grad_mb_size = 100
 
 
         x_mb_grad = []
@@ -487,7 +487,7 @@ def test_mlp(base_learning_rate=0.1, L1_reg=0.00, L2_reg=0.001, n_epochs=9999000
         #Compute cost over all instances.  
 
         if config["algo"] == "isgd": 
-            grad_consider = 200000
+            grad_consider = 200
         if config["algo"] == "sgd":
             grad_consider = 10
 
