@@ -117,5 +117,5 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
 
     while True:
         print "Running server. Press CTLR+C to stop."
-        signal.pause()
-        #time.sleep(5)
+        #signal.pause()
+        time.sleep(5)
