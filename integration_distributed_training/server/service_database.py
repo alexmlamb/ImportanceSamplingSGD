@@ -10,6 +10,8 @@ import getopt
 import signal
 import sys
 
+from startup import delete_bootstrap_file
+
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
                 dataset_name,
@@ -93,7 +95,7 @@ def configure(  rsconn,
 
 
 
-def run(DD_config, rserv, rsconn):
+def run(DD_config, rserv, rsconn, bootstrap_file):
 
     configure(  rsconn,
                 **DD_config['database'])
@@ -108,6 +110,7 @@ def run(DD_config, rserv, rsconn):
         print("You pressed CTRL+C.")
         print("Sending shutdown command to the redis-server.")
         rserv.stop()
+        delete_bootstrap_file(bootstrap_file)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)

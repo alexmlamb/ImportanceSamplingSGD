@@ -78,5 +78,5 @@ def get_mean_variance_measurement_on_database(rsconn, segment, measurement):
     A = np.vstack(L)
     # weed out anything np.nan
     usable_A = A[np.isfinite(A)]
-    ratio_of_usable_values = (usable_A.shape[] / A.shape[0]) if A.shape[0] > 0 else 0.0
+    ratio_of_usable_values = (usable_A.shape[0] / A.shape[0]) if A.shape[0] > 0 else 0.0
     return usable_A.mean(), usable_A.var(), usable_A.shape[0], ratio_of_usable_values
