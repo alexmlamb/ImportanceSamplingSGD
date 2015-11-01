@@ -1,0 +1,7 @@
+Distributed ASGD with GPUs.  Results seem bad.  Not clear if paper was published anywhere.  Basically shows that ASGD with 2-8 GPUs accelerates training over the first few epochs, but also leads to oscillations in the training error.  
+http://arxiv.org/pdf/1312.6186v1.pdf
+
+Distributed ASGD for speech.  Didn't show any training curves, but the results suggest that ASGD trains faster and gets to a lower final error rate.  
+http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6638950
+
+
