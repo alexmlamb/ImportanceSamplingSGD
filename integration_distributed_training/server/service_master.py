@@ -104,7 +104,16 @@ def run(DD_config, D_server_desc):
 
             while True:
 
-                (intent, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn, master_minibatch_size, want_master_to_wait_for_all_importance_weights_to_be_present)
+                (intent, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn, master_minibatch_size, want_master_to_wait_for_all_importance_weights_to_be_present, staleness_threshold = DD_config['database']["staleness_threshold_seconds"])
+
+                #print "#Unique", np.unique(A_sampled_indices).shape[0]
+
+                #A_scaling_factors = A_scaling_factors * 0.0 + 1.0
+                #epsilon = 1.0
+                #A_scaling_factors = 1.0 / (epsilon + 1.0 / A_scaling_factors)
+                A_scaling_factors = A_scaling_factors.clip(0.0, 1.0)
+
+                model_api.worker_process_minibatch(np.asarray(range(0,500)), "test", ["accuracy"])
 
                 if intent == 'wait_and_retry':
                     print "Master would like to wait for all importance weights to be present before starting."
@@ -116,12 +125,13 @@ def run(DD_config, D_server_desc):
                     continue
 
                 if intent == 'proceed':
-                    print "scaling factors", A_scaling_factors
                     model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
-                    print "The master has processed minibatch", num_minibatches_processed
-                    num_minibatches_processed += 1
                     # breaking will continue to the main looping section
+
+            
+
                     break
+
 
 
 # Extra debugging information for `sample_indices_and_scaling_factors`

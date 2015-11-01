@@ -34,6 +34,7 @@ class NeuralNetwork:
         num_output = 10
 
         self.num_minibatches_processed_master = 0
+        self.num_minibatches_processed_worker = 0
 
         L_W, L_b = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=0.01)
         L_W_momentum, L_b_momentum, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=0.0, name_suffix="_momentum")
@@ -191,9 +192,11 @@ class NeuralNetwork:
         # good idea of what is happening on the worker.
 
         # Note for Alex : This should be something that goes in the python logger.
-        print "** Worker **"
-        print "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (individual_cost.mean(), individual_accuracy.mean(), individual_gradient_square_norm.mean(), individual_gradient_variance.mean())
+        if self.num_minibatches_processed_worker % 100 == 0:
+            print segment, "** Worker **"
+            print segment, "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (individual_cost.mean(), individual_accuracy.mean(), individual_gradient_square_norm.mean(), individual_gradient_variance.mean())
 
+        self.num_minibatches_processed_worker += 1
 
         # We can change the quantity that corresponds to 'importance_weight'
         # by changing the entry in the `mapping` dictionary below.
@@ -224,10 +227,10 @@ class NeuralNetwork:
 
         if self.num_minibatches_processed_master % 100 == 0:
             # Note for Alex : This should be something that goes in the python logger.
-            print "Master processed minibatch #", self.num_minibatches_processed_master
-            print "Scaling factors", A_scaling_factors
-            print "** Master **"
-            print "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance)
+            print segment, "Master processed minibatch #", self.num_minibatches_processed_master
+            print segment, "Scaling factors", A_scaling_factors
+            print segment, "** Master **"
+            print segment, "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance)
 
         self.num_minibatches_processed_master += 1
 
