@@ -60,6 +60,7 @@ def main_entry_point_for_all_executable_scripts(argv, want_start_redis_server_an
 
     if want_start_redis_server_and_create_bootstrap_file:
         (rserv, rsconn, D_server_desc) = start_redis_server(DD_config['database'])
+        delete_bootstrap_file(bootstrap_file)
         write_bootstrap_file(bootstrap_file, D_server_desc)
     else:
         D_server_desc = load_bootstrap_file(bootstrap_file)
@@ -67,7 +68,7 @@ def main_entry_point_for_all_executable_scripts(argv, want_start_redis_server_an
         # to facilitate the call.
         rserv, rsconn = (None, None)
 
-    return DD_config, D_server_desc, rserv, rsconn
+    return DD_config, D_server_desc, rserv, rsconn, bootstrap_file
 
 def load_config_file(config_file):
 
@@ -137,3 +138,17 @@ def write_bootstrap_file(bootstrap_file, D_server_desc):
     # D_server_desc contains keys ['hostname', 'port', 'password']
     json.dump(D_server_desc, open(bootstrap_file, "w"), indent=4, separators=(',', ': '))
     print "Wrote %s." % bootstrap_file
+
+def delete_bootstrap_file(bootstrap_file):
+    if os.path.exists(bootstrap_file):
+        print "We will attempt to delete the old version of the bootstrap file."
+
+        try:
+            os.remove(bootstrap_file)
+            print "Removed boostrap file %s." % bootstrap_file
+        except OSError:
+            print "Failed to remove the bootstrap file %s." % bootstrap_file
+            print "Not sure why this happened, but this will create problems later because some permissions are wrong."
+            pass
+    else:
+        print "No need to delete the bootstrap_file %s beause it does not exist." % bootstrap_file

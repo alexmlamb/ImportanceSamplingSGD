@@ -62,3 +62,21 @@ def get_rsconn_with_timeout(server_ip, server_port, server_password=None,
             quit()
 
     return rsconn
+
+
+
+def get_mean_variance_measurement_on_database(rsconn, segment, measurement):
+    # The elements come out in any order,
+    # so there wasn't much reason to return the array
+    # instead of just the mean and variance.
+
+    L = []
+    for value_str in rsconn.hvals("H_%s_minibatch_%s" % (segment, measurement)):
+        value = np.fromstring(value_str, dtype=np.float32)
+        L.append(value)
+
+    A = np.vstack(L)
+    # weed out anything np.nan
+    usable_A = A[np.isfinite(A)]
+    ratio_of_usable_values = (usable_A.shape[0] / A.shape[0]) if A.shape[0] > 0 else 0.0
+    return usable_A.mean(), usable_A.var(), usable_A.shape[0], ratio_of_usable_values

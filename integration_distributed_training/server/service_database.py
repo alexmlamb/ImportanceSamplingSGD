@@ -7,6 +7,11 @@ import time
 import sys, os
 import getopt
 
+import signal
+import sys
+
+from startup import delete_bootstrap_file
+
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
                 dataset_name,
@@ -90,15 +95,27 @@ def configure(  rsconn,
 
 
 
-def run(DD_config, rsconn):
+def run(DD_config, rserv, rsconn, bootstrap_file):
 
     configure(  rsconn,
                 **DD_config['database'])
 
+    # Use `rserv` to be able to shut down the
+    # redis-server when the user hits CTRL+C.
+    # Otherwise, the server is left in the background
+    # and this can cause problems due to scripts
+    # getting tangled together.
 
-    # You might want to do something to shutdown the redis server more gracefully upon hitting ctrl-c
-    # or have some other way of closing it. Not important for now.
-    # If you decide to add this, then you'll need to pass `rserv` to this function.
+    def signal_handler(signal, frame):
+        print("You pressed CTRL+C.")
+        print("Sending shutdown command to the redis-server.")
+        rserv.stop()
+        delete_bootstrap_file(bootstrap_file)
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
     while True:
-        print "..running server.."
-        time.sleep(5)
+        print "Running server. Press CTLR+C to stop."
+        signal.pause()
+        #time.sleep(5)

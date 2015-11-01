@@ -16,7 +16,7 @@ def usage():
 def main(argv):
 
     want_start_redis_server_and_create_bootstrap_file = False
-    (DD_config, D_server_desc, _, _) = main_entry_point_for_all_executable_scripts(argv, want_start_redis_server_and_create_bootstrap_file)
+    (DD_config, D_server_desc, _, _, _) = main_entry_point_for_all_executable_scripts(argv, want_start_redis_server_and_create_bootstrap_file)
 
     integration_distributed_training.server.service_master.run(DD_config, D_server_desc)
 
