@@ -75,6 +75,7 @@ def run(DD_config, D_server_desc):
 
     queue_name = "L_master_train_minibatch_indices_and_info_QUEUE"
 
+    num_minibatches_master_processed = 0
 
     while True:
 
@@ -113,7 +114,19 @@ def run(DD_config, D_server_desc):
                 #A_scaling_factors = 1.0 / (epsilon + 1.0 / A_scaling_factors)
                 A_scaling_factors = A_scaling_factors.clip(0.0, 1.0)
 
-                model_api.worker_process_minibatch(np.asarray(range(0,500)), "test", ["accuracy"])
+                #Run
+                if num_minibatches_master_processed % 500 == 0:
+
+                    accLst = []
+
+                    test_data_segments = [range(i * 500, (i + 1) * 500) for i in range(0,50)]
+
+                    for test_data_segment in test_data_segments:
+                        accLst += [model_api.worker_process_minibatch(test_data_segment, "test", ["accuracy"])["accuracy"].mean()]
+
+                    print "Test accuracy", sum(accLst) * 1.0 / len(accLst)
+
+                num_minibatches_master_processed += 1
 
                 if intent == 'wait_and_retry':
                     print "Master would like to wait for all importance weights to be present before starting."

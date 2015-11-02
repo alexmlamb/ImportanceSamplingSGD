@@ -191,11 +191,6 @@ class NeuralNetwork:
         # are not written to the database, but they would be really nice to log to have a
         # good idea of what is happening on the worker.
 
-        # Note for Alex : This should be something that goes in the python logger.
-        if self.num_minibatches_processed_worker % 100 == 0:
-            print segment, "** Worker **"
-            print segment, "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (individual_cost.mean(), individual_accuracy.mean(), individual_gradient_square_norm.mean(), individual_gradient_variance.mean())
-
         self.num_minibatches_processed_worker += 1
 
         # We can change the quantity that corresponds to 'importance_weight'
@@ -225,7 +220,7 @@ class NeuralNetwork:
         # elsewhere in this class. Don't get confused.
         (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance) = self.func_master_process_minibatch(X_minibatch, Y_minibatch, A_scaling_factors)
 
-        if self.num_minibatches_processed_master % 100 == 0:
+        if self.num_minibatches_processed_master % 500 == 0:
             # Note for Alex : This should be something that goes in the python logger.
             print segment, "Master processed minibatch #", self.num_minibatches_processed_master
             print segment, "Scaling factors", A_scaling_factors
