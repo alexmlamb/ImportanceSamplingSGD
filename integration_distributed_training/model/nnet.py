@@ -186,6 +186,13 @@ class NeuralNetwork:
         # These numpy arrays here have the same names as theano variables
         # elsewhere in this class. Don't get confused.
         (individual_cost, individual_accuracy, individual_gradient_square_norm, individual_gradient_variance) = self.func_process_worker_minibatch(X_minibatch, Y_minibatch)
+        # CRAP VALUES TO DEBUG
+        #individual_cost = np.random.rand(X_minibatch.shape[0])
+        #individual_accuracy = np.random.rand(X_minibatch.shape[0])
+        #individual_gradient_square_norm = np.random.rand(X_minibatch.shape[0])
+        #individual_gradient_variance = np.random.rand(X_minibatch.shape[0])
+
+
 
         # The individual_gradient_square_norm.mean() and individual_gradient_variance.mean()
         # are not written to the database, but they would be really nice to log to have a
@@ -236,7 +243,3 @@ class NeuralNetwork:
         # Returns nothing. The master should have used this call to
         # update its internal parameters.
         return
-
-
-
-

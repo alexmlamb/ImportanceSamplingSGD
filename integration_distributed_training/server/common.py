@@ -1,6 +1,7 @@
 
 import time
 import redis
+import numpy as np
 
 def get_rsconn_with_timeout(server_ip, server_port, server_password=None,
                             timeout=60, wait_for_parameters_to_be_present=True):
@@ -75,8 +76,17 @@ def get_mean_variance_measurement_on_database(rsconn, segment, measurement):
         value = np.fromstring(value_str, dtype=np.float32)
         L.append(value)
 
-    A = np.vstack(L)
+    if len(L) == 0:
+        return (np.nan, np.nan, 0, 0.0)
+
+    A = np.hstack(L)
+    assert len(A.shape) == 1
+    
     # weed out anything np.nan
-    usable_A = A[np.isfinite(A)]
-    ratio_of_usable_values = (usable_A.shape[0] / A.shape[0]) if A.shape[0] > 0 else 0.0
+    I = np.isfinite(A)
+    if I.sum() == 0:
+        return (np.nan, np.nan, 0, 0.0)
+
+    usable_A = A[I]
+    ratio_of_usable_values = usable_A.shape[0] * 1.0 / A.shape[0]
     return usable_A.mean(), usable_A.var(), usable_A.shape[0], ratio_of_usable_values

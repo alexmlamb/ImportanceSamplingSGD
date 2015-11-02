@@ -31,7 +31,12 @@ def run(DD_config, D_server_desc):
     want_only_indices_for_master = DD_config['database']['want_only_indices_for_master']
     master_minibatch_size = DD_config['database']['master_minibatch_size']
     serialized_parameters_format = DD_config['database']['serialized_parameters_format']
-    want_master_to_wait_for_all_importance_weights_to_be_present = DD_config['database'].get('want_master_to_wait_for_all_importance_weights_to_be_present', False)
+    Ntrain = DD_config['database']['Ntrain']
+    # Default behavior is to have no staleness, and perform ISGD from the moment that we
+    # get values for all the importance weights. Until then, we do USGD.
+    staleness_threshold = DD_config['database'].get('staleness_threshold', None)
+    want_master_to_do_USGD_when_ISGD_is_not_possible = DD_config['database'].get('want_master_to_do_USGD_when_ISGD_is_not_possible', True)
+    master_usable_importance_weights_threshold_to_ISGD = DD_config['database'].get('master_usable_importance_weights_threshold_to_ISGD', 1.0)
 
     model_api = ModelAPI(DD_config['model'])
 
@@ -100,51 +105,45 @@ def run(DD_config, D_server_desc):
 
         for _ in range(nbr_batch_processed_per_public_parameter_update):
 
-
-
-
             while True:
 
-                (intent, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn, master_minibatch_size, want_master_to_wait_for_all_importance_weights_to_be_present, staleness_threshold = DD_config['database']["staleness_threshold_seconds"])
+                (intent, mode, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn,
+                    master_minibatch_size,
+                    staleness_threshold=staleness_threshold,
+                    master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
+                    want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
+                    Ntrain=Ntrain,
+                    importance_weight_additive_constant=None)
 
-                #print "#Unique", np.unique(A_sampled_indices).shape[0]
-
-                #A_scaling_factors = A_scaling_factors * 0.0 + 1.0
-                #epsilon = 1.0
-                #A_scaling_factors = 1.0 / (epsilon + 1.0 / A_scaling_factors)
-                A_scaling_factors = A_scaling_factors.clip(0.0, 1.0)
-
+                # Note from Guillaume : This should probably instead be a call to
+                # get_mean_variance_measurement_on_database(rsconn, "train", "accuracy")
+                # get_mean_variance_measurement_on_database(rsconn, "test", "accuracy")
+                #
                 #Run
-                if num_minibatches_master_processed % 500 == 0:
-
-                    accLst = []
-
-                    test_data_segments = [range(i * 500, (i + 1) * 500) for i in range(0,50)]
-
-                    for test_data_segment in test_data_segments:
-                        accLst += [model_api.worker_process_minibatch(test_data_segment, "test", ["accuracy"])["accuracy"].mean()]
-
-                    print "Test accuracy", sum(accLst) * 1.0 / len(accLst)
+                #if num_minibatches_master_processed % 500 == 0:
+                #    accLst = []
+                #    test_data_segments = [range(i * 500, (i + 1) * 500) for i in range(0,50)]
+                #
+                # for test_data_segment in test_data_segments:
+                #        accLst += [model_api.worker_process_minibatch(test_data_segment, "test", ["accuracy"])["accuracy"].mean()]
+                #    print "Test accuracy", sum(accLst) * 1.0 / len(accLst)
 
                 num_minibatches_master_processed += 1
 
                 if intent == 'wait_and_retry':
-                    print "Master would like to wait for all importance weights to be present before starting."
-                    print "Sleeping for 5s."
-                    time.sleep(5.0)
+                    print "Master does not have enough importance weights to do ISGD, and doesn't want to default to USGD."
+                    print "Sleeping for 2s."
+                    time.sleep(2.0)
                     # this "continue" call will retry fetching the importance weights
                     # and we'll be stuck here forever if the importance weights never
                     # become all non-Nan.
                     continue
 
                 if intent == 'proceed':
+                    print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
                     model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
                     # breaking will continue to the main looping section
-
-            
-
                     break
-
 
 
 # Extra debugging information for `sample_indices_and_scaling_factors`
