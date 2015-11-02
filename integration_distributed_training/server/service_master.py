@@ -143,7 +143,7 @@ def run(DD_config, D_server_desc):
 
                 if intent == 'proceed':
 
-                    debug_this_section = True
+                    debug_this_section = False
                     if not debug_this_section:
 
                         print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
@@ -156,9 +156,10 @@ def run(DD_config, D_server_desc):
                         new_gradient_norm = model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
                         # breaking will continue to the main looping section
 
-                        old_gradient_norm = get_importance_weights(rsconn, DD_config['database']['staleness_threshold_seconds'])
+                        old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
 
                         if random.uniform(0,1) < 0.01:
+                        #if True:
                             print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
                             print "OLD GRAD NORM 111", old_gradient_norm[0][111]
                             if 111 in A_sampled_indices:

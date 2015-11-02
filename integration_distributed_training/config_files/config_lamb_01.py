@@ -4,7 +4,7 @@ def get_model_config():
 
     config = {}
 
-    #Importance sampling or vanilla sgd.  
+    #Importance sampling or vanilla sgd.
     config["importance_algorithm"] = "isgd"
     #config["importance_algorithm"] = "sgd"
 
@@ -43,7 +43,7 @@ def get_model_config():
 
     #Hold this fraction of the instances in the validation dataset
     config["fraction_validation"] = 0.05
-    
+
 
     return config
 
@@ -69,8 +69,8 @@ def get_database_config():
     workers_minibatch_size = 512
     master_minibatch_size = 128
 
-    #The master will only consider importance weights which were updated this number of seconds ago.  
-    staleness_threshold_seconds = 1000000.0
+    #The master will only consider importance weights which were updated this number of seconds ago.
+    staleness_threshold = 1000000.0
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -118,9 +118,8 @@ def get_database_config():
                 want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
-                staleness_threshold_seconds=staleness_threshold_seconds)
+                staleness_threshold=staleness_threshold)
 
 def get_helios_config():
     # Optional.
     return {}
-

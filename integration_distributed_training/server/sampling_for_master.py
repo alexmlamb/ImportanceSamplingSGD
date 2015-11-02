@@ -3,7 +3,7 @@ import numpy as np
 import time
 import random
 
-def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_additive_constant=None):
+def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_additive_constant=None, N=None):
     # Helper function for `sample_indices_and_scaling_factors`.
 
     # Note : There is a bit too much code here because this was written
@@ -17,6 +17,9 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
     #  When `staleness_threshold` is None, it's ignored.
     #  With `importance_weight_additive_constant` we allow a constant to be
     #  added to all the present and non-stale importance weights.
+    #
+    # The `N` argument is optional. When specified, it tells this method ahead of time
+    # what shape (N,) should the resulting arrays be.
     #
     # Note that this method filters out importance weights that are NaN.
 
@@ -95,7 +98,10 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
 
     # Find out how large you have to make your array.
     # You need to add +1 because the largest index has to represent a valid index.
-    N = A_unsorted_indices.max() + 1
+    if N is not None:
+        assert A_unsorted_indices.max() + 1 <= N
+    else:
+        N = A_unsorted_indices.max() + 1
     nbr_of_present_importance_weights = A_unsorted_indices.shape[0]
     A_importance_weights = np.zeros((N,), dtype=np.float32)
     A_importance_weights[A_unsorted_indices] = A_unsorted_importance_weights
