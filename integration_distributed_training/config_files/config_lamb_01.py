@@ -13,7 +13,7 @@ def get_model_config():
 
     #The learning rate to use on the gradient averaged over a minibatch
 
-    config["learning_rate"] = 0.01
+    config["learning_rate"] = 0.1
 
     #config["dataset"] = "mnist"
     config["dataset"] = "svhn"
@@ -70,7 +70,7 @@ def get_database_config():
     master_minibatch_size = 128
 
     #The master will only consider importance weights which were updated this number of seconds ago.  
-    staleness_threshold_seconds = 20.0
+    staleness_threshold_seconds = 1000000.0
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it

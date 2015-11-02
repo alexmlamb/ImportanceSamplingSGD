@@ -77,6 +77,8 @@ def get_importance_weights(rsconn, staleness_threshold):
     #return (A_indices, A_importance_weights)
     return A_importance_weights, nbr_of_present_importance_weights
 
+
+
 def sample_indices_and_scaling_factors(rsconn, nbr_samples, want_master_to_wait_for_all_importance_weights_to_be_present, staleness_threshold):
 
     A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn, staleness_threshold)
