@@ -87,7 +87,7 @@ class NeuralNetwork:
                                                             allow_input_downcast=True)
 
         self.func_master_process_minibatch = theano.function(inputs=[X, Y, scaling_factors],
-                                     outputs=[cost, accuracy, mean_gradient_square_norm, mean_gradient_variance],
+                                     outputs=[cost, accuracy, mean_gradient_square_norm, mean_gradient_variance, individual_gradient_square_norm],
                                      updates=updates, allow_input_downcast=True)
 
         # This is just never getting used.
@@ -225,7 +225,7 @@ class NeuralNetwork:
 
         # These numpy arrays here have the same names as theano variables
         # elsewhere in this class. Don't get confused.
-        (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance) = self.func_master_process_minibatch(X_minibatch, Y_minibatch, A_scaling_factors)
+        (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance, individual_gradient_square_norm) = self.func_master_process_minibatch(X_minibatch, Y_minibatch, A_scaling_factors)
 
         if self.num_minibatches_processed_master % 500 == 0:
             # Note for Alex : This should be something that goes in the python logger.
@@ -242,4 +242,8 @@ class NeuralNetwork:
 
         # Returns nothing. The master should have used this call to
         # update its internal parameters.
-        return
+        # return
+        
+        # For use in debugging, we return here the `individual_gradient_square_norm`.
+        # This can change to suit our debugging needs.
+        return individual_gradient_square_norm

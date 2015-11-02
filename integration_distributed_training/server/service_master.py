@@ -7,6 +7,7 @@ import re
 
 import sys, os
 import getopt
+import random
 
 # Change this to the real model once you want to plug it in.
 
@@ -15,7 +16,7 @@ import getopt
 #
 # The actual model that runs on SVHN.
 from integration_distributed_training.model.model import ModelAPI
-from sampling_for_master import sample_indices_and_scaling_factors
+from sampling_for_master import sample_indices_and_scaling_factors, get_importance_weights
 
 from common import get_rsconn_with_timeout
 
@@ -119,6 +120,7 @@ def run(DD_config, D_server_desc):
                 # get_mean_variance_measurement_on_database(rsconn, "train", "accuracy")
                 # get_mean_variance_measurement_on_database(rsconn, "test", "accuracy")
                 #
+
                 #Run
                 #if num_minibatches_master_processed % 500 == 0:
                 #    accLst = []
@@ -140,10 +142,28 @@ def run(DD_config, D_server_desc):
                     continue
 
                 if intent == 'proceed':
-                    print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
-                    model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
-                    # breaking will continue to the main looping section
-                    break
+
+                    debug_this_section = True
+                    if not debug_this_section:
+
+                        print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
+                        model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+                        # breaking will continue to the main looping section
+                        break
+                    else:
+                        # This is a debugging section that will be removed eventually.
+
+                        new_gradient_norm = model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+                        # breaking will continue to the main looping section
+
+                        old_gradient_norm = get_importance_weights(rsconn, DD_config['database']['staleness_threshold_seconds'])
+
+                        if random.uniform(0,1) < 0.01:
+                            print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
+                            print "OLD GRAD NORM 111", old_gradient_norm[0][111]
+                            if 111 in A_sampled_indices:
+                                print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
+                        break
 
 
 # Extra debugging information for `sample_indices_and_scaling_factors`
