@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#PBS -l nodes=1:gpus=1:ppn=1
+#PBS -l nodes=1:gpus=1:ppn=2
 #PBS -l walltime=6:00:00
 #PBS -A jvb-000-ag
 #PBS -m bea
@@ -41,12 +41,14 @@ export BOOSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_8423097443
 
 if [ ${MOAB_JOBARRAYINDEX} = "0" ]
 then
-    # The job 0 is special because it corresponds to running the database and the master.
-    # It puts the database in the background and blocks on the master.
-    python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_database.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE} &
     # The whole stdbuf is not necessary, but I left it there because it fixes
     # some of the strange behavior when we try to redirect the output to a file.
-    THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_master.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE}
+    THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_master.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE} &
+
+    # The job 0 is special because it corresponds to running the database and the master.
+    # It puts the database in the background and blocks on the master.
+    stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_database.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE} &
+
 else
     THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE}
 fi
