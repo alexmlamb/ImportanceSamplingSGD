@@ -120,7 +120,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
         #signal.pause()
         for segment in ["train", "valid", "test"]:
             print "-- %s " % segment
-            for measurement in ["loss", "accuracy"]:
+            for measurement in ["loss", "accuracy", "gradient_variance"]:
                 (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
                 print "---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
         time.sleep(5)

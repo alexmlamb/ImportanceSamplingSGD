@@ -65,6 +65,9 @@ def get_rsconn_with_timeout(server_ip, server_port, server_password=None,
     return rsconn
 
 
+# Note that this is NOT the "variance" measurement that is relevant in SGD.
+# It is merely the variance on the measurement throughout the dataset.
+# Be careful about not confusing those two.
 
 def get_mean_variance_measurement_on_database(rsconn, segment, measurement):
     # The elements come out in any order,
@@ -81,7 +84,7 @@ def get_mean_variance_measurement_on_database(rsconn, segment, measurement):
 
     A = np.hstack(L)
     assert len(A.shape) == 1
-    
+
     # weed out anything np.nan
     I = np.isfinite(A)
     if I.sum() == 0:

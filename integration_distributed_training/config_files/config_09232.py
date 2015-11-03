@@ -10,10 +10,10 @@ def get_model_config():
     #model_config["importance_algorithm"] = "sgd"
 
     #Momentum rate, where 0.0 corresponds to not using momentum
-    model_config["momentum_rate"] = 0.9
+    model_config["momentum_rate"] = 0.95
 
     #The learning rate to use on the gradient averaged over a minibatch
-    model_config["learning_rate"] = 0.1
+    model_config["learning_rate"] = 0.001
 
     #model_config["dataset"] = "mnist"
     model_config["dataset"] = "svhn"
@@ -45,8 +45,6 @@ def get_model_config():
     # Note from Guillaume : I'm not fond at all of using seeds in a context
     # where we don't need them.
     model_config["seed"] = 9999494
-
-    model_config["learning_rate"] = 0.01
 
     #Weights are initialized to N(0,1) * initial_weight_size
     model_config["initial_weight_size"] = 0.01
@@ -99,7 +97,7 @@ def get_database_config():
     # the values of (Ntrain, Nvalid, Ntest).
     dataset_name='svhn'
 
-    L_measurements=["importance_weight", "gradient_square_norm", "loss", "accuracy"]
+    L_measurements=["importance_weight", "gradient_square_norm", "loss", "accuracy", "gradient_variance"]
 
 
     # Optional field : 'server_scratch_path'

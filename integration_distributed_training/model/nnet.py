@@ -207,7 +207,7 @@ class NeuralNetwork:
                     'loss' : individual_cost,
                     'accuracy' : individual_accuracy.astype(dtype=np.float32),
                     'gradient_square_norm' : individual_gradient_square_norm,
-                    'individual_gradient_variance' : individual_gradient_variance}
+                    'gradient_variance' : individual_gradient_variance}
 
         # Returns a full array for every data point in the minibatch.
         res = dict((measurement, mapping[measurement]) for measurement in L_measurements)
@@ -243,7 +243,7 @@ class NeuralNetwork:
         # Returns nothing. The master should have used this call to
         # update its internal parameters.
         # return
-        
+
         # For use in debugging, we return here the `individual_gradient_square_norm`.
         # This can change to suit our debugging needs.
         return individual_gradient_square_norm
