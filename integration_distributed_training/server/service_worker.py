@@ -80,6 +80,7 @@ def run(DD_config, D_server_desc):
 
         if currently_want_to_update_parameters:
 
+            tic = time.time()
             new_parameters_current_timestamp = rsconn.get("parameters:current_timestamp")
             if parameters_current_timestamp != new_parameters_current_timestamp:
 
@@ -96,12 +97,16 @@ def run(DD_config, D_server_desc):
                         parameters_current_timestamp = new_parameters_current_timestamp
                         model_api.set_serialized_parameters(current_parameters_str)
                         m = 0
+                        toc = time.time()
+                        print "The worker has received new parameters. This took %f seconds." % (toc - tic,)
                         continue
                     elif serialized_parameters_format == "ndarray_float32_tostring":
                         current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
                         parameters_current_timestamp = new_parameters_current_timestamp
                         model_api.set_serialized_parameters(current_parameters)
                         m = 0
+                        toc = time.time()
+                        print "The worker has received new parameters. This took %f seconds." % (toc - tic,)
                         continue
                     else:
                         print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
@@ -141,6 +146,7 @@ def run(DD_config, D_server_desc):
             m += 1
             continue
         else:
+            tic = time.time()
             current_minibatch_indices = np.fromstring(current_minibatch_indices_str, dtype=np.int32)
             # This returns a dictionary of numpy arrays.
             DA_measurements = model_api.worker_process_minibatch(current_minibatch_indices, segment, L_measurements)
@@ -172,7 +178,7 @@ def run(DD_config, D_server_desc):
                 else:
                     previous_update_timestamp = float(previous_update_timestamp_str)
 
-                print "timestamp delta", time.time() - previous_update_timestamp
+                print "timestamp delta between updates to that measurement : %f" % (time.time() - previous_update_timestamp, )
 
                 current_update_timestamp = time.time()
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
@@ -193,7 +199,8 @@ def run(DD_config, D_server_desc):
             # It will eventually find its way back to some worker,
             # but we will cover all the other ones before that happens.
             rsconn.rpush(queue_name, current_minibatch_indices_str)
-            print "Processed one minibatch from %s. Pushed back to back of the line." % (segment, )
+            toc = time.time()
+            print "Processed one minibatch from %s. Pushed back to back of the line. Total time taken is %f seconds." % (segment, toc - tic)
 
             m += 1
             continue

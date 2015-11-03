@@ -75,7 +75,7 @@ def run(DD_config, D_server_desc):
     # are 1.0, so things could start with Task (2) since the assistant
     # would start by resampling the indices.
 
-    nbr_batch_processed_per_public_parameter_update = 4
+    nbr_batch_processed_per_public_parameter_update = 1
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 
@@ -87,6 +87,8 @@ def run(DD_config, D_server_desc):
 
         # Task (1)
 
+        tic = time.time()
+
         if serialized_parameters_format == "opaque_string":
             current_parameters_str = model_api.get_serialized_parameters()
         elif serialized_parameters_format == "ndarray_float32_tostring":
@@ -95,21 +97,21 @@ def run(DD_config, D_server_desc):
             print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
             quit()
 
-        start = time.time()
         rsconn.set("parameters:current", current_parameters_str)
         rsconn.set("parameters:current_timestamp", time.time())
         # potentially not used
         rsconn.set("parameters:current_datestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
-        end = time.time()
-        print "The master has updated the parameters. It took %f seconds to send to the database." % (end - start,)
+        toc = time.time()
+        print "The master has updated the parameters. It took %f seconds to send to the database." % (toc - tic,)
 
 
         # Task (2)
 
         for _ in range(nbr_batch_processed_per_public_parameter_update):
 
-            while True:
+            tic = time.time()
 
+            while True:
                 (intent, mode, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn,
                     master_minibatch_size,
                     staleness_threshold=staleness_threshold,
@@ -117,6 +119,7 @@ def run(DD_config, D_server_desc):
                     want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
                     Ntrain=Ntrain,
                     importance_weight_additive_constant=None)
+
 
                 # Note from Guillaume : This should probably instead be a call to
                 # get_mean_variance_measurement_on_database(rsconn, "train", "accuracy")
@@ -168,6 +171,10 @@ def run(DD_config, D_server_desc):
                                 print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
                         break
 
+
+
+            toc = time.time()
+            print "The master has processed one minibatch. It took %f seconds." % (toc - tic,)
 
 # Extra debugging information for `sample_indices_and_scaling_factors`
 # as it was first successfully written. This is documentation.
