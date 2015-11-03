@@ -125,8 +125,9 @@ def get_database_config():
 
     assert serialized_parameters_format in ["opaque_string", "ndarray_float32_tostring"]
 
-    assert 0.0 <= master_usable_importance_weights_threshold_to_ISGD
-    assert master_usable_importance_weights_threshold_to_ISGD <= 1.0
+    if master_usable_importance_weights_threshold_to_ISGD is not None:
+        assert 0.0 <= master_usable_importance_weights_threshold_to_ISGD
+        assert master_usable_importance_weights_threshold_to_ISGD <= 1.0
 
     return dict(workers_minibatch_size=workers_minibatch_size,
                 master_minibatch_size=master_minibatch_size,
