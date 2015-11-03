@@ -26,8 +26,10 @@ def get_model_config():
     # Pick one, depending where you run this.
     # This could be done differently too by looking at fuelrc
     # or at the hostname.
-    #data_root = "/data/lisatmp4/lambalex"
-    data_root = "/Users/gyomalin/Documents/fuel_data"
+    import socket
+    data_root = {   "serendib":"/home/dpln/data/data_lisa_data/svhn",
+                    "lambda":"/home/gyomalin/ML/data_lisa_data/svhn",
+                    "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname()]
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
@@ -87,8 +89,8 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 512
-    master_minibatch_size = 128
+    workers_minibatch_size = 1024
+    master_minibatch_size = 1024
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
