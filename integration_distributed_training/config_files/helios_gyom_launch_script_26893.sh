@@ -33,7 +33,7 @@ export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_train
 # be reached by all the tasks launched since it's going to be how they
 # communicate between themselves initially to share where the database is running,
 # what port it's on and what's the password.
-export BOOSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_9830398439273771
+export BOOTSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_9830398439273771
 
 
 # Note that, from the perspective of a script, the assigned GPU is always gpu0,
@@ -43,12 +43,12 @@ if [ ${MOAB_JOBARRAYINDEX} = "0" ]
 then
     # The whole stdbuf is not necessary, but I left it there because it fixes
     # some of the strange behavior when we try to redirect the output to a file.
-    THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_master.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE} &
+    THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_master.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 
     # The job 0 is special because it corresponds to running the database and the master.
     # It puts the database in the background and blocks on the master.
     stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_database.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE}
 
 else
-    THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE}
+    THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE}
 fi

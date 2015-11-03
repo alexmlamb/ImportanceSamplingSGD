@@ -163,10 +163,11 @@ def run(DD_config, D_server_desc):
 
                 number_of_invalid_values = np.logical_not(np.isfinite(A_values)).sum()
                 if 0 < number_of_invalid_values:
-                    print "You have %d invalid values returned for %s." % (number_of_invalid_values, measurement)
+                    print "FATAL ERROR. You have %d invalid values returned for %s." % (number_of_invalid_values, measurement)
                     print A_values
-                    print "Starting debugger."
-                    import pdb; pdb.set_trace()
+                    quit()
+                    #print "Starting debugger."
+                    #import pdb; pdb.set_trace()
 
                 # Write 0.0 as default value in all the measurements.
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))

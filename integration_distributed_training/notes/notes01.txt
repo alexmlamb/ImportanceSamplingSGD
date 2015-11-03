@@ -5,6 +5,10 @@ msub ../config_files/helios_gyom_launch_script_26893.sh
 
 
 
+- find out what doesn't work with gradient_variance
+- run on jobdispatch at MILA
+- plot information for training based on stdout
+
 
 50419.0.out    ->    config 26892    (Maybe an old experiment left there by accident ?)
 
