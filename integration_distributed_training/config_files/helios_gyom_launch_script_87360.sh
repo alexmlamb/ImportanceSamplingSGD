@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#PBS -l nodes=1:gpus=1:ppn=2
+#PBS -l nodes=1:gpus=1:ppn=1
 #PBS -l walltime=6:00:00
 #PBS -A jvb-000-ag
 #PBS -m bea
-#PBS -t [0-8]%9
+#PBS -t [0-1]%2
 
 
 # Use msub on helios1 to submit this.
@@ -24,7 +24,7 @@ export IMPORTANCE_SAMPLING_SGD_ROOT=${HOME}/Documents/ImportanceSamplingSGD
 export PYTHONPATH=${PYTHONPATH}:${IMPORTANCE_SAMPLING_SGD_ROOT}
 export IMPORTANCE_SAMPLING_SGD_BIN=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/bin
 
-export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/config_helios_26892.py
+export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/config_helios_87360.py
 
 # The config file will contain other information such as the directory in
 # which we want to output logs.
@@ -33,7 +33,7 @@ export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_train
 # be reached by all the tasks launched since it's going to be how they
 # communicate between themselves initially to share where the database is running,
 # what port it's on and what's the password.
-export BOOSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_988412873771
+export BOOSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_8423097443
 
 
 # Note that, from the perspective of a script, the assigned GPU is always gpu0,

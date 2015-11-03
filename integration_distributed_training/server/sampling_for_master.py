@@ -126,7 +126,7 @@ def sample_indices_and_scaling_factors( rsconn,
     A_importance_weights, nbr_of_usable_importance_weights = get_importance_weights(rsconn, staleness_threshold, importance_weight_additive_constant)
 
     # Try to do ISGD before trying anything else..
-    if master_usable_importance_weights_threshold_to_ISGD:
+    if master_usable_importance_weights_threshold_to_ISGD is not None:
         ratio_of_usable_importance_weights = nbr_of_usable_importance_weights * 1.0 / Ntrain
         if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
             print "Master has a ratio of usable importance weights %f which meets the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)

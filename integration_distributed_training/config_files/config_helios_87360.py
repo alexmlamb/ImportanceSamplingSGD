@@ -77,7 +77,7 @@ def get_database_config():
     # what constitutes a "usable" value.
     default_importance_weight = np.NaN
     want_master_to_do_USGD_when_ISGD_is_not_possible = True
-    master_usable_importance_weights_threshold_to_ISGD = 0.50
+    master_usable_importance_weights_threshold_to_ISGD = None # This is the main thing here. No ISGD.
 
     # The master will only consider importance weights which were updated this number of seconds ago.
     staleness_threshold = 5*60.0
