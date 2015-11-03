@@ -75,7 +75,7 @@ def run(DD_config, D_server_desc):
     # are 1.0, so things could start with Task (2) since the assistant
     # would start by resampling the indices.
 
-    nbr_batch_processed_per_public_parameter_update = 8
+    nbr_batch_processed_per_public_parameter_update = 4
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 
@@ -95,11 +95,13 @@ def run(DD_config, D_server_desc):
             print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
             quit()
 
+        start = time.time()
         rsconn.set("parameters:current", current_parameters_str)
         rsconn.set("parameters:current_timestamp", time.time())
         # potentially not used
         rsconn.set("parameters:current_datestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
-        print "The master has updated the parameters."
+        end = time.time()
+        print "The master has updated the parameters. It took %f seconds to send to the database." % (end - start,)
 
 
         # Task (2)

@@ -35,7 +35,7 @@ def run(DD_config, D_server_desc):
 
 
     #D_segment_priorities = {'train' : 50, 'valid' : 1, 'test' : 1}
-    segment_priorities_p = np.array([50, 1, 1], dtype=np.float32)
+    segment_priorities_p = np.array([20, 1, 1], dtype=np.float32)
     segment_priorities_p /= segment_priorities_p.sum()
     segment_priorities_p = segment_priorities_p.cumsum()
     segment_priorities_v = ['train', 'valid', 'test']
@@ -66,11 +66,9 @@ def run(DD_config, D_server_desc):
     #        throttle based on the time that it takes to sync the parameters on average.
 
     # This could be a constant from the configuration.
-    minimum_number_of_minibatch_processed_before_parameter_update = 5
+    minimum_number_of_minibatch_processed_before_parameter_update = 4
     M = minimum_number_of_minibatch_processed_before_parameter_update
     m = M
-
-
 
     current_parameters = None
     parameters_current_timestamp = ""

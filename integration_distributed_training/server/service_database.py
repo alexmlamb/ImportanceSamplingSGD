@@ -118,7 +118,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     while True:
         print "Running server. Press CTLR+C to stop. Timestamp %f." % time.time()
         #signal.pause()
-        for segment in ["train", "test"]:
+        for segment in ["train", "valid", "test"]:
             print "-- %s " % segment
             for measurement in ["loss", "accuracy"]:
                 (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)

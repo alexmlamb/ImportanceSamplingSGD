@@ -89,8 +89,8 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 3*1024
-    master_minibatch_size = 3*1024
+    workers_minibatch_size = 8*1024
+    master_minibatch_size = 8*1024
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it

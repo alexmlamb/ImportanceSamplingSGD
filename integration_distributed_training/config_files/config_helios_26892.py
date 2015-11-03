@@ -5,15 +5,15 @@ def get_model_config():
 
     model_config = {}
 
-    #Importance sampling or vanilla sgd.
+    # Importance sampling or vanilla sgd.
     model_config["importance_algorithm"] = "isgd"
     #model_config["importance_algorithm"] = "sgd"
 
-    #Momentum rate, where 0.0 corresponds to not using momentum
-    model_config["momentum_rate"] = 0.9
+    # Momentum rate, where 0.0 corresponds to not using momentum
+    model_config["momentum_rate"] = 0.95
 
-    #The learning rate to use on the gradient averaged over a minibatch
-    model_config["learning_rate"] = 0.1
+    # The learning rate to use on the gradient averaged over a minibatch
+    model_config["learning_rate"] = 0.001
 
     #model_config["dataset"] = "mnist"
     model_config["dataset"] = "svhn"
@@ -39,18 +39,17 @@ def get_model_config():
     model_config["save_svhn_normalization_to_file"] = False
     model_config["svhn_normalization_value_file"] = os.path.join(data_root, "svhn/svhn_normalization_values.pkl")
 
-    model_config["hidden_sizes"] = [2048, 2048,2048,2048]
+    model_config["hidden_sizes"] = [2048, 2048, 2048, 2048]
 
     # Note from Guillaume : I'm not fond at all of using seeds in a context
     # where we don't need them.
-    model_config["seed"] = 9999494
+    model_config["seed"] = 42
 
-    model_config["learning_rate"] = 0.01
-
-    #Weights are initialized to N(0,1) * initial_weight_size
+    # Weights are initialized to N(0,1) * initial_weight_size
     model_config["initial_weight_size"] = 0.01
 
-    #Hold this fraction of the instances in the validation dataset
+    # Hold this fraction of the instances in the validation dataset.
+    # Changing this affects the values of (Ntrain, Nvalid, Ntest) down below.
     model_config["fraction_validation"] = 0.05
 
     return model_config
@@ -78,7 +77,7 @@ def get_database_config():
     # what constitutes a "usable" value.
     default_importance_weight = np.NaN
     want_master_to_do_USGD_when_ISGD_is_not_possible = True
-    master_usable_importance_weights_threshold_to_ISGD = 0.05 # cannot be None
+    master_usable_importance_weights_threshold_to_ISGD = 0.50 # cannot be None
 
     # The master will only consider importance weights which were updated this number of seconds ago.
     staleness_threshold = 5*60.0
@@ -88,7 +87,7 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 1024
+    workers_minibatch_size = 8*1024
     master_minibatch_size = 1024
 
     # This is not really being used anywhere.

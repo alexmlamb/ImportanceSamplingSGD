@@ -1,10 +1,10 @@
 #!/bin/bash
 
 #PBS -l nodes=1:gpus=1
-#PBS -l walltime=0:10:00
+#PBS -l walltime=6:00:00
 #PBS -A jvb-000-ag
 #PBS -m bea
-#PBS -t [0-2]%3
+#PBS -t [0-8]%9
 
 
 # Use msub on helios1 to submit this.
