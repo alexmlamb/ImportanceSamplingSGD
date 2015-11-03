@@ -27,8 +27,8 @@ def get_model_config():
     # This could be done differently too by looking at fuelrc
     # or at the hostname.
     import socket
-    data_root = {   "serendib":"/home/dpln/data/data_lisa_data/svhn",
-                    "lambda":"/home/gyomalin/ML/data_lisa_data/svhn",
+    data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
+                    "lambda":"/home/gyomalin/ML/data_lisa_data",
                     "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname()]
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
@@ -89,8 +89,8 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 1024
-    master_minibatch_size = 1024
+    workers_minibatch_size = 3*1024
+    master_minibatch_size = 3*1024
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it

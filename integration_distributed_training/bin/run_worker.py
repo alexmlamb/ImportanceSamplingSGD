@@ -26,6 +26,6 @@ if __name__ == "__main__":
 
 
 """
-    export PYTHONPATH=$PYTHONPATH:/Users/gyomalin/Documents/ImportanceSamplingSGD
+    export PYTHONPATH=$PYTHONPATH:${HOME}/Documents/ImportanceSamplingSGD
     python run_worker.py --config_file="../config_files/config_09232.py" --bootstrap_file="bootstrap_09232"
 """
