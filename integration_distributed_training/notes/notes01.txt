@@ -1,0 +1,67 @@
+msub ../config_files/helios_gyom_launch_script_87360.sh
+msub ../config_files/helios_gyom_launch_script_26892.sh
+msub ../config_files/helios_gyom_launch_script_87361.sh
+msub ../config_files/helios_gyom_launch_script_26893.sh
+
+
+
+
+50419.0.out    ->    config 26892    (Maybe an old experiment left there by accident ?)
+
+50423.0.out    ->    config 87360    1 workers, learning rate 0.001
+                                     (Failed on bootstrap stage. File not even created.)
+
+50424.0.out    ->    config 26892    8 workers, learning rate 0.001
+                                     (Possible conflict with other config 26892 running at same time.)
+                                     (Something has gone wrong. Ends with train loss mean 89319384.0, but other quantities are okay. Find where something happened. )
+
+
+50425.0.out    ->    config 87361    1 worker, learning rate 0.0001
+                                     (Failed on bootstrap stage. File not even created.)
+
+50426.0.out    ->    config 26893    8 workers, learning rate 0.0001
+                                     (Trains successfully with  accuracy : mean 0.845443.)
+
+
+Want to plot 50424 and 50426.
+
+
+gyomalin@Lambda:~/ML/importance_sampling_experiments/tmp$ head 50424.0.out
+Will load the config_file : /home/alaingui/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/config_helios_26892.py.
+config_file loaded.
+redis-server
+  --requirepass '0609920275'
+  --port 48542
+  --dir '.'
+  --dbfilename '686_48542.rdb'
+  --appendfsync no
+  --maxclients 8
+redis server now running with pid 57164
+gyomalin@Lambda:~/ML/importance_sampling_experiments/tmp$ head 50419.0.out
+Will load the config_file : /home/alaingui/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/config_helios_26892.py.
+config_file loaded.
+redis-server
+  --requirepass '2107149668'
+  --port 32785
+  --dir '.'
+  --dbfilename '557_32785.rdb'
+  --appendfsync no
+  --maxclients 8
+redis server now running with pid 135411
+
+
+
+
+
+
+gyomalin@Lambda:~/ML/importance_sampling_experiments/tmp$ tail 50424.5.out
+Processed one minibatch from train. Pushed back to back of the line. Total time taken is 376.820993 seconds.
+The worker has received new parameters. This took 267.561367 seconds.
+You have 8192 invalid values returned for importance_weight.
+[ nan  nan  nan ...,  nan  nan  nan]
+Starting debugger.
+> /home/alaingui/Documents/ImportanceSamplingSGD/integration_distributed_training/server/service_worker.py(172)run()
+-> rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))
+(Pdb)
+Set compute mode to DEFAULT for GPU 0000:89:00.0.
+All done.
