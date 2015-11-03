@@ -176,7 +176,7 @@ class NeuralNetwork:
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]
         for key in L_measurements:
-            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy"]
+            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy", "gradient_variance"]
 
         X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
         Y_minibatch = self.data[segment][1][A_indices]
