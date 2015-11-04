@@ -18,7 +18,7 @@ import random
 from integration_distributed_training.model.model import ModelAPI
 from sampling_for_master import sample_indices_and_scaling_factors, get_importance_weights
 
-from common import get_rsconn_with_timeout
+from common import get_rsconn_with_timeout, wait_until_all_measurements_are_updated_by_workers
 
 def run(DD_config, D_server_desc):
 
@@ -104,6 +104,11 @@ def run(DD_config, D_server_desc):
         toc = time.time()
         print "The master has updated the parameters. It took %f seconds to send to the database." % (toc - tic,)
 
+        # This next line is to ask for the master to wait until everything has been
+        # updated. This can take a minute or so, and it's not a very good approach.
+        # However, it's the way to see what would happen if we implemented ISGD exactly
+        # without using any stale importance weights.
+        #    wait_until_all_measurements_are_updated_by_workers(rsconn, "train", "importance_weight")
 
         # Task (2)
 
