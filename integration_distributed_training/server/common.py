@@ -124,6 +124,7 @@ def wait_until_all_measurements_are_updated_by_workers(rsconn, segment, measurem
 
         if np.all(successfully_updated):
             print "Successfully waited for all the workers to update the measurement %s for segment %s." % (measurement, segment)
+            return
         else:
             print "Only %0.3f updated for the measurement %s for segment %s." % (successfully_updated.mean(), measurement, segment)
             time.sleep(5)
