@@ -66,7 +66,8 @@ def run(DD_config, D_server_desc):
     #        throttle based on the time that it takes to sync the parameters on average.
 
     # This could be a constant from the configuration.
-    minimum_number_of_minibatch_processed_before_parameter_update = 5
+    #was 5
+    minimum_number_of_minibatch_processed_before_parameter_update = 1
     M = minimum_number_of_minibatch_processed_before_parameter_update
     m = M
 

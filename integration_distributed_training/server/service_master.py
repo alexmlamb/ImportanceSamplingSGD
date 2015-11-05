@@ -70,7 +70,8 @@ def run(DD_config, D_server_desc):
     # are 1.0, so things could start with Task (2) since the assistant
     # would start by resampling the indices.
 
-    nbr_batch_processed_per_public_parameter_update = 8
+    nbr_batch_processed_per_public_parameter_update = 1
+    #was using 8.  
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 
@@ -113,7 +114,7 @@ def run(DD_config, D_server_desc):
                 #A_scaling_factors = A_scaling_factors * 0.0 + 1.0
                 #epsilon = 1.0
                 #A_scaling_factors = 1.0 / (epsilon + 1.0 / A_scaling_factors)
-                A_scaling_factors = A_scaling_factors.clip(0.1, 1.0)
+                A_scaling_factors = A_scaling_factors.clip(0.0, 1.0)
 
                 #Run
                 if num_minibatches_master_processed % 500 == 0:
@@ -147,8 +148,22 @@ def run(DD_config, D_server_desc):
                     if random.uniform(0,1) < 0.01:
                         print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
                         print "OLD GRAD NORM 111", old_gradient_norm[0][111]
+
+                        print "OLD GRAD NORM MEAN", old_gradient_norm[0].mean()
+                        print "NEW GRAD NORM MEAN", new_gradient_norm.mean()
+
+
+                        new_gradient_norm_from_worker = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])["importance_weight"]
+
+                        time.sleep(400.0)
+
+                        print new_gradient_norm_from_worker
+
                         if 111 in A_sampled_indices:
                             print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
+
+
+
 
                     break
 
