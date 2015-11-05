@@ -112,7 +112,7 @@ def start_redis_server(database_config):
     return (rserv, rsconn, D_server_desc)
 
 
-def load_bootstrap_file(bootstrap_file, timeout=5*60):
+def load_bootstrap_file(bootstrap_file, timeout=30*60):
 
     initial_timestamp = time.time()
     success = False
@@ -130,8 +130,8 @@ def load_bootstrap_file(bootstrap_file, timeout=5*60):
             time.sleep(5)
             print "Failed to read bootstrap file %s. Will retry in 5s." % bootstrap_file
 
-        print "Fatal error. Failed to read bootstrap file %s after %d seconds timeout. Quitting." % (bootstrap_file, timeout)
-        quit()
+    print "Fatal error. Failed to read bootstrap file %s after %d seconds timeout. Quitting." % (bootstrap_file, timeout)
+    quit()
 
 
 def write_bootstrap_file(bootstrap_file, D_server_desc):

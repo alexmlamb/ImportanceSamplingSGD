@@ -13,7 +13,7 @@ def get_model_config():
     model_config["momentum_rate"] = 0.95
 
     # The learning rate to use on the gradient averaged over a minibatch
-    model_config["learning_rate"] = 0.001
+    model_config["learning_rate"] = 0.0001
 
     #model_config["dataset"] = "mnist"
     model_config["dataset"] = "svhn"

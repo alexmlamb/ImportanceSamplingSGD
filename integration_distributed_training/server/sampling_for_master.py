@@ -3,63 +3,81 @@ import numpy as np
 import time
 import random
 
-def get_importance_weights(rsconn, staleness_threshold):
+def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_additive_constant=None, N=None):
     # Helper function for `sample_indices_and_scaling_factors`.
 
     # Note : There is a bit too much code here because this was written
     #        with the idea that not all the importance weights would be present
-    #        in the database. In practice, we ended up filling up all the
-    #        importance weights with a default value, so much of this section
-    #        could be simplified.
+    #        in the database.
+    #        In practice, we ended up filling up all the importance weights
+    #        with a default value, so this might a little too complicated.
+    #        However, we also omit those that are "stale", so it's useful
+    #        to have code that handles this.
+    #
+    #  When `staleness_threshold` is None, it's ignored.
+    #  With `importance_weight_additive_constant` we allow a constant to be
+    #  added to all the present and non-stale importance weights.
+    #
+    # The `N` argument is optional. When specified, it tells this method ahead of time
+    # what shape (N,) should the resulting arrays be.
+    #
+    # Note that this method filters out importance weights that are NaN.
 
     segment = "train"
     measurement = "importance_weight"
 
     L_indices = []
     L_importance_weights = []
-    counter = 0
 
-    numAccept = 0
+    nbr_accepted = 0
+    nbr_seen = 0
 
     for (key, value) in rsconn.hgetall("H_%s_minibatch_%s" % (segment, measurement)).items():
-        counter += 1
+        nbr_seen += 1
 
-        #Here let's pull up the staleness records!  
+        #Here let's pull up the staleness records!
         current_minibatch_indices_str = key
-        timestamp = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
+        timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
 
-        #Master could always store map of timestamp -> minibatch index of master.  
-        try:
-            staleness = time.time() - float(timestamp)
-        except:
-            staleness = -1.0
+        if timestamp_str is None or len(timestamp_str) == 0:
+            print "ERROR. There is a bug somewhere because there is never a situation where a measurement can be present without a timestamp."
+            print "We can easily recover from this error by just accepting the importance weight anyway, but we would be sweeping a bug under the rug by doing so."
+            quit()
 
+        #Master could always store map of timestamp -> minibatch index of master.
+        staleness = time.time() - float(timestamp_str)
 
-
-        #Key refers to a list of indices.  
-        #value refers to the associated importance weights.  
+        #Key refers to a list of indices.
+        #value refers to the associated importance weights.
         #Now how do I get the timestamps!!!
 
         A_some_indices = np.fromstring(key, dtype=np.int32)
         A_some_importance_weights = np.fromstring(value, dtype=np.float32)
-        #print "A_some_indices"
-        #print A_some_indices
-        #print "A_some_importance_weights"
-        #print A_some_importance_weights
+
+        # This is a relaxation of the importance sampling optimal sampling proposal.
+        if (importance_weight_additive_constant is not None and
+            np.isfinite(importance_weight_additive_constant) and
+            0.0 <= importance_weight_additive_constant):
+             A_some_importance_weights = A_some_importance_weights + importance_weight_additive_constant
+
         assert A_some_indices.shape == A_some_importance_weights.shape, "Failed assertion that %s == %s." % (A_some_indices.shape, A_some_importance_weights.shape)
 
-        if staleness < staleness_threshold:
-            numAccept += 1
+        if staleness_threshold is None or staleness <= staleness_threshold:
+            nbr_accepted += 1
             L_indices.append(A_some_indices)
             L_importance_weights.append(A_some_importance_weights)
         else:
+            # This is okay during development, but it's not a nice way to
+            # monitor a quantity.
             if random.uniform(0,1) < 0.00001:
                 print "REJECTING WITH STALENESS", staleness
 
     if random.uniform(0,1) < 0.01:
-        print "% ACCEPT", numAccept * 1.0 / counter
-        print "Num Accept", numAccept
-        print "Counter", counter
+        print "Accepted %d / %d = %f of importance weights minibatches. " % (nbr_accepted, nbr_seen, nbr_accepted * 1.0 / nbr_seen)
+
+    if len(L_indices) == 0:
+        # All the importance weights are stale.
+        return (None, 0)
 
     #print 'DEBUG rsconn.hgetall("H_%s_minibatch_%s") returned %d entries' % (segment, measurement, counter)
 
@@ -67,10 +85,23 @@ def get_importance_weights(rsconn, staleness_threshold):
     A_unsorted_importance_weights = np.hstack(L_importance_weights)
     assert A_unsorted_indices.shape == A_unsorted_importance_weights.shape
 
+    # Weed out the values that are np.nan or other np.inf.
+    I = np.isfinite(A_unsorted_importance_weights)
+    if I.sum() == 0:
+        # `I` contains boolean values, so summing them and comparing to 0.0
+        # is equivalent to making sure that they're all False.
+        #
+        # There are no valid importance weights.
+        return (None, 0)
+    A_unsorted_indices = A_unsorted_indices[I]
+    A_unsorted_importance_weights = A_unsorted_importance_weights[I]
+
     # Find out how large you have to make your array.
     # You need to add +1 because the largest index has to represent a valid index.
-    # There is no harm in using a larger value of N than necessary.
-    N = A_unsorted_indices.max() + 1
+    if N is not None:
+        assert A_unsorted_indices.max() + 1 <= N
+    else:
+        N = A_unsorted_indices.max() + 1
     nbr_of_present_importance_weights = A_unsorted_indices.shape[0]
     A_importance_weights = np.zeros((N,), dtype=np.float32)
     A_importance_weights[A_unsorted_indices] = A_unsorted_importance_weights
@@ -78,20 +109,42 @@ def get_importance_weights(rsconn, staleness_threshold):
     return A_importance_weights, nbr_of_present_importance_weights
 
 
+def sample_indices_and_scaling_factors( rsconn,
+                                        nbr_samples,
+                                        staleness_threshold=None,
+                                        master_usable_importance_weights_threshold_to_ISGD=None,
+                                        want_master_to_do_USGD_when_ISGD_is_not_possible=True,
+                                        Ntrain=None,
+                                        importance_weight_additive_constant=None):
 
-def sample_indices_and_scaling_factors(rsconn, nbr_samples, want_master_to_wait_for_all_importance_weights_to_be_present, staleness_threshold):
+    # The reason why we want to pass `Ntrain` to this function is because we might
+    # want to make decisions based on the number of present importance weights.
 
-    A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn, staleness_threshold)
+    if master_usable_importance_weights_threshold_to_ISGD is not None or want_master_to_do_USGD_when_ISGD_is_not_possible:
+        assert Ntrain is not None, "Ntrain has to be specified to sample_indices_and_scaling_factors when we use master_usable_importance_weights_threshold_to_ISGD or want_master_to_do_USGD_when_ISGD_is_not_possible."
 
-    ratio_of_finite_importance_weights = np.isfinite(A_importance_weights).mean()
+    A_importance_weights, nbr_of_usable_importance_weights = get_importance_weights(rsconn, staleness_threshold, importance_weight_additive_constant)
 
-    if want_master_to_wait_for_all_importance_weights_to_be_present and ratio_of_finite_importance_weights < 1.0:
-        print "Master has only %f of the importance weights. Waiting for all of them to be present." % ratio_of_finite_importance_weights
-        return ('wait_and_retry', None, None)
+    # Try to do ISGD before trying anything else..
+    if master_usable_importance_weights_threshold_to_ISGD is not None:
+        ratio_of_usable_importance_weights = nbr_of_usable_importance_weights * 1.0 / Ntrain
+        if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
+            print "Master has a ratio of usable importance weights %f which meets the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
+            A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
+            return ('proceed', 'ISGD', A_sampled_indices, A_scaling_factors)
+        else:
+            print "Master has a ratio of usable importance weights %f which falls shorts of the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
+
+
+    # So, we're not going to do ISGD, but maybe we still want to do USGD.
+    # In that particular case, we don't care at all about how stale the values could be,
+    # or not even about whether the importance weights are present or not.
+    if want_master_to_do_USGD_when_ISGD_is_not_possible:
+        A_sampled_indices = np.random.permutation(Ntrain)[0:nbr_samples]
+        A_scaling_factors = np.ones(A_sampled_indices.shape)
+        return ('proceed', 'USGD', A_sampled_indices, A_scaling_factors)
     else:
-        A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples)
-        return ('proceed', A_sampled_indices, A_scaling_factors)
-
+        return ('wait_and_retry', None, None, None)
 
 
 def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples):

@@ -176,7 +176,7 @@ class NeuralNetwork:
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]
         for key in L_measurements:
-            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy"]
+            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy", "gradient_variance"]
 
         X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
         Y_minibatch = self.data[segment][1][A_indices]
@@ -186,6 +186,13 @@ class NeuralNetwork:
         # These numpy arrays here have the same names as theano variables
         # elsewhere in this class. Don't get confused.
         (individual_cost, individual_accuracy, individual_gradient_square_norm, individual_gradient_variance) = self.func_process_worker_minibatch(X_minibatch, Y_minibatch)
+        # CRAP VALUES TO DEBUG
+        #individual_cost = np.random.rand(X_minibatch.shape[0])
+        #individual_accuracy = np.random.rand(X_minibatch.shape[0])
+        #individual_gradient_square_norm = np.random.rand(X_minibatch.shape[0])
+        #individual_gradient_variance = np.random.rand(X_minibatch.shape[0])
+
+
 
         # The individual_gradient_square_norm.mean() and individual_gradient_variance.mean()
         # are not written to the database, but they would be really nice to log to have a
@@ -200,7 +207,7 @@ class NeuralNetwork:
                     'loss' : individual_cost,
                     'accuracy' : individual_accuracy.astype(dtype=np.float32),
                     'gradient_square_norm' : individual_gradient_square_norm,
-                    'individual_gradient_variance' : individual_gradient_variance}
+                    'gradient_variance' : individual_gradient_variance}
 
         # Returns a full array for every data point in the minibatch.
         res = dict((measurement, mapping[measurement]) for measurement in L_measurements)
@@ -235,8 +242,8 @@ class NeuralNetwork:
 
         # Returns nothing. The master should have used this call to
         # update its internal parameters.
+        # return
+
+        # For use in debugging, we return here the `individual_gradient_square_norm`.
+        # This can change to suit our debugging needs.
         return individual_gradient_square_norm
-
-
-
-

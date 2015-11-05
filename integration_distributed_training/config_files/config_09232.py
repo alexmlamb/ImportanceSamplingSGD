@@ -10,10 +10,10 @@ def get_model_config():
     #model_config["importance_algorithm"] = "sgd"
 
     #Momentum rate, where 0.0 corresponds to not using momentum
-    model_config["momentum_rate"] = 0.9
+    model_config["momentum_rate"] = 0.95
 
     #The learning rate to use on the gradient averaged over a minibatch
-    model_config["learning_rate"] = 0.1
+    model_config["learning_rate"] = 0.001
 
     #model_config["dataset"] = "mnist"
     model_config["dataset"] = "svhn"
@@ -26,8 +26,10 @@ def get_model_config():
     # Pick one, depending where you run this.
     # This could be done differently too by looking at fuelrc
     # or at the hostname.
-    #data_root = "/data/lisatmp4/lambalex"
-    data_root = "/Users/gyomalin/Documents/fuel_data"
+    import socket
+    data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
+                    "lambda":"/home/gyomalin/ML/data_lisa_data",
+                    "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname()]
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
@@ -43,8 +45,6 @@ def get_model_config():
     # Note from Guillaume : I'm not fond at all of using seeds in a context
     # where we don't need them.
     model_config["seed"] = 9999494
-
-    model_config["learning_rate"] = 0.01
 
     #Weights are initialized to N(0,1) * initial_weight_size
     model_config["initial_weight_size"] = 0.01
@@ -66,24 +66,29 @@ def get_database_config():
     # Test Set (26032, 32, 3, 32) (26032, 1)
     # svhn data loaded...
 
-    # This was first set to 0.0.
-    # Then we discussed how using a small epsilon instead
-    # would make all the data potentially a candidate.
-    # Now we've set to this be NaN because that's
-    # a way to indicate that they've never been sampled,
-    # and the master can then wait for all of them
-    # to be updated at least once before starting the training.
+    # This is part of a discussion about when we should the master
+    # start its training with uniform sampling SGD and when it should
+    # perform importance sampling SGD.
+    # The default value is set to np.Nan, and right now the criterion
+    # to decide if a weight is usable is to check if it's not np.Nan.
+    #
+    # We can decide to add other options later to include the staleness
+    # of the importance weights, or other simular criterion, to define
+    # what constitutes a "usable" value.
     default_importance_weight = np.NaN
-    want_master_to_wait_for_all_importance_weights_to_be_present = True
+    want_master_to_do_USGD_when_ISGD_is_not_possible = True
+    master_usable_importance_weights_threshold_to_ISGD = 0.05 # cannot be None
 
+    # The master will only consider importance weights which were updated this number of seconds ago.
+    staleness_threshold = 5*60.0
 
     serialized_parameters_format ="opaque_string"
 
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 128
-    master_minibatch_size = 128
+    workers_minibatch_size = 8*1024
+    master_minibatch_size = 8*1024
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -92,7 +97,7 @@ def get_database_config():
     # the values of (Ntrain, Nvalid, Ntest).
     dataset_name='svhn'
 
-    L_measurements=["importance_weight", "gradient_square_norm", "loss", "accuracy"]
+    L_measurements=["importance_weight", "gradient_square_norm", "loss", "accuracy", "gradient_variance"]
 
 
     # Optional field : 'server_scratch_path'
@@ -120,6 +125,9 @@ def get_database_config():
 
     assert serialized_parameters_format in ["opaque_string", "ndarray_float32_tostring"]
 
+    assert 0.0 <= master_usable_importance_weights_threshold_to_ISGD
+    assert master_usable_importance_weights_threshold_to_ISGD <= 1.0
+
     return dict(workers_minibatch_size=workers_minibatch_size,
                 master_minibatch_size=master_minibatch_size,
                 dataset_name=dataset_name,
@@ -132,7 +140,9 @@ def get_database_config():
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
                 default_importance_weight=default_importance_weight,
-                want_master_to_wait_for_all_importance_weights_to_be_present=want_master_to_wait_for_all_importance_weights_to_be_present)
+                want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
+                master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
+                staleness_threshold=staleness_threshold)
 
 def get_helios_config():
     # Optional.

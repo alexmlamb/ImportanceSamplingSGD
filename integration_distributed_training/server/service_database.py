@@ -3,6 +3,7 @@ import redis
 import numpy as np
 import json
 import time
+import numpy as np
 
 import sys, os
 import getopt
@@ -11,6 +12,7 @@ import signal
 import sys
 
 from startup import delete_bootstrap_file
+from common import get_mean_variance_measurement_on_database
 
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
@@ -74,10 +76,8 @@ def configure(  rsconn,
             rsconn.rpush("L_workers_%s_minibatch_indices_ALL" % segment, A_indices_str)
 
             for measurement in L_measurements:
-                # Write 0.0 as default value in all the measurements when
-                # `default_importance_weight` is not specified.
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
-                rsconn.hset("H_%s_minibatch_%s_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
+                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
 
                 #print "H_%s_minibatch_%s" % (segment, measurement)
 
@@ -116,6 +116,12 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     signal.signal(signal.SIGINT, signal_handler)
 
     while True:
-        print "Running server. Press CTLR+C to stop."
+        print "Running server. Press CTLR+C to stop. Timestamp %f." % time.time()
         #signal.pause()
+        for segment in ["train", "valid", "test"]:
+            print "-- %s " % segment
+            for measurement in ["loss", "accuracy", "gradient_variance"]:
+                (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
+                print "---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
         time.sleep(5)
+        print ""

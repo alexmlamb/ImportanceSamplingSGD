@@ -4,7 +4,7 @@
 #PBS -l walltime=6:00:00
 #PBS -A jvb-000-ag
 #PBS -m bea
-#PBS -t [0-8]%9
+#PBS -t [0-1]%2
 
 
 # Use msub on helios1 to submit this.
@@ -24,7 +24,7 @@ export IMPORTANCE_SAMPLING_SGD_ROOT=${HOME}/Documents/ImportanceSamplingSGD
 export PYTHONPATH=${PYTHONPATH}:${IMPORTANCE_SAMPLING_SGD_ROOT}
 export IMPORTANCE_SAMPLING_SGD_BIN=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/bin
 
-export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/config_helios_26892.py
+export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/config_helios_87361.py
 
 # The config file will contain other information such as the directory in
 # which we want to output logs.
@@ -33,7 +33,7 @@ export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_train
 # be reached by all the tasks launched since it's going to be how they
 # communicate between themselves initially to share where the database is running,
 # what port it's on and what's the password.
-export BOOSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_988412873771
+export BOOSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_1027326809
 
 
 # Note that, from the perspective of a script, the assigned GPU is always gpu0,
@@ -47,7 +47,7 @@ then
 
     # The job 0 is special because it corresponds to running the database and the master.
     # It puts the database in the background and blocks on the master.
-    stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_database.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE}
+    stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_database.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE} &
 
 else
     THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOSTRAP_FILE}

@@ -28,4 +28,8 @@ if __name__ == "__main__":
 """
     export PYTHONPATH=$PYTHONPATH:/u/lambalex/DeepLearning/ImportanceSampling/
     python run_database.py --config_file="../config_files/config_lamb_01.py" --bootstrap_file="bootstrap_09232"
+
+    export PYTHONPATH=$PYTHONPATH:${HOME}/Documents/ImportanceSamplingSGD
+    python run_database.py --config_file="../config_files/config_09232.py" --bootstrap_file="bootstrap_09232"
+
 """
