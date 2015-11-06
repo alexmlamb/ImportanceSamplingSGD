@@ -64,13 +64,13 @@ def test_cycle_queue(rsconn, N=20):
 
 def test_timestamp_hashmap(rsconn):
 
-    def get_next_timestamp():
-        get_next_timestamp.counter += 1.0
-        return get_next_timestamp.counter
-    get_next_timestamp.counter = 0.0
-
     #def get_next_timestamp():
-    #    return time.time()
+    #    get_next_timestamp.counter += 1.0
+    #    return get_next_timestamp.counter
+    #get_next_timestamp.counter = 0.0
+
+    def get_next_timestamp():
+        return time.time()
 
 
 
@@ -98,8 +98,8 @@ def test_timestamp_hashmap(rsconn):
             database_recorded_timestamp = float(database_recorded_timestamp_str)
             local_recorded_timestamp = float(local_recorded_timestamp_str)
 
-            assert local_recorded_timestamp <= current_timestamp
-            assert database_recorded_timestamp <= current_timestamp
+            assert local_recorded_timestamp <= current_timestamp, (local_recorded_timestamp, current_timestamp)
+            assert database_recorded_timestamp <= current_timestamp, (database_recorded_timestamp, current_timestamp)
 
             current_timestamp_str = str(current_timestamp)
 
