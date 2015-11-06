@@ -4,8 +4,8 @@ from scipy import signal
 import os
 from PIL import Image
 
-datasets_dir = 'media/datasets/mnist/'
-#datasets_dir = '/rap/jvb-000-aa/data/chinna/fuel_data/'
+#datasets_dir = 'media/datasets/mnist/'
+datasets_dir = '/rap/jvb-000-aa/data/chinna/fuel_data/'
 
 def one_hot(x,n):
 	if type(x) == list:
