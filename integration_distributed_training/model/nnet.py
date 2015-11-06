@@ -88,7 +88,7 @@ class NeuralNetwork:
 
         self.func_master_process_minibatch = theano.function(inputs=[X, Y, scaling_factors],
                                      outputs=[cost, accuracy, mean_gradient_square_norm, mean_gradient_variance, individual_gradient_square_norm],
-                                     updates=updates, allow_input_downcast=True)
+                                     updates=[], allow_input_downcast=True)
 
         # This is just never getting used.
         #self.predict = theano.function(inputs=[X], outputs=[y_x, py_x], allow_input_downcast=True)

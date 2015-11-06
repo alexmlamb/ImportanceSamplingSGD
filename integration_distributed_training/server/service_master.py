@@ -108,7 +108,16 @@ def run(DD_config, D_server_desc):
         # updated. This can take a minute or so, and it's not a very good approach.
         # However, it's the way to see what would happen if we implemented ISGD exactly
         # without using any stale importance weights.
-        #    wait_until_all_measurements_are_updated_by_workers(rsconn, "train", "importance_weight")
+        wait_until_all_measurements_are_updated_by_workers(rsconn, "train", "importance_weight")
+        importance_weights_0, _ = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
+
+        rsconn.set("parameters:current_timestamp", time.time())
+        wait_until_all_measurements_are_updated_by_workers(rsconn, "train", "importance_weight")
+        importance_weights_1, _ = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
+
+        print "maximal importance weight difference : %f" % np.max(np.abs(importance_weights_0 - importance_weights_1))
+
+
 
         # Task (2)
 
@@ -153,7 +162,7 @@ def run(DD_config, D_server_desc):
 
                 if intent == 'proceed':
 
-                    debug_this_section = False
+                    debug_this_section = True
                     if not debug_this_section:
 
                         print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
@@ -163,18 +172,20 @@ def run(DD_config, D_server_desc):
                     else:
                         # This is a debugging section that will be removed eventually.
 
-                        new_gradient_norm = model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
-                        # breaking will continue to the main looping section
 
-                        old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
+                        recomputed_minibatch_importance_weights_2 = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])['importance_weight']
+                        all_importance_weights, _ = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
+                        minibatch_importance_weights = all_importance_weights[A_sampled_indices]
 
-                        if random.uniform(0,1) < 0.01:
-                        #if True:
-                            print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
-                            print "OLD GRAD NORM 111", old_gradient_norm[0][111]
-                            if 111 in A_sampled_indices:
-                                print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
-                        break
+                        # Performs training steps.
+                        recomputed_minibatch_importance_weights_1 = model_api.master_process_minibatch(A_sampled_indices, np.ones(A_scaling_factors.shape), "train")
+
+                        print "master calling worker_process_minibatch yields maximal importance weight difference : %f" % np.max(np.abs(recomputed_minibatch_importance_weights_1 - minibatch_importance_weights))
+                        print "master calling worker_process_minibatch yields maximal importance weight difference : %f" % np.max(np.abs(recomputed_minibatch_importance_weights_2 - minibatch_importance_weights))
+                        print "max ratio : %f" % np.max(np.abs(recomputed_minibatch_importance_weights_1 / minibatch_importance_weights))
+                        print "min ratio : %f" % np.min(np.abs(recomputed_minibatch_importance_weights_1 / minibatch_importance_weights))
+                        print "max ratio : %f" % np.max(np.abs(recomputed_minibatch_importance_weights_2 / minibatch_importance_weights))
+                        print "min ratio : %f" % np.min(np.abs(recomputed_minibatch_importance_weights_2 / minibatch_importance_weights))
 
 
 
