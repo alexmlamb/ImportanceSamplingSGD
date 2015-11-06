@@ -11,6 +11,8 @@ import getopt
 import signal
 import sys
 
+import hashlib
+
 from startup import delete_bootstrap_file
 from common import get_mean_variance_measurement_on_database
 
@@ -41,10 +43,20 @@ def configure(  rsconn,
 
     rsconn.delete("initialization_is_done")
 
+    def get_next_timestamp():
+        get_next_timestamp.counter += 1.0
+        return np.float64(get_next_timestamp.counter)
+    get_next_timestamp.counter = 0.0
+
+    def timestamp_to_str(timestamp):
+        return np.float64(timestamp).tostring()
+    def timestamp_from_str(timestamp_str):
+        return np.fromstring(timestamp_str, dtype=np.float64)
+
     # "parameters:current" will contain a numpy float32 array
     # represented efficiently as a string (max 128MB, potential scaling problems)
     rsconn.set("parameters:current", "")
-    rsconn.set("parameters:current_timestamp", time.time())
+    rsconn.set("parameters:current_timestamp", timestamp_to_str(0.0))
     # potentially not used
     rsconn.set("parameters:current_datestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -72,14 +84,19 @@ def configure(  rsconn,
             A_indices = np.arange(lower_index, upper_index, dtype=np.int32)
             A_indices_str = A_indices.tostring()
 
+            print "len(A_indices_str) : %d. Start with %d. Hash : %s." % (len(A_indices_str), A_indices[0], hashlib.sha224(A_indices_str).hexdigest())
+
+
             rsconn.rpush("L_workers_%s_minibatch_indices_QUEUE" % segment, A_indices_str)
             rsconn.rpush("L_workers_%s_minibatch_indices_ALL" % segment, A_indices_str)
 
             for measurement in L_measurements:
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
-                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
+                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, timestamp_to_str(0.0))
 
                 #print "H_%s_minibatch_%s" % (segment, measurement)
+
+    #import pdb; pdb.set_trace()
 
     # The master does not really differentiate between the various
     # segments of the dataset. It just takes whatever it is fed
@@ -118,10 +135,6 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     while True:
         print "Running server. Press CTLR+C to stop. Timestamp %f." % time.time()
         #signal.pause()
-        for segment in ["train", "valid", "test"]:
-            print "-- %s " % segment
-            for measurement in ["loss", "accuracy", "gradient_variance"]:
-                (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
-                print "---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
+
         time.sleep(5)
         print ""

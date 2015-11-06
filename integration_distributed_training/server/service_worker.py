@@ -5,16 +5,12 @@ import json
 import time
 import re
 
+import hashlib
+
 import sys, os
 import getopt
 
 # Change this to the real model once you want to plug it in.
-
-# Mocked ModelAPI. Used for debugging certain things.
-#from integration_distributed_training.model.mocked_model import ModelAPI
-#
-# The actual model that runs on SVHN.
-from integration_distributed_training.model.model import ModelAPI
 
 
 from common import get_rsconn_with_timeout
@@ -26,12 +22,10 @@ def run(DD_config, D_server_desc):
         D_server_desc['hostname'] = "localhost"
 
     rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
-                                     timeout=60, wait_for_parameters_to_be_present=True)
+                                     timeout=60, wait_for_parameters_to_be_present=False)
 
     L_measurements = DD_config['database']['L_measurements']
     serialized_parameters_format = DD_config['database']['serialized_parameters_format']
-
-    model_api = ModelAPI(DD_config['model'])
 
 
     #D_segment_priorities = {'train' : 50, 'valid' : 1, 'test' : 1}
@@ -77,7 +71,7 @@ def run(DD_config, D_server_desc):
     get_next_timestamp.counter = 0.0
 
     def timestamp_to_str(timestamp):
-        return timestamp.tostring()
+        return np.float64(timestamp).tostring()
     def timestamp_from_str(timestamp_str):
         return np.fromstring(timestamp_str, dtype=np.float64)
 
@@ -85,61 +79,12 @@ def run(DD_config, D_server_desc):
     #    return time.time()
 
     current_parameters = None
-    parameters_current_timestamp = ""
+    parameters_current_timestamp_str = ""
     while True:
-
-        currently_want_to_update_parameters = (M <= m)
-
-        # Task (1)
-
-        if currently_want_to_update_parameters:
-
-            tic = time.time()
-            new_parameters_current_timestamp = rsconn.get("parameters:current_timestamp")
-            if parameters_current_timestamp != new_parameters_current_timestamp:
-
-                current_parameters_str = rsconn.get("parameters:current")
-                if len(current_parameters_str) == 0:
-                    print "No parameters found in the server."
-                    print "Might as well sleep, but this is NEVER supposed to happen."
-                    time.sleep(0.2)
-                    m = 0
-                    continue
-                else:
-
-                    if serialized_parameters_format == "opaque_string":
-                        parameters_current_timestamp = new_parameters_current_timestamp
-                        model_api.set_serialized_parameters(current_parameters_str)
-                        m = 0
-                        toc = time.time()
-                        print "The worker has received new parameters. This took %f seconds." % (toc - tic,)
-                        continue
-                    elif serialized_parameters_format == "ndarray_float32_tostring":
-                        current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
-                        parameters_current_timestamp = new_parameters_current_timestamp
-                        model_api.set_serialized_parameters(current_parameters)
-                        m = 0
-                        toc = time.time()
-                        print "The worker has received new parameters. This took %f seconds." % (toc - tic,)
-                        continue
-                    else:
-                        print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
-                        quit()
-
-            else:
-                # Go on to Task (2).
-                pass
-                # Note that, if it's time to update the parameters, but new ones
-                # just have not reached the database (ex : maybe the master has not
-                # pushed anything), then we don't really want to reset m=0 because we'll
-                # simply get the parameter update as soon as the master sends it to the
-                # database.
-
-
 
         # Task (2)
 
-        segment = sample_segment()
+        segment = "train"
         queue_name = "L_workers_%s_minibatch_indices_QUEUE" % segment
         if rsconn.llen(queue_name) == 0:
             print "The worker has nothing to do."
@@ -162,8 +107,13 @@ def run(DD_config, D_server_desc):
         else:
             tic = time.time()
             current_minibatch_indices = np.fromstring(current_minibatch_indices_str, dtype=np.int32)
+            print "len(current_minibatch_indices_str) : %d. Start with %d. Hash : %s." % (len(current_minibatch_indices_str), current_minibatch_indices[0], hashlib.sha224(current_minibatch_indices_str).hexdigest())
+
+
             # This returns a dictionary of numpy arrays.
-            DA_measurements = model_api.worker_process_minibatch(current_minibatch_indices, segment, L_measurements)
+            #DA_measurements = model_api.worker_process_minibatch(current_minibatch_indices, segment, L_measurements)
+            DA_measurements = dict([(measurement, np.ones((10,), dtype=np.float32)) for measurement in L_measurements])
+
 
             # Update the measurements. Update the timestamps.
             # None of the measurements should be missing.
@@ -196,7 +146,8 @@ def run(DD_config, D_server_desc):
                     previous_update_timestamp = np.fromstring(previous_update_timestamp_str, dtype=np.float64)
 
                 current_update_timestamp = get_next_timestamp()
-                current_update_timestamp_str = str(current_update_timestamp)
+                current_update_timestamp_str = timestamp_to_str(current_update_timestamp)
+
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp_str)
 
                 if j == 0:
@@ -206,14 +157,12 @@ def run(DD_config, D_server_desc):
                     print "Read previous timestamp : %f" % previous_update_timestamp
                     print "Wrote current timestamp : %f" % current_update_timestamp
 
-                delay_between_measurement_update = current_update_timestamp - previous_update_timestamp
-                delay_between_measurement_update_and_parameter_update = current_update_timestamp - float(parameters_current_timestamp)
+                if current_update_timestamp < previous_update_timestamp:
+                    import pdb; pdb.set_trace()
 
-                rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update)
-                rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update_and_parameter_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update_and_parameter_update)
+                if 1000.0 < current_update_timestamp - previous_update_timestamp:
+                    import pdb; pdb.set_trace()
 
-                #print "delay_between_measurement_update : %f seconds" % delay_between_measurement_update
-                #print "delay_between_measurement_update_and_parameter_update : %f seconds" % delay_between_measurement_update_and_parameter_update
 
                 # Be careful. If you re-indent the next block deeper,
                 # you'll mess up everything with the re-queuing of the minibatches.
@@ -224,7 +173,6 @@ def run(DD_config, D_server_desc):
             rsconn.rpush(queue_name, current_minibatch_indices_str)
             toc = time.time()
             print "Processed one minibatch from %s. Pushed back to back of the line. Total time taken is %f seconds." % (segment, toc - tic)
-            rsconn.flushdb()
 
             m += 1
             continue
