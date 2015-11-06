@@ -64,13 +64,13 @@ def test_cycle_queue(rsconn, N=20):
 
 def test_timestamp_hashmap(rsconn):
 
-    #def get_next_timestamp():
-    #    get_next_timestamp.counter += 1.0
-    #    return get_next_timestamp.counter
-    #get_next_timestamp.counter = 0.0
-
     def get_next_timestamp():
-        return time.time()
+        get_next_timestamp.counter += 1.0
+        return get_next_timestamp.counter
+    get_next_timestamp.counter = 0.0
+
+    #def get_next_timestamp():
+    #    return time.time()
 
 
 

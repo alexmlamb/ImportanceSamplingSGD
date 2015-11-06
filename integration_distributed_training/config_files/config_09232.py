@@ -29,7 +29,7 @@ def get_model_config():
     import socket
     data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
                     "lambda":"/home/gyomalin/ML/data_lisa_data",
-                    "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname()]
+                    "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname().lower()]
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
@@ -40,7 +40,7 @@ def get_model_config():
     model_config["save_svhn_normalization_to_file"] = False
     model_config["svhn_normalization_value_file"] = os.path.join(data_root, "svhn/svhn_normalization_values.pkl")
 
-    model_config["hidden_sizes"] = [2048, 2048,2048,2048]
+    model_config["hidden_sizes"] = [64, 64, 64, 64]
 
     # Note from Guillaume : I'm not fond at all of using seeds in a context
     # where we don't need them.
@@ -60,7 +60,11 @@ def get_database_config():
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
 
-    (Ntrain, Nvalid, Ntest) = (574168, 30220, 26032)
+    # DEBUG
+    DEBUG_N = 128
+    (Ntrain, Nvalid, Ntest) = (DEBUG_N, DEBUG_N, DEBUG_N)
+    # (Ntrain, Nvalid, Ntest) = (574168, 30220, 26032)
+
     # Training Set (574168, 32, 3, 32) (574168, 1)
     # Validation Set (30220, 32, 3, 32) (30220, 1)
     # Test Set (26032, 32, 3, 32) (26032, 1)
@@ -87,8 +91,8 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 8*1024
-    master_minibatch_size = 8*1024
+    workers_minibatch_size = 8
+    master_minibatch_size = 8
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it

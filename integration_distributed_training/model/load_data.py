@@ -69,11 +69,18 @@ def load_data_svhn(config):
 
     print "indices collected"
 
-    valid_X = train_X[valid_indices]
-    valid_Y = train_Y[valid_indices]
+    # DEBUG : I added those 128 everywhere.
+    DEBUG_N = 128
 
-    train_X = train_X[train_indices]
-    train_Y = train_Y[train_indices]
+    valid_X = train_X[valid_indices[0:DEBUG_N]]
+    valid_Y = train_Y[valid_indices[0:DEBUG_N]]
+
+    train_X = train_X[train_indices[0:DEBUG_N]]
+    train_Y = train_Y[train_indices[0:DEBUG_N]]
+
+    test_X = test_X[0:DEBUG_N]
+    test_Y = test_Y[0:DEBUG_N]
+
 
     print "indices indexed"
 

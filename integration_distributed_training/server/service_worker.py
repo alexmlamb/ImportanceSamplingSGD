@@ -70,6 +70,20 @@ def run(DD_config, D_server_desc):
     M = minimum_number_of_minibatch_processed_before_parameter_update
     m = M
 
+
+    def get_next_timestamp():
+        get_next_timestamp.counter += 1.0
+        return np.float64(get_next_timestamp.counter)
+    get_next_timestamp.counter = 0.0
+
+    def timestamp_to_str(timestamp):
+        return timestamp.tostring()
+    def timestamp_from_str(timestamp_str):
+        return np.fromstring(timestamp_str, dtype=np.float64)
+
+    #def get_next_timestamp():
+    #    return time.time()
+
     current_parameters = None
     parameters_current_timestamp = ""
     while True:
@@ -153,7 +167,7 @@ def run(DD_config, D_server_desc):
 
             # Update the measurements. Update the timestamps.
             # None of the measurements should be missing.
-            for measurement in L_measurements:
+            for (j, measurement) in enumerate(L_measurements):
                 A_values = DA_measurements[measurement]
                 assert type(A_values) == np.ndarray, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements (%s), but now those values are not even numpy arrays. They are %s instead." % (measurement, type(A_values))
                 if A_values.dtype == np.float64:
@@ -169,23 +183,31 @@ def run(DD_config, D_server_desc):
                     #print "Starting debugger."
                     #import pdb; pdb.set_trace()
 
-                # Write 0.0 as default value in all the measurements.
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))
 
                 previous_update_timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
                 if previous_update_timestamp_str is None or len(previous_update_timestamp_str) == 0:
-                    # This is a garbage value, but it's going to be used the first around, and only then.
-                    previous_update_timestamp = 0.0
+                    # This is a garbage value, and it's not even supposed to be used the first
+                    # time around since the database should have been initialized with default values.
+                    print "ERROR. `previous_update_timestamp_str` should be present in the database."
+                    print "This is an error that we could recover from, but it's a symptom of another bug, so we'll quit."
+                    quit()
                 else:
-                    previous_update_timestamp = float(previous_update_timestamp_str)
+                    previous_update_timestamp = np.fromstring(previous_update_timestamp_str, dtype=np.float64)
 
-                print "timestamp delta between updates to that measurement : %f" % (time.time() - previous_update_timestamp, )
+                current_update_timestamp = get_next_timestamp()
+                current_update_timestamp_str = str(current_update_timestamp)
+                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp_str)
 
-                current_update_timestamp = time.time()
-                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
+                if j == 0:
+                    print "-------------"
+                    print "current_minibatch_indices : %s" % str(current_minibatch_indices)
+                    print "timestamp delta between updates to that measurement : %f" % (current_update_timestamp - previous_update_timestamp, )
+                    print "Read previous timestamp : %f" % previous_update_timestamp
+                    print "Wrote current timestamp : %f" % current_update_timestamp
 
-                delay_between_measurement_update = float(current_update_timestamp) - float(previous_update_timestamp)
-                delay_between_measurement_update_and_parameter_update = float(current_update_timestamp) - float(parameters_current_timestamp)
+                delay_between_measurement_update = current_update_timestamp - previous_update_timestamp
+                delay_between_measurement_update_and_parameter_update = current_update_timestamp - float(parameters_current_timestamp)
 
                 rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update)
                 rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update_and_parameter_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update_and_parameter_update)
@@ -202,6 +224,7 @@ def run(DD_config, D_server_desc):
             rsconn.rpush(queue_name, current_minibatch_indices_str)
             toc = time.time()
             print "Processed one minibatch from %s. Pushed back to back of the line. Total time taken is %f seconds." % (segment, toc - tic)
+            rsconn.flushdb()
 
             m += 1
             continue
