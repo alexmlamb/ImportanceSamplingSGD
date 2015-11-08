@@ -12,7 +12,7 @@ import signal
 import sys
 
 from startup import delete_bootstrap_file
-from common import get_mean_variance_measurement_on_database
+from common import get_mean_variance_measurement_on_database, get_trace_covariance_information
 
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
@@ -79,7 +79,8 @@ def configure(  rsconn,
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
 
-                #print "H_%s_minibatch_%s" % (segment, measurement)
+            for measurement in ['previous_individual_importance_weight']:
+                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
 
     # The master does not really differentiate between the various
     # segments of the dataset. It just takes whatever it is fed
@@ -118,10 +119,21 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     while True:
         print "Running server. Press CTLR+C to stop. Timestamp %f." % time.time()
         #signal.pause()
-        for segment in ["train", "valid", "test"]:
+        #for segment in ["train", "valid", "test"]:
+        for segment in ["train"]:
             print "-- %s " % segment
-            for measurement in ["loss", "accuracy", "gradient_variance"]:
+            for measurement in ["individual_loss", "individual_accuracy", "individual_gradient_square_norm"]:
                 (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
-                print "---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
+                print "---- %s : mean %0.12f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
         time.sleep(5)
         print ""
+        (usgd2, staleisgd2, isgd2, mu2, nbr_minibatches_used, nbr_minibatches) = get_trace_covariance_information(rsconn, "train", minimum_ratio_present=0.1)
+        # Make sure that you have a reasonable number of readings before
+        # reporting those statistics.
+        if usgd2 is not None and staleisgd2 is not None and isgd2 is not None and mu2 is not None:
+            print "Approximative norm squares of the mean gradient over whole dataset : %0.12f." % (mu2, )
+            print "Trace(Cov USGD) without mu2 : %0.12f." % (usgd2 ,)
+            print "Trace(Cov Stale ISGD) without mu2 : %0.12f." % (staleisgd2 ,)
+            print "Trace(Cov ISGD) without mu2: %0.12f." % (isgd2 ,)
+            time.sleep(5)
+            print ""

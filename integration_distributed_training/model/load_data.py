@@ -9,11 +9,9 @@ def load_data_svhn(config):
 
     import scipy.io as sio
     train_file = config["svhn_file_train"]
-    extra_file = config["svhn_file_extra"]
     test_file = config["svhn_file_test"]
 
     train_object = sio.loadmat(train_file)
-    extra_object = sio.loadmat(extra_file)
     test_object = sio.loadmat(test_file)
 
     print "objects loaded"
@@ -23,23 +21,19 @@ def load_data_svhn(config):
     # We had agreed to store this as uint8 temporarily and do the
     # conversion on a mini-batch basis.
     train_X = np.asarray(train_object["X"], dtype = 'uint8')
-    extra_X = np.asarray(extra_object["X"], dtype = 'uint8')
     test_X = np.asarray(test_object["X"], dtype = 'uint8')
 
     train_Y = np.asarray(train_object["y"], dtype = 'uint8')
-    extra_Y = np.asarray(extra_object["y"], dtype = 'uint8')
     test_Y = np.asarray(test_object["y"], dtype = 'uint8')
 
     print "converted to np arrays"
 
     del train_object
-    del extra_object
     del test_object
 
     #By default SVHN labels are from 1 to 10.
     #This shifts them to be between 0 and 9.
     train_Y -= 1
-    extra_Y -= 1
     test_Y -= 1
 
     assert train_Y.min() == 0
@@ -47,14 +41,9 @@ def load_data_svhn(config):
 
     train_X = np.swapaxes(train_X, 0,3)
 
-    extra_X = np.swapaxes(extra_X, 0,3)
-
     test_X = np.swapaxes(test_X, 0,3)
 
     print "axes swapped"
-
-    train_X = np.vstack((train_X, extra_X))
-    train_Y = np.vstack((train_Y, extra_Y))
 
     print "vstacked"
 

@@ -128,3 +128,84 @@ def wait_until_all_measurements_are_updated_by_workers(rsconn, segment, measurem
         else:
             print "Only %0.3f updated for the measurement %s for segment %s." % (successfully_updated.mean(), measurement, segment)
             time.sleep(5)
+
+
+
+
+def get_trace_covariance_information(rsconn, segment, minimum_ratio_present=0.5):
+    #segment = "train"
+    # Does not return values unless there are at least `minimum_ratio_present`
+    # of the importance weights that are np.isfinite.
+
+    db_list_name_L_minibatch_indices_str = "L_workers_%s_minibatch_indices_ALL" % segment
+    nbr_minibatches = rsconn.llen(db_list_name_L_minibatch_indices_str)
+
+    L_previous_individual_importance_weight = []
+    L_individual_importance_weight = []
+    L_individual_gradient_square_norm = []
+    L_minibatch_gradient_mean_square_norm = []
+    for i in range(nbr_minibatches):
+        minibatch_indices_str = rsconn.lindex(db_list_name_L_minibatch_indices_str, i)
+
+        previous_individual_importance_weight_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "previous_individual_importance_weight"), minibatch_indices_str)
+        individual_importance_weight_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "individual_importance_weight"), minibatch_indices_str)
+        individual_gradient_square_norm_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "individual_gradient_square_norm"), minibatch_indices_str)
+        minibatch_gradient_mean_square_norm_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "minibatch_gradient_mean_square_norm"), minibatch_indices_str)
+
+        # Some un-necessary controls required to avoid gotos,
+        # and because the language doesn't have the break(2).
+        want_skip_this_minibatch = False
+        for e in [previous_individual_importance_weight_str, individual_importance_weight_str, individual_gradient_square_norm_str, minibatch_gradient_mean_square_norm_str]:
+            if e is None or len(e) == 0:
+                want_skip_this_minibatch = True
+        if want_skip_this_minibatch:
+            continue
+
+        previous_individual_importance_weight = np.fromstring(previous_individual_importance_weight_str, dtype=np.float32).astype(np.float64)
+        individual_importance_weight          = np.fromstring(individual_importance_weight_str, dtype=np.float32).astype(np.float64)
+        individual_gradient_square_norm       = np.fromstring(individual_gradient_square_norm_str, dtype=np.float32).astype(np.float64)
+        minibatch_gradient_mean_square_norm   = np.fromstring(minibatch_gradient_mean_square_norm_str, dtype=np.float32).astype(np.float64)
+
+        if not (np.all(np.isfinite(previous_individual_importance_weight)) and
+                np.all(np.isfinite(individual_importance_weight)) and
+                np.all(np.isfinite(individual_gradient_square_norm)) and
+                np.all(np.isfinite(minibatch_gradient_mean_square_norm))):
+            continue
+
+
+        L_previous_individual_importance_weight.append( previous_individual_importance_weight )
+        L_individual_importance_weight.append( individual_importance_weight )
+        L_individual_gradient_square_norm.append( individual_gradient_square_norm )
+        L_minibatch_gradient_mean_square_norm.append( minibatch_gradient_mean_square_norm )
+
+    nbr_minibatches_used = len(L_previous_individual_importance_weight)
+    r = nbr_minibatches_used * 1.0 / nbr_minibatches
+    if  r <= minimum_ratio_present - 1e-8:
+        print "Called get_trace_covariance for segment %s, but we simply could not retrieve more than ratio %f from the database." % (segment, r)
+        #import pdb; pdb.set_trace()
+        return (None, None, None, None, nbr_minibatches_used, nbr_minibatches)
+
+    A_previous_individual_importance_weight = np.concatenate(L_previous_individual_importance_weight, axis=0)
+    A_individual_importance_weight = np.concatenate(L_individual_importance_weight, axis=0)
+    A_individual_gradient_square_norm = np.concatenate(L_individual_gradient_square_norm, axis=0)
+    # this one is different because it's made out of one element per minibatch
+    A_minibatch_gradient_mean_square_norm = np.concatenate(L_minibatch_gradient_mean_square_norm, axis=0)
+
+    print A_previous_individual_importance_weight.shape
+    print A_individual_importance_weight.shape
+
+    if np.any(A_minibatch_gradient_mean_square_norm < 0.0) or np.any(np.logical_not(np.isfinite(A_minibatch_gradient_mean_square_norm))):
+        import pdb; pdb.set_trace()
+
+    approximated_mu_norm_square = np.sqrt(A_minibatch_gradient_mean_square_norm).mean()**2
+    if approximated_mu_norm_square is None:
+        import pdb; pdb.set_trace()
+
+    USGD_main_term = A_individual_gradient_square_norm.mean()
+    ISGD_main_term = np.sqrt(A_individual_gradient_square_norm).mean()**2
+
+    staleISGD_main_term_1 = np.sqrt(A_previous_individual_importance_weight).mean()
+    staleISGD_main_term_2 = (A_individual_gradient_square_norm / np.sqrt(A_previous_individual_importance_weight)).mean()
+    staleISGD_main_term = staleISGD_main_term_1 * staleISGD_main_term_2
+
+    return (USGD_main_term, staleISGD_main_term, ISGD_main_term, approximated_mu_norm_square, nbr_minibatches_used, nbr_minibatches)

@@ -29,7 +29,7 @@ def get_model_config():
     import socket
     data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
                     "lambda":"/home/gyomalin/ML/data_lisa_data",
-                    "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname()]
+                    "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname().lower()]
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
@@ -40,9 +40,9 @@ def get_model_config():
     model_config["save_svhn_normalization_to_file"] = False
     model_config["svhn_normalization_value_file"] = os.path.join(data_root, "svhn/svhn_normalization_values.pkl")
 
-    model_config["hidden_sizes"] = [2048, 2048,2048,2048]
+    model_config["hidden_sizes"] = [2048, 2048, 2048, 2048]
 
-    # Note from Guillaume : I'm not fond at all of using seeds in a context
+    # Note from Guillaume : I'm not fond at all of using seeds in aindividual_ context
     # where we don't need them.
     model_config["seed"] = 9999494
 
@@ -66,6 +66,12 @@ def get_database_config():
     # Test Set (26032, 32, 3, 32) (26032, 1)
     # svhn data loaded...
 
+    # When skipping the "extra" part of the dataset.
+    (Ntrain, Nvalid, Ntest) = (69594, 3663, 26032)
+
+
+
+
     # This is part of a discussion about when we should the master
     # start its training with uniform sampling SGD and when it should
     # perform importance sampling SGD.
@@ -75,7 +81,10 @@ def get_database_config():
     # We can decide to add other options later to include the staleness
     # of the importance weights, or other simular criterion, to define
     # what constitutes a "usable" value.
+
     default_importance_weight = np.NaN
+    #default_importance_weight = 1.0
+
     want_master_to_do_USGD_when_ISGD_is_not_possible = True
     master_usable_importance_weights_threshold_to_ISGD = 0.05 # cannot be None
 
@@ -87,8 +96,8 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 8*1024
-    master_minibatch_size = 8*1024
+    workers_minibatch_size = 1024*4
+    master_minibatch_size = 1024*4
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -97,10 +106,7 @@ def get_database_config():
     # the values of (Ntrain, Nvalid, Ntest).
     dataset_name='svhn'
 
-    L_measurements=["importance_weight", "gradient_square_norm", "loss", "accuracy", "gradient_variance"]
-
-
-    # Optional field : 'server_scratch_path'
+    L_measurements=["individual_importance_weight", "individual_gradient_square_norm", "individual_loss", "individual_accuracy", "minibatch_gradient_mean_square_norm"]
 
     #
     # The rest of this code is just checks and quantities generated automatically.

@@ -49,7 +49,7 @@ def run(DD_config, D_server_desc):
     # set to something. In theory, there should always be valid values in there,
     # so this is just a sanity check.
     segment = "train"
-    measurement = "importance_weight"
+    measurement = "individual_importance_weight"
     nbr_of_present_importance_weights = rsconn.hlen("H_%s_minibatch_%s" % (segment, measurement))
     assert 0 < nbr_of_present_importance_weights, "Error. The database should have been set up to have dummy importance weights at least."
     #print "Master found %d importance weights in the database." % nbr_of_present_importance_weights
@@ -161,20 +161,23 @@ def run(DD_config, D_server_desc):
                         # breaking will continue to the main looping section
                         break
                     else:
+                        pass
                         # This is a debugging section that will be removed eventually.
+                        # This section has a problem. This has been discussed.
+                        # Until something useful is done here, Guillaume commented it out.
 
-                        new_gradient_norm = model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+                        #new_gradient_norm = model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
                         # breaking will continue to the main looping section
 
-                        old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
+                        #old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
 
-                        if random.uniform(0,1) < 0.01:
+                        #if random.uniform(0,1) < 0.01:
                         #if True:
-                            print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
-                            print "OLD GRAD NORM 111", old_gradient_norm[0][111]
-                            if 111 in A_sampled_indices:
-                                print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
-                        break
+                        #    print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
+                        #    print "OLD GRAD NORM 111", old_gradient_norm[0][111]
+                        #    if 111 in A_sampled_indices:
+                        #        print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
+                        #break
 
 
 
