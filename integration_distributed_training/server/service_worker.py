@@ -76,7 +76,7 @@ def run(DD_config, D_server_desc):
     m = M
 
     current_parameters = None
-    parameters_current_timestamp = ""
+    parameters_current_timestamp_str = ""
     while True:
 
         currently_want_to_update_parameters = (M <= m)
@@ -86,8 +86,8 @@ def run(DD_config, D_server_desc):
         if currently_want_to_update_parameters:
 
             tic = time.time()
-            new_parameters_current_timestamp = rsconn.get("parameters:current_timestamp")
-            if parameters_current_timestamp != new_parameters_current_timestamp:
+            new_parameters_current_timestamp_str = rsconn.get("parameters:current_timestamp")
+            if parameters_current_timestamp_str != new_parameters_current_timestamp_str:
 
                 num_minibatches_master_processed = rsconn.get("num_minibatches_master_processed")
 
@@ -101,7 +101,7 @@ def run(DD_config, D_server_desc):
                 else:
 
                     if serialized_parameters_format == "opaque_string":
-                        parameters_current_timestamp = new_parameters_current_timestamp
+                        parameters_current_timestamp_str = new_parameters_current_timestamp_str
                         model_api.set_serialized_parameters(current_parameters_str)
                         m = 0
                         toc = time.time()
@@ -109,7 +109,7 @@ def run(DD_config, D_server_desc):
                         continue
                     elif serialized_parameters_format == "ndarray_float32_tostring":
                         current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
-                        parameters_current_timestamp = new_parameters_current_timestamp
+                        parameters_current_timestamp_str = new_parameters_current_timestamp_str
                         model_api.set_serialized_parameters(current_parameters)
                         m = 0
                         toc = time.time()
@@ -155,6 +155,13 @@ def run(DD_config, D_server_desc):
         else:
             tic = time.time()
             current_minibatch_indices = np.fromstring(current_minibatch_indices_str, dtype=np.int32)
+
+            # There is a special thing to do with the individual_importance_weight.
+            # We want to keep around their previous values.
+
+            tmp_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "individual_importance_weight"), current_minibatch_indices_str)
+            rsconn.hset("H_%s_minibatch_%s" % (segment, "previous_individual_importance_weight"), current_minibatch_indices_str, tmp_str)
+
             # This returns a dictionary of numpy arrays.
             t0 = time.time()
             DA_measurements = model_api.worker_process_minibatch(current_minibatch_indices, segment, L_measurements)
@@ -165,6 +172,7 @@ def run(DD_config, D_server_desc):
             # Update the measurements. Update the timestamps.
             # None of the measurements should be missing.
             for measurement in L_measurements:
+
                 A_values = DA_measurements[measurement]
                 assert type(A_values) == np.ndarray, "Your `worker_process_minibatch` function is supposed to return an array of np.float32 as measurements (%s), but now those values are not even numpy arrays. They are %s instead." % (measurement, type(A_values))
                 if A_values.dtype == np.float64:
@@ -191,18 +199,21 @@ def run(DD_config, D_server_desc):
 
                 previous_update_timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
                 if previous_update_timestamp_str is None or len(previous_update_timestamp_str) == 0:
-                    # This is a garbage value, but it's going to be used the first around, and only then.
-                    previous_update_timestamp = 0.0
+                    print "The measurements are supposed to be initialized when starting the database."
+                    print "They are supposed to have a timestamp set at that time."
+                    print "This is not a serious error from which we could not recover, but it signals that there is a bug, so let's quit() here."
+                    quit()
+                    #previous_update_timestamp = 0.0
                 else:
                     previous_update_timestamp = float(previous_update_timestamp_str)
 
-                print "timestamp delta between updates to that measurement : %f" % (time.time() - previous_update_timestamp, )
+                print "(%s, %s) timestamp delta between updates to that measurement : %f" % (segment, measurement, time.time() - previous_update_timestamp, )
 
                 current_update_timestamp = time.time()
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
 
-                delay_between_measurement_update = float(current_update_timestamp) - float(previous_update_timestamp)
-                delay_between_measurement_update_and_parameter_update = float(current_update_timestamp) - float(parameters_current_timestamp)
+                delay_between_measurement_update = current_update_timestamp - previous_update_timestamp
+                delay_between_measurement_update_and_parameter_update = current_update_timestamp - float(parameters_current_timestamp_str)
 
                 rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update)
                 rsconn.hset("H_%s_minibatch_%s_delay_between_measurement_update_and_parameter_update" % (segment, measurement), current_minibatch_indices_str, delay_between_measurement_update_and_parameter_update)

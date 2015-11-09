@@ -1,23 +1,12 @@
 __author__ = 'chinna'
-import theano
-from theano import tensor as T
-import numpy as np
-import matplotlib.pyplot as plt
-from theano import shared
-from theano import function
 
+import matplotlib.pyplot as plt
 import theano
 from theano import tensor as T
-import numpy as np
 from load import mnist
 from load import mnist_with_noise
-from PIL import Image
-#from foxhound.utils.vis import grayscale_grid_vis, unit_scale
-from scipy.misc import imsave
-import scipy as sp
 import numpy as np
-from PIL import Image
-from scipy import signal
+
 
 nhidden = 1
 ntrain = 50000
@@ -74,7 +63,6 @@ def main_loop():
         grad_list = []
         for start, end in zip(range(0, len(trX), mb_size), range(mb_size, len(trX), mb_size)):
             cost,grads0,grads1 = train(trX[start:end], trY[start:end])
-            print grads0.shape
         y,p_y =  predict(teX)
         print np.mean(np.argmax(teY, axis=1) == y)
 

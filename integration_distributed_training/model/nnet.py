@@ -49,12 +49,32 @@ class NeuralNetwork:
         y_x = T.argmax(py_x, axis=1)
 
         individual_cost = -1.0 * (T.log(py_x)[T.arange(Y.shape[0]), Y])
+        # It's acceptable to use the `mean` here instead of the `sum`,
+        # but to get the gradient_square_norm we will really have
+        # to multiply them by N**2. Otherwise, they get "unfairly"
+        # divided by this N factor, which then is getting squared.
+        # We do this to preserve the property that the cost is not
+        # getting scaled by the minibatch size, which is generally
+        # a desirable property that we want in order to be able to
+        # compare different hyper-parameters.
+        # Note that multiplying the cost by N before passing it
+        # to the `sgsnav` would result in two computational graphs,
+        # which is a bad idea. Instead we'll have to scale the values
+        # returned by the `sgsnav`.
         cost = T.mean(individual_cost)
 
         scaled_individual_cost = scaling_factors * individual_cost
+        # Here this is `mean`, because the scaling factors
+        # do not sum to 1.0. Intuitively, something that was twice
+        # as likely to occur than unde the Uniform Sampling regime
+        # will have a scaling factor of 0.5.
         scaled_cost = T.mean(scaled_individual_cost)
 
         updates = NeuralNetwork.sgd(scaled_cost, self.parameters, self.momentum, model_config["learning_rate"], model_config["momentum_rate"])
+
+        # To be clear, this is the square norm of the (mean gradient in the minibatch).
+        # Not to be confused with the mean of the (square norm of the gradients of each element of the minibatch).
+        minibatch_gradient_mean_square_norm = sum([T.sqr(T.grad(cost, p)).sum() for p in self.parameters])
 
 
         sgsnav = SumGradSquareNormAndVariance()
@@ -62,14 +82,14 @@ class NeuralNetwork:
             sgsnav.add_layer_for_gradient_square_norm(input=layer_desc['input'], weight=layer_desc['weight'],
                                                       bias=layer_desc['bias'], output=layer_desc['output'], cost=cost)
 
-            sgsnav.add_layer_for_gradient_variance( input=layer_desc['input'], weight=layer_desc['weight'],
-                                                    bias=layer_desc['bias'], output=layer_desc['output'], cost=cost)
+            #sgsnav.add_layer_for_gradient_variance( input=layer_desc['input'], weight=layer_desc['weight'],
+            #                                        bias=layer_desc['bias'], output=layer_desc['output'], cost=cost)
 
-        individual_gradient_square_norm = sgsnav.get_sum_gradient_square_norm()
-        individual_gradient_variance = sgsnav.get_sum_gradient_variance()
+        individual_gradient_square_norm = sgsnav.get_sum_gradient_square_norm() * (X.shape[0]**2)
+        #individual_gradient_variance = sgsnav.get_sum_gradient_variance()
 
         mean_gradient_square_norm = T.mean(individual_gradient_square_norm)
-        mean_gradient_variance = T.mean(individual_gradient_variance)
+        #mean_gradient_variance = T.mean(individual_gradient_variance)
 
         individual_accuracy = T.eq(T.argmax(py_x, axis = 1), Y)
         accuracy = T.mean(individual_accuracy)
@@ -83,11 +103,11 @@ class NeuralNetwork:
                                                             outputs=[individual_cost,
                                                                      individual_accuracy,
                                                                      individual_gradient_square_norm,
-                                                                     individual_gradient_variance],
+                                                                     minibatch_gradient_mean_square_norm],
                                                             allow_input_downcast=True)
 
         self.func_master_process_minibatch = theano.function(inputs=[X, Y, scaling_factors],
-                                     outputs=[cost, accuracy, mean_gradient_square_norm, mean_gradient_variance, individual_gradient_square_norm],
+                                     outputs=[cost, accuracy, mean_gradient_square_norm, individual_gradient_square_norm],
                                      updates=updates, allow_input_downcast=True)
 
         # This is just never getting used.
@@ -176,7 +196,12 @@ class NeuralNetwork:
     def worker_process_minibatch(self, A_indices, segment, L_measurements):
         assert segment in ["train", "valid", "test"]
         for key in L_measurements:
-            assert key in ["importance_weight", "gradient_square_norm", "loss", "accuracy", "gradient_variance"]
+            assert key in [ "individual_importance_weight", "individual_gradient_square_norm",
+                            "individual_loss", "individual_accuracy",
+                            "minibatch_gradient_mean_square_norm",
+                            # old measurement names
+                            "importance_weight", "gradient_square_norm",
+                            "loss", "accuracy"]
 
         X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
         Y_minibatch = self.data[segment][1][A_indices]
@@ -185,14 +210,30 @@ class NeuralNetwork:
 
         # These numpy arrays here have the same names as theano variables
         # elsewhere in this class. Don't get confused.
-        (individual_cost, individual_accuracy, individual_gradient_square_norm, individual_gradient_variance) = self.func_process_worker_minibatch(X_minibatch, Y_minibatch)
-        # CRAP VALUES TO DEBUG
-        #individual_cost = np.random.rand(X_minibatch.shape[0])
-        #individual_accuracy = np.random.rand(X_minibatch.shape[0])
-        #individual_gradient_square_norm = np.random.rand(X_minibatch.shape[0])
-        #individual_gradient_variance = np.random.rand(X_minibatch.shape[0])
+        (individual_cost, individual_accuracy, individual_gradient_square_norm, minibatch_gradient_mean_square_norm) = self.func_process_worker_minibatch(X_minibatch, Y_minibatch)
 
+        # DEBUG : Set all those quantities to something random, and see what happens.
+        #         This is not the same thing as actually influencing the gradients.
+        #         We are just messing with the values in the database.
+        # Tip :   Use values that don't have expectation 0. The trouble with
+        #         things that have expectation 0 is that you get a mu2 term
+        #         that is very small and difficult to measure accurately.
+        #         With random values, and expectation 0, you are easily
+        #         misled to conclude that you cannot do anything useful
+        #         with the measurements available because the differences
+        #         to estimate Trace(Covariance) lead to negative values !
 
+        #print "Before override."
+        #print "individual_gradient_square_norm.shape : %s" % str(individual_gradient_square_norm.shape,)
+        #print "minibatch_gradient_mean_square_norm.shape : %s" % str(minibatch_gradient_mean_square_norm.shape,)
+        #(N, d) = (individual_gradient_square_norm.shape[0], 10)
+        #G = (np.random.randn(N, d) + np.tile(np.arange(d), (N,1))).astype(np.float32)
+        #G = np.tile(np.arange(d), (N,1)).astype(np.float32)
+        #individual_gradient_square_norm = (G**2).sum(axis=1)
+        #minibatch_gradient_mean_square_norm = ((G.mean(axis=0))**2).sum()
+        #print "After override."
+        #print "individual_gradient_square_norm.shape : %s" % str(individual_gradient_square_norm.shape,)
+        #print "minibatch_gradient_mean_square_norm.shape : %s" % str(minibatch_gradient_mean_square_norm.shape,)
 
         # The individual_gradient_square_norm.mean() and individual_gradient_variance.mean()
         # are not written to the database, but they would be really nice to log to have a
@@ -202,12 +243,19 @@ class NeuralNetwork:
 
         # We can change the quantity that corresponds to 'importance_weight'
         # by changing the entry in the `mapping` dictionary below.
-        mapping = { 'importance_weight' : individual_gradient_square_norm,
+        mapping = { 'individual_importance_weight' : individual_gradient_square_norm,
+                    'individual_cost' : individual_cost,
+                    'individual_loss' : individual_cost,
+                    'individual_accuracy' : individual_accuracy.astype(dtype=np.float32),
+                    'individual_gradient_square_norm' : individual_gradient_square_norm,
+                    'minibatch_gradient_mean_square_norm' : np.array(minibatch_gradient_mean_square_norm),
+                    # old measurement names
+                    'importance_weight' : individual_gradient_square_norm,
                     'cost' : individual_cost,
                     'loss' : individual_cost,
                     'accuracy' : individual_accuracy.astype(dtype=np.float32),
-                    'gradient_square_norm' : individual_gradient_square_norm,
-                    'gradient_variance' : individual_gradient_variance}
+                    'gradient_square_norm' : individual_gradient_square_norm
+                    }
 
         # Returns a full array for every data point in the minibatch.
         res = dict((measurement, mapping[measurement]) for measurement in L_measurements)
@@ -225,7 +273,7 @@ class NeuralNetwork:
 
         # These numpy arrays here have the same names as theano variables
         # elsewhere in this class. Don't get confused.
-        (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance, individual_gradient_square_norm) = self.func_master_process_minibatch(X_minibatch, Y_minibatch, A_scaling_factors)
+        (cost, accuracy, mean_gradient_square_norm, individual_gradient_square_norm) = self.func_master_process_minibatch(X_minibatch, Y_minibatch, A_scaling_factors)
 
         self.num_minibatches_processed_master += 1
 

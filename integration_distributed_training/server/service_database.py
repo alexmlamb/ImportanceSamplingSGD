@@ -12,7 +12,7 @@ import signal
 import sys
 
 from startup import delete_bootstrap_file
-from common import get_mean_variance_measurement_on_database
+from common import get_mean_variance_measurement_on_database, get_trace_covariance_information
 
 import logging
 
@@ -81,7 +81,8 @@ def configure(  rsconn,
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
 
-                #print "H_%s_minibatch_%s" % (segment, measurement)
+            for measurement in ['previous_individual_importance_weight']:
+                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
 
     # The master does not really differentiate between the various
     # segments of the dataset. It just takes whatever it is fed
@@ -154,5 +155,21 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
                 logging.info("---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r))
 
         logging.info("Highest Validation Accuracy seen so far " + str(maximum_validation_accuracy))
-        time.sleep(5)
+
+        (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches) = get_trace_covariance_information(rsconn, "train")
+        # Make sure that you have a reasonable number of readings before
+        # reporting those statistics.
+        if 0.1 <= ratio_of_usable_indices_for_USGD_and_ISGD:
+            assert usgd2 is not None and isgd2 is not None and mu2 is not None
+            logging.info("Approximative norm squares of the mean gradient over whole dataset : %0.12f." % (mu2, ))
+            logging.info("Trace(Cov USGD) without mu2 : %0.12f." % (usgd2 ,))
+            logging.info("Trace(Cov ISGD) without mu2: %0.12f." % (isgd2 ,))
+        else:
+            logging.info("ratio_of_usable_indices_for_USGD_and_ISGD %f not high enough to report those numbers" % ratio_of_usable_indices_for_USGD_and_ISGD)
+
+        if 0.1 <= ratio_of_usable_indices_for_ISGDstale:
+            logging.info("Trace(Cov Stale ISGD) without mu2 : %0.12f." % (staleisgd2 ,))
+        else:
+            logging.info("ratio_of_usable_indices_for_ISGDstale %f not high enough to report those numbers" % ratio_of_usable_indices_for_ISGDstale)
+
         logging.info("")

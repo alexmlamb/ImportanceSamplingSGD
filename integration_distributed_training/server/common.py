@@ -128,3 +128,80 @@ def wait_until_all_measurements_are_updated_by_workers(rsconn, segment, measurem
         else:
             print "Only %0.3f updated for the measurement %s for segment %s." % (successfully_updated.mean(), measurement, segment)
             time.sleep(5)
+
+
+
+
+def get_trace_covariance_information(rsconn, segment):
+    #segment = "train"
+
+    # In this method, there care be race conditions that lead
+    # to discrepancies in measurements present.
+    # For example, we should expect that `individual_importance_weight`
+    # be present if and only if `individual_gradient_square_norm` is present,
+    # but that can fail to be true because of the multiprocess environment.
+    # In those cases, we'll try to be as conservative as possible.
+
+    db_list_name_L_minibatch_indices_str = "L_workers_%s_minibatch_indices_ALL" % segment
+    nbr_minibatches = rsconn.llen(db_list_name_L_minibatch_indices_str)
+
+    L_previous_individual_importance_weight = []
+    L_individual_importance_weight = []
+    L_individual_gradient_square_norm = []
+    L_minibatch_gradient_mean_square_norm = []
+    for i in range(nbr_minibatches):
+        minibatch_indices_str = rsconn.lindex(db_list_name_L_minibatch_indices_str, i)
+
+        previous_individual_importance_weight_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "previous_individual_importance_weight"), minibatch_indices_str)
+        individual_importance_weight_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "individual_importance_weight"), minibatch_indices_str)
+        individual_gradient_square_norm_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "individual_gradient_square_norm"), minibatch_indices_str)
+        minibatch_gradient_mean_square_norm_str = rsconn.hget("H_%s_minibatch_%s" % (segment, "minibatch_gradient_mean_square_norm"), minibatch_indices_str)
+
+        for e in [previous_individual_importance_weight_str, individual_importance_weight_str, individual_gradient_square_norm_str, minibatch_gradient_mean_square_norm_str]:
+            if e is None or len(e) == 0:
+                print "Error. The database should contain default values for all the measurements. Use np.nan to indicate a yet-undefined value."
+
+
+        L_minibatch_gradient_mean_square_norm.append(   np.fromstring(minibatch_gradient_mean_square_norm_str, dtype=np.float32).astype(np.float64) )
+        L_previous_individual_importance_weight.append( np.fromstring(previous_individual_importance_weight_str, dtype=np.float32).astype(np.float64) )
+        L_individual_importance_weight.append(          np.fromstring(individual_importance_weight_str, dtype=np.float32).astype(np.float64) )
+        L_individual_gradient_square_norm.append(       np.fromstring(individual_gradient_square_norm_str, dtype=np.float32).astype(np.float64) )
+
+    previous_individual_importance_weight = np.concatenate(L_previous_individual_importance_weight, axis=0)
+    individual_importance_weight = np.concatenate(L_individual_importance_weight, axis=0)
+    individual_gradient_square_norm = np.concatenate(L_individual_gradient_square_norm, axis=0)
+    # this one is different because it's made out of one element per minibatch
+    minibatch_gradient_mean_square_norm = np.concatenate(L_minibatch_gradient_mean_square_norm, axis=0)
+
+    # Note that `minibatch_gradient_mean_square_norm` is an array
+    # with a completely different shape than the other ones because it
+    # has one value per worker minibatch.
+    H = np.isfinite(minibatch_gradient_mean_square_norm)
+    I = np.isfinite(individual_importance_weight) * np.isfinite(individual_gradient_square_norm)
+    J = I * np.isfinite(previous_individual_importance_weight)
+
+    # Conceptually, we would expect that I.mean() == H.mean()
+    # but this can fail to hold due to race conditions.
+    ratio_of_usable_indices_for_USGD_and_ISGD = np.min([I.mean(), H.mean()])
+    ratio_of_usable_indices_for_ISGDstale = J.mean()
+
+    assert ratio_of_usable_indices_for_ISGDstale <= ratio_of_usable_indices_for_USGD_and_ISGD
+
+    if 0.0 < ratio_of_usable_indices_for_USGD_and_ISGD:
+        approximated_mu_norm_square = np.sqrt(minibatch_gradient_mean_square_norm[H]).mean()**2
+        USGD_main_term = individual_gradient_square_norm[I].mean()
+        ISGD_main_term = np.sqrt(individual_gradient_square_norm[I]).mean()**2
+    else:
+        approximated_mu_norm_square = None
+        USGD_main_term = None
+        ISGD_main_term = None
+
+    if 0.0 < ratio_of_usable_indices_for_ISGDstale:
+        J = J * (1e-16 < individual_gradient_square_norm)
+        staleISGD_main_term_1 = np.sqrt(previous_individual_importance_weight[J]).mean()
+        staleISGD_main_term_2 = (individual_gradient_square_norm[J] / np.sqrt(previous_individual_importance_weight[J])).mean()
+        staleISGD_main_term = staleISGD_main_term_1 * staleISGD_main_term_2
+    else:
+        staleISGD_main_term = None
+
+    return (USGD_main_term, staleISGD_main_term, ISGD_main_term, approximated_mu_norm_square, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches)

@@ -49,7 +49,7 @@ def run(DD_config, D_server_desc):
     # set to something. In theory, there should always be valid values in there,
     # so this is just a sanity check.
     segment = "train"
-    measurement = "importance_weight"
+    measurement = "individual_importance_weight"
     nbr_of_present_importance_weights = rsconn.hlen("H_%s_minibatch_%s" % (segment, measurement))
     assert 0 < nbr_of_present_importance_weights, "Error. The database should have been set up to have dummy importance weights at least."
     #print "Master found %d importance weights in the database." % nbr_of_present_importance_weights
@@ -160,7 +160,10 @@ def run(DD_config, D_server_desc):
                         # breaking will continue to the main looping section
                         break
                     else:
+                        pass
                         # This is a debugging section that will be removed eventually.
+                        # This section has a problem. This has been discussed.
+                        # Until something useful is done here, Guillaume commented it out.
 
 
                         model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
@@ -178,6 +181,7 @@ def run(DD_config, D_server_desc):
                             print "Average gradient norm in sampled minibatch", new_gradient_norm_from_worker.mean()
                             print "Correlation between gradient norm from database and gradient norm computed on master", np.corrcoef(old_gradient_norm[0][A_sampled_indices], new_gradient_norm_from_worker)
                         break
+
 
 
             toc = time.time()
