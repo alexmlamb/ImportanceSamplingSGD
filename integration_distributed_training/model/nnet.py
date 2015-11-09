@@ -212,6 +212,8 @@ class NeuralNetwork:
         # elsewhere in this class. Don't get confused.
         (individual_cost, individual_accuracy, individual_gradient_square_norm, minibatch_gradient_mean_square_norm) = self.func_process_worker_minibatch(X_minibatch, Y_minibatch)
 
+        individual_importance_weight = np.sqrt(individual_gradient_square_norm)
+
         # DEBUG : Set all those quantities to something random, and see what happens.
         #         This is not the same thing as actually influencing the gradients.
         #         We are just messing with the values in the database.
@@ -243,14 +245,14 @@ class NeuralNetwork:
 
         # We can change the quantity that corresponds to 'importance_weight'
         # by changing the entry in the `mapping` dictionary below.
-        mapping = { 'individual_importance_weight' : individual_gradient_square_norm,
+        mapping = { 'individual_importance_weight' : individual_importance_weight,
                     'individual_cost' : individual_cost,
                     'individual_loss' : individual_cost,
                     'individual_accuracy' : individual_accuracy.astype(dtype=np.float32),
                     'individual_gradient_square_norm' : individual_gradient_square_norm,
                     'minibatch_gradient_mean_square_norm' : np.array(minibatch_gradient_mean_square_norm),
                     # old measurement names
-                    'importance_weight' : individual_gradient_square_norm,
+                    'importance_weight' : individual_importance_weight,
                     'cost' : individual_cost,
                     'loss' : individual_cost,
                     'accuracy' : individual_accuracy.astype(dtype=np.float32),
