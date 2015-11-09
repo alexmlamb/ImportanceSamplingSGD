@@ -67,7 +67,7 @@ def get_database_config():
     # svhn data loaded...
 
     # When skipping the "extra" part of the dataset.
-    (Ntrain, Nvalid, Ntest) = (69594, 3663, 26032)
+    #(Ntrain, Nvalid, Ntest) = (69594, 3663, 26032)
 
 
 
