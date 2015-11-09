@@ -5,8 +5,7 @@ def get_model_config():
     config = {}
 
     #Importance sampling or vanilla sgd.
-    config["importance_algorithm"] = "isgd"
-    #config["importance_algorithm"] = "sgd"
+    config["turn_off_importance_sampling"] = True
 
     #Momentum rate, where 0.0 corresponds to not using momentum
     config["momentum_rate"] = 0.9
@@ -44,11 +43,16 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     config["fraction_validation"] = 0.05
 
+    config["importance_weight_additive_constant"] = 0.01
 
     return config
 
 
 def get_database_config():
+
+    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.  
+
+    logging_folder = "/u/lambalex/DeepLearning/ImportanceSampling/logs/"
 
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
@@ -59,7 +63,7 @@ def get_database_config():
     # Test Set (26032, 32, 3, 32) (26032, 1)
     # svhn data loaded...
 
-
+    master_usable_importance_weights_threshold_to_ISGD = 0.1
 
     serialized_parameters_format ="opaque_string"
 
@@ -70,7 +74,7 @@ def get_database_config():
     master_minibatch_size = 128
 
     #The master will only consider importance weights which were updated this number of seconds ago.  
-    staleness_threshold_seconds = 100.0
+    staleness_threshold_seconds = 20.0
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -81,6 +85,8 @@ def get_database_config():
 
     L_measurements=["importance_weight", "gradient_square_norm", "loss", "accuracy"]
 
+    minimum_number_of_minibatch_processed_before_parameter_update = 10
+    nbr_batch_processed_per_public_parameter_update = 10
 
     # Optional field : 'server_scratch_path'
 
@@ -118,7 +124,11 @@ def get_database_config():
                 want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
-                staleness_threshold=staleness_threshold)
+                staleness_threshold_seconds=staleness_threshold_seconds,
+                minimum_number_of_minibatch_processed_before_parameter_update=minimum_number_of_minibatch_processed_before_parameter_update,
+                nbr_batch_processed_per_public_parameter_update=nbr_batch_processed_per_public_parameter_update,
+                master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
+                logging_folder = logging_folder)
 
 def get_helios_config():
     # Optional.

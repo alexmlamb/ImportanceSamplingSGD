@@ -32,20 +32,25 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
     nbr_accepted = 0
     nbr_seen = 0
 
+    staleness_lst = []
+
     for (key, value) in rsconn.hgetall("H_%s_minibatch_%s" % (segment, measurement)).items():
-        nbr_seen += 1
 
         #Here let's pull up the staleness records!
         current_minibatch_indices_str = key
         timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
 
+        try:
+            minibatch_of_parameters_used_for_importance_weights = float(rsconn.hget("H_%s_minibatch_%s_measurement_num_minibatches_master_processed" % (segment, measurement), current_minibatch_indices_str))
+            last_minibatch_updated_by_master = float(rsconn.get('num_minibatches_master_processed'))
+            staleness = last_minibatch_updated_by_master - minibatch_of_parameters_used_for_importance_weights
+        except:
+            staleness = float('inf')
+
         if timestamp_str is None or len(timestamp_str) == 0:
             print "ERROR. There is a bug somewhere because there is never a situation where a measurement can be present without a timestamp."
             print "We can easily recover from this error by just accepting the importance weight anyway, but we would be sweeping a bug under the rug by doing so."
             quit()
-
-        #Master could always store map of timestamp -> minibatch index of master.
-        staleness = time.time() - float(timestamp_str)
 
         #Key refers to a list of indices.
         #value refers to the associated importance weights.
@@ -62,17 +67,20 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
 
         assert A_some_indices.shape == A_some_importance_weights.shape, "Failed assertion that %s == %s." % (A_some_indices.shape, A_some_importance_weights.shape)
 
-        if staleness_threshold is None or staleness <= staleness_threshold:
+        staleness_lst += [staleness]
+
+
+        if staleness <= staleness_threshold:
             nbr_accepted += 1
             L_indices.append(A_some_indices)
             L_importance_weights.append(A_some_importance_weights)
         else:
-            # This is okay during development, but it's not a nice way to
-            # monitor a quantity.
-            if random.uniform(0,1) < 0.00001:
-                print "REJECTING WITH STALENESS", staleness
+            pass
 
-    if random.uniform(0,1) < 0.01:
+
+        nbr_seen += 1
+
+    if random.uniform(0,1) < 0.1:
         print "Accepted %d / %d = %f of importance weights minibatches. " % (nbr_accepted, nbr_seen, nbr_accepted * 1.0 / nbr_seen)
 
     if len(L_indices) == 0:
@@ -115,7 +123,8 @@ def sample_indices_and_scaling_factors( rsconn,
                                         master_usable_importance_weights_threshold_to_ISGD=None,
                                         want_master_to_do_USGD_when_ISGD_is_not_possible=True,
                                         Ntrain=None,
-                                        importance_weight_additive_constant=None):
+                                        importance_weight_additive_constant=None,
+                                        turn_off_importance_sampling=False):
 
     # The reason why we want to pass `Ntrain` to this function is because we might
     # want to make decisions based on the number of present importance weights.
@@ -125,15 +134,20 @@ def sample_indices_and_scaling_factors( rsconn,
 
     A_importance_weights, nbr_of_usable_importance_weights = get_importance_weights(rsconn, staleness_threshold, importance_weight_additive_constant)
 
+    if turn_off_importance_sampling and A_importance_weights is not None:
+        A_importance_weights *= 0.0
+
     # Try to do ISGD before trying anything else..
     if master_usable_importance_weights_threshold_to_ISGD is not None:
         ratio_of_usable_importance_weights = nbr_of_usable_importance_weights * 1.0 / Ntrain
         if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
-            print "Master has a ratio of usable importance weights %f which meets the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
+            if random.uniform(0,1) < 0.01:
+                print "Master has a ratio of usable importance weights %f which meets the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
             A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
             return ('proceed', 'ISGD', A_sampled_indices, A_scaling_factors)
         else:
-            print "Master has a ratio of usable importance weights %f which falls shorts of the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
+            if random.uniform(0,1) < 0.01:
+                print "Master has a ratio of usable importance weights %f which falls shorts of the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
 
 
     # So, we're not going to do ISGD, but maybe we still want to do USGD.
@@ -159,7 +173,7 @@ def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples
     #        then you will need to update the documentation at the
     #        botton of this document.
 
-    if A_importance_weights.sum() < 1e-16:
+    if A_importance_weights is None or A_importance_weights.sum() < 1e-16:
         #print "All the importance_weight are zero. There is nothing to be done with this."
         #print "The only possibility is to report them to be as though they were all 1.0."
         #import pdb; pdb.set_trace()
@@ -169,6 +183,7 @@ def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples
     # You can get complaints from np.random.multinomial if you are in float32
     # because rounding errors can bring your sum() to a little above 1.0.
     A_importance_weights = A_importance_weights.astype(np.float64)
+
     p = A_importance_weights / A_importance_weights.sum()
 
     A_sampled_indices_counts = np.random.multinomial(nbr_samples, p)

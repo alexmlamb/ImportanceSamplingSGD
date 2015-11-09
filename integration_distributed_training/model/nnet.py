@@ -227,13 +227,6 @@ class NeuralNetwork:
         # elsewhere in this class. Don't get confused.
         (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance, individual_gradient_square_norm) = self.func_master_process_minibatch(X_minibatch, Y_minibatch, A_scaling_factors)
 
-        if self.num_minibatches_processed_master % 500 == 0:
-            # Note for Alex : This should be something that goes in the python logger.
-            print segment, "Master processed minibatch #", self.num_minibatches_processed_master
-            print segment, "Scaling factors", A_scaling_factors
-            print segment, "** Master **"
-            print segment, "    cost : %f    accuracy : %f    mean_gradient_square_norm : %f    mean_gradient_variance : %f" % (cost, accuracy, mean_gradient_square_norm, mean_gradient_variance)
-
         self.num_minibatches_processed_master += 1
 
         # The mean_gradient_square_norm and mean_gradient_variance
@@ -247,3 +240,5 @@ class NeuralNetwork:
         # For use in debugging, we return here the `individual_gradient_square_norm`.
         # This can change to suit our debugging needs.
         return individual_gradient_square_norm
+
+

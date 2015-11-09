@@ -28,6 +28,9 @@ def run(DD_config, D_server_desc):
     rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
                                      timeout=60, wait_for_parameters_to_be_present=True)
 
+
+    num_importance_weight_batches_processed = 0
+
     L_measurements = DD_config['database']['L_measurements']
     serialized_parameters_format = DD_config['database']['serialized_parameters_format']
 
@@ -44,6 +47,8 @@ def run(DD_config, D_server_desc):
         for (i, e) in enumerate(segment_priorities_p):
             if r <= e:
                 return segment_priorities_v[i]
+
+    num_minibatches_master_processed = -1
 
     # The worker has to watch two things.
     #
@@ -66,7 +71,7 @@ def run(DD_config, D_server_desc):
     #        throttle based on the time that it takes to sync the parameters on average.
 
     # This could be a constant from the configuration.
-    minimum_number_of_minibatch_processed_before_parameter_update = 4
+    minimum_number_of_minibatch_processed_before_parameter_update = DD_config['database']['minimum_number_of_minibatch_processed_before_parameter_update']
     M = minimum_number_of_minibatch_processed_before_parameter_update
     m = M
 
@@ -83,6 +88,8 @@ def run(DD_config, D_server_desc):
             tic = time.time()
             new_parameters_current_timestamp = rsconn.get("parameters:current_timestamp")
             if parameters_current_timestamp != new_parameters_current_timestamp:
+
+                num_minibatches_master_processed = rsconn.get("num_minibatches_master_processed")
 
                 current_parameters_str = rsconn.get("parameters:current")
                 if len(current_parameters_str) == 0:
@@ -149,7 +156,11 @@ def run(DD_config, D_server_desc):
             tic = time.time()
             current_minibatch_indices = np.fromstring(current_minibatch_indices_str, dtype=np.int32)
             # This returns a dictionary of numpy arrays.
+            t0 = time.time()
             DA_measurements = model_api.worker_process_minibatch(current_minibatch_indices, segment, L_measurements)
+            print time.time() - t0, "TIME TO CALL WORKER PROCESS MINIBATCH"
+
+            num_importance_weight_batches_processed += 1
 
             # Update the measurements. Update the timestamps.
             # None of the measurements should be missing.
@@ -170,7 +181,13 @@ def run(DD_config, D_server_desc):
                     #import pdb; pdb.set_trace()
 
                 # Write 0.0 as default value in all the measurements.
+
+
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), current_minibatch_indices_str, A_values.tostring(order='C'))
+
+                print "NUMBER MINIBATCHES IMPORTANCE WEIGHTS PROCESSED", num_importance_weight_batches_processed
+
+                rsconn.hset("H_%s_minibatch_%s_measurement_num_minibatches_master_processed" % (segment, measurement), current_minibatch_indices_str, num_minibatches_master_processed)
 
                 previous_update_timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
                 if previous_update_timestamp_str is None or len(previous_update_timestamp_str) == 0:

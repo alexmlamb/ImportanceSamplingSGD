@@ -35,9 +35,9 @@ def run(DD_config, D_server_desc):
     Ntrain = DD_config['database']['Ntrain']
     # Default behavior is to have no staleness, and perform ISGD from the moment that we
     # get values for all the importance weights. Until then, we do USGD.
-    staleness_threshold = DD_config['database'].get('staleness_threshold', None)
+    staleness_threshold = DD_config['database']['staleness_threshold_seconds']
     want_master_to_do_USGD_when_ISGD_is_not_possible = DD_config['database'].get('want_master_to_do_USGD_when_ISGD_is_not_possible', True)
-    master_usable_importance_weights_threshold_to_ISGD = DD_config['database'].get('master_usable_importance_weights_threshold_to_ISGD', 1.0)
+    master_usable_importance_weights_threshold_to_ISGD = DD_config['database']['master_usable_importance_weights_threshold_to_ISGD']
 
     model_api = ModelAPI(DD_config['model'])
 
@@ -75,7 +75,7 @@ def run(DD_config, D_server_desc):
     # are 1.0, so things could start with Task (2) since the assistant
     # would start by resampling the indices.
 
-    nbr_batch_processed_per_public_parameter_update = 1
+    nbr_batch_processed_per_public_parameter_update = DD_config['database']['nbr_batch_processed_per_public_parameter_update']
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 
@@ -97,6 +97,7 @@ def run(DD_config, D_server_desc):
             print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
             quit()
 
+        rsconn.set("num_minibatches_master_processed", num_minibatches_master_processed)
         rsconn.set("parameters:current", current_parameters_str)
         rsconn.set("parameters:current_timestamp", time.time())
         # potentially not used
@@ -108,7 +109,8 @@ def run(DD_config, D_server_desc):
         # updated. This can take a minute or so, and it's not a very good approach.
         # However, it's the way to see what would happen if we implemented ISGD exactly
         # without using any stale importance weights.
-        #    wait_until_all_measurements_are_updated_by_workers(rsconn, "train", "importance_weight")
+        
+        #wait_until_all_measurements_are_updated_by_workers(rsconn, "train", "importance_weight")
 
         # Task (2)
 
@@ -123,31 +125,17 @@ def run(DD_config, D_server_desc):
                     master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
                     want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
                     Ntrain=Ntrain,
-                    importance_weight_additive_constant=None)
+                    importance_weight_additive_constant=DD_config["model"]["importance_weight_additive_constant"],
+                    turn_off_importance_sampling=DD_config["model"]["turn_off_importance_sampling"])
 
-
-<<<<<<< HEAD
-                #print "#Unique", np.unique(A_sampled_indices).shape[0]
-
-                #A_scaling_factors = A_scaling_factors * 0.0 + 1.0
-                #epsilon = 1.0
-                #A_scaling_factors = 1.0 / (epsilon + 1.0 / A_scaling_factors)
-                A_scaling_factors = A_scaling_factors.clip(0.0, 1.0)
-=======
                 # Note from Guillaume : This should probably instead be a call to
                 # get_mean_variance_measurement_on_database(rsconn, "train", "accuracy")
                 # get_mean_variance_measurement_on_database(rsconn, "test", "accuracy")
                 #
->>>>>>> c6dc54959e407e93904cc7179d45dff96d40c7b8
 
-                #Run
-                #if num_minibatches_master_processed % 500 == 0:
-                #    accLst = []
-                #    test_data_segments = [range(i * 500, (i + 1) * 500) for i in range(0,50)]
-                #
-                # for test_data_segment in test_data_segments:
-                #        accLst += [model_api.worker_process_minibatch(test_data_segment, "test", ["accuracy"])["accuracy"].mean()]
-                #    print "Test accuracy", sum(accLst) * 1.0 / len(accLst)
+                if random.uniform(0,1) < 0.01:
+                    print "scaling factors", A_scaling_factors
+
 
                 num_minibatches_master_processed += 1
 
@@ -162,7 +150,9 @@ def run(DD_config, D_server_desc):
 
                 if intent == 'proceed':
 
-                    debug_this_section = False
+                    new_gradient_norm_from_worker = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])["importance_weight"]
+
+                    debug_this_section = True
                     if not debug_this_section:
 
                         print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
@@ -172,47 +162,27 @@ def run(DD_config, D_server_desc):
                     else:
                         # This is a debugging section that will be removed eventually.
 
-                        new_gradient_norm = model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+
+                        model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
                         # breaking will continue to the main looping section
 
-                        old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=None, N=DD_config['database']['Ntrain'])
+                        new_gradient_norm_from_worker_after_update = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])["importance_weight"]
 
-<<<<<<< HEAD
-                    if random.uniform(0,1) < 0.01:
-                        print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
-                        print "OLD GRAD NORM 111", old_gradient_norm[0][111]
+                        old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=float('inf'), N=DD_config['database']['Ntrain'])
 
-                        print "OLD GRAD NORM MEAN", old_gradient_norm[0].mean()
-                        print "NEW GRAD NORM MEAN", new_gradient_norm.mean()
-
-
-                        new_gradient_norm_from_worker = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])["importance_weight"]
-
-                        time.sleep(400.0)
-
-                        print new_gradient_norm_from_worker
-
-                        if 111 in A_sampled_indices:
-                            print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
-
-
-
-
-                    break
-=======
                         if random.uniform(0,1) < 0.01:
-                        #if True:
-                            print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm.round(8).tolist())
-                            print "OLD GRAD NORM 111", old_gradient_norm[0][111]
-                            if 111 in A_sampled_indices:
-                                print "NEW GRAD NORM 111", new_gradient_norm[A_sampled_indices.index(111)]
+                            print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
+                            print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm_from_worker.round(8).tolist())
+                            print "old,new pairs after update", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm_from_worker_after_update.round(8).tolist())
+                            print "change in gradnorm after update", zip(new_gradient_norm_from_worker.round(8).tolist(), new_gradient_norm_from_worker_after_update.round(8).tolist())
+                            print "Average gradient norm in sampled minibatch", new_gradient_norm_from_worker.mean()
+                            print "Correlation between gradient norm from database and gradient norm computed on master", np.corrcoef(old_gradient_norm[0][A_sampled_indices], new_gradient_norm_from_worker)
                         break
-
->>>>>>> c6dc54959e407e93904cc7179d45dff96d40c7b8
 
 
             toc = time.time()
-            print "The master has processed one minibatch. It took %f seconds." % (toc - tic,)
+            if random.uniform(0,1) < 0.01:
+                print "The master has processed one minibatch. It took %f seconds." % (toc - tic,)
 
 # Extra debugging information for `sample_indices_and_scaling_factors`
 # as it was first successfully written. This is documentation.

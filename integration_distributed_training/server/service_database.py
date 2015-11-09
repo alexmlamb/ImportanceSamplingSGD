@@ -14,6 +14,8 @@ import sys
 from startup import delete_bootstrap_file
 from common import get_mean_variance_measurement_on_database
 
+import logging
+
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
                 dataset_name,
@@ -94,11 +96,32 @@ def configure(  rsconn,
     rsconn.set("initialization_is_done", True)
 
 
+def setup_logger(folder):
+
+    timestamp = str(int(time.time()))
+
+    log = logging.getLogger('')
+    log.setLevel(logging.INFO)
+    ch = logging.StreamHandler(sys.stderr)
+    ch.setLevel(logging.INFO)
+    fh = logging.FileHandler(folder + "log_" + timestamp + "_.txt","w")
+    fh.setLevel(logging.INFO)
+    log.addHandler(ch)
+    log.addHandler(fh)
+
 
 def run(DD_config, rserv, rsconn, bootstrap_file):
 
     configure(  rsconn,
                 **DD_config['database'])
+
+    #Set up logging system.  
+
+    setup_logger(folder = DD_config["database"]["logging_folder"])
+
+    import pprint
+
+    logging.info(pprint.pformat(DD_config))
 
     # Use `rserv` to be able to shut down the
     # redis-server when the user hits CTRL+C.
@@ -107,21 +130,29 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     # getting tangled together.
 
     def signal_handler(signal, frame):
-        print("You pressed CTRL+C.")
-        print("Sending shutdown command to the redis-server.")
+        logging.info("You pressed CTRL+C.")
+        logging.info("Sending shutdown command to the redis-server.")
         rserv.stop()
         delete_bootstrap_file(bootstrap_file)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
 
+    maximum_validation_accuracy = -1.0
+
     while True:
-        print "Running server. Press CTLR+C to stop. Timestamp %f." % time.time()
+        logging.info("Running server. Press CTLR+C to stop. Timestamp %f." % time.time())
+        logging.info("Number minibatches processed by master    " + str(rsconn.get('num_minibatches_master_processed')))
         #signal.pause()
         for segment in ["train", "valid", "test"]:
-            print "-- %s " % segment
+            logging.info("-- %s " % segment)
             for measurement in ["loss", "accuracy", "gradient_variance"]:
                 (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
-                print "---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
+                if segment == "valid" and measurement == "accuracy" and mean > maximum_validation_accuracy:
+                    maximum_validation_accuracy = mean
+                    logging.info("                                                                      ---Highest Validation Accuracy so Far---")
+                logging.info("---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r))
+
+        logging.info("Highest Validation Accuracy seen so far " + str(maximum_validation_accuracy))
         time.sleep(5)
-        print ""
+        logging.info("")
