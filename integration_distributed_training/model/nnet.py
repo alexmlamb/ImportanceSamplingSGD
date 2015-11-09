@@ -215,10 +215,25 @@ class NeuralNetwork:
         # DEBUG : Set all those quantities to something random, and see what happens.
         #         This is not the same thing as actually influencing the gradients.
         #         We are just messing with the values in the database.
+        # Tip :   Use values that don't have expectation 0. The trouble with
+        #         things that have expectation 0 is that you get a mu2 term
+        #         that is very small and difficult to measure accurately.
+        #         With random values, and expectation 0, you are easily
+        #         misled to conclude that you cannot do anything useful
+        #         with the measurements available because the differences
+        #         to estimate Trace(Covariance) lead to negative values !
+
+        #print "Before override."
+        #print "individual_gradient_square_norm.shape : %s" % str(individual_gradient_square_norm.shape,)
+        #print "minibatch_gradient_mean_square_norm.shape : %s" % str(minibatch_gradient_mean_square_norm.shape,)
         #(N, d) = (individual_gradient_square_norm.shape[0], 10)
-        #G = np.random.randn(N, d)
+        #G = (np.random.randn(N, d) + np.tile(np.arange(d), (N,1))).astype(np.float32)
+        #G = np.tile(np.arange(d), (N,1)).astype(np.float32)
         #individual_gradient_square_norm = (G**2).sum(axis=1)
         #minibatch_gradient_mean_square_norm = ((G.mean(axis=0))**2).sum()
+        #print "After override."
+        #print "individual_gradient_square_norm.shape : %s" % str(individual_gradient_square_norm.shape,)
+        #print "minibatch_gradient_mean_square_norm.shape : %s" % str(minibatch_gradient_mean_square_norm.shape,)
 
         # The individual_gradient_square_norm.mean() and individual_gradient_variance.mean()
         # are not written to the database, but they would be really nice to log to have a
@@ -233,7 +248,6 @@ class NeuralNetwork:
                     'individual_loss' : individual_cost,
                     'individual_accuracy' : individual_accuracy.astype(dtype=np.float32),
                     'individual_gradient_square_norm' : individual_gradient_square_norm,
-                    'individual_importance_weight' : individual_gradient_square_norm,
                     'minibatch_gradient_mean_square_norm' : np.array(minibatch_gradient_mean_square_norm),
                     # old measurement names
                     'importance_weight' : individual_gradient_square_norm,

@@ -127,13 +127,23 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
                 print "---- %s : mean %0.12f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
         time.sleep(5)
         print ""
-        (usgd2, staleisgd2, isgd2, mu2, nbr_minibatches_used, nbr_minibatches) = get_trace_covariance_information(rsconn, "train", minimum_ratio_present=0.1)
+
+        (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches) = get_trace_covariance_information(rsconn, "train")
         # Make sure that you have a reasonable number of readings before
         # reporting those statistics.
-        if usgd2 is not None and staleisgd2 is not None and isgd2 is not None and mu2 is not None:
+        if 0.1 <= ratio_of_usable_indices_for_USGD_and_ISGD:
+            assert usgd2 is not None and isgd2 is not None and mu2 is not None
             print "Approximative norm squares of the mean gradient over whole dataset : %0.12f." % (mu2, )
             print "Trace(Cov USGD) without mu2 : %0.12f." % (usgd2 ,)
-            print "Trace(Cov Stale ISGD) without mu2 : %0.12f." % (staleisgd2 ,)
             print "Trace(Cov ISGD) without mu2: %0.12f." % (isgd2 ,)
-            time.sleep(5)
-            print ""
+        else:
+            print "ratio_of_usable_indices_for_USGD_and_ISGD %f not high enough to report those numbers" % ratio_of_usable_indices_for_USGD_and_ISGD
+
+        if 0.1 <= ratio_of_usable_indices_for_ISGDstale:
+            print "Trace(Cov Stale ISGD) without mu2 : %0.12f." % (staleisgd2 ,)
+        else:
+            print "ratio_of_usable_indices_for_ISGDstale %f not high enough to report those numbers" % ratio_of_usable_indices_for_ISGDstale
+
+
+        time.sleep(5)
+        print ""
