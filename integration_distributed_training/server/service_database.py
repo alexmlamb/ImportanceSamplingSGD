@@ -11,6 +11,8 @@ import getopt
 import signal
 import sys
 
+import pprint
+
 from startup import delete_bootstrap_file
 from common import get_mean_variance_measurement_on_database, get_trace_covariance_information
 
@@ -81,8 +83,12 @@ def configure(  rsconn,
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
                 rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
 
+
             for measurement in ['previous_individual_importance_weight']:
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
+
+
+
 
     # The master does not really differentiate between the various
     # segments of the dataset. It just takes whatever it is fed
@@ -120,7 +126,6 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
 
     setup_logger(folder = DD_config["database"]["logging_folder"])
 
-    import pprint
 
     logging.info(pprint.pformat(DD_config))
 
@@ -156,6 +161,8 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
 
         logging.info("Highest Validation Accuracy seen so far " + str(maximum_validation_accuracy))
 
+        time.sleep(20.0)
+
         (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches) = get_trace_covariance_information(rsconn, "train")
         # Make sure that you have a reasonable number of readings before
         # reporting those statistics.
@@ -173,3 +180,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
             logging.info("ratio_of_usable_indices_for_ISGDstale %f not high enough to report those numbers" % ratio_of_usable_indices_for_ISGDstale)
 
         logging.info("")
+
+
+
+

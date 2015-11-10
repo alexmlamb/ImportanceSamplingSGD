@@ -50,8 +50,9 @@ def run(DD_config, D_server_desc):
     # so this is just a sanity check.
     segment = "train"
     measurement = "individual_importance_weight"
-    nbr_of_present_importance_weights = rsconn.hlen("H_%s_minibatch_%s" % (segment, measurement))
-    assert 0 < nbr_of_present_importance_weights, "Error. The database should have been set up to have dummy importance weights at least."
+    #nbr_of_present_importance_weights = rsconn.hlen("H_%s_minibatch_%s" % (segment, measurement))
+    #assert 0 < nbr_of_present_importance_weights, "Error. The database should have been set up to have dummy importance weights at least."
+
     #print "Master found %d importance weights in the database." % nbr_of_present_importance_weights
 
 

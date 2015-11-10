@@ -5,7 +5,7 @@ def get_model_config():
     config = {}
 
     #Importance sampling or vanilla sgd.
-    config["turn_off_importance_sampling"] = True
+    config["turn_off_importance_sampling"] = False
 
     #Momentum rate, where 0.0 corresponds to not using momentum
     config["momentum_rate"] = 0.9
@@ -43,7 +43,7 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     config["fraction_validation"] = 0.05
 
-    config["importance_weight_additive_constant"] = 0.01
+    config["importance_weight_additive_constant"] = 10.0
 
     return config
 
@@ -83,7 +83,7 @@ def get_database_config():
     # the values of (Ntrain, Nvalid, Ntest).
     dataset_name='svhn'
 
-    L_measurements=["importance_weight", "gradient_square_norm", "loss", "accuracy"]
+    L_measurements=["individual_importance_weight", "gradient_square_norm", "loss", "accuracy", "minibatch_gradient_mean_square_norm", "individual_gradient_square_norm"]
 
     minimum_number_of_minibatch_processed_before_parameter_update = 10
     nbr_batch_processed_per_public_parameter_update = 10

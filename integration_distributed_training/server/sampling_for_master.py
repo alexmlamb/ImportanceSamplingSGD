@@ -40,6 +40,7 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
     for i in range(nbr_minibatches):
         current_minibatch_indices_str = rsconn.lindex(db_list_name, i)
 
+
         #Here let's pull up the staleness records!
         timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
 
@@ -51,6 +52,9 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
             staleness = float('inf')
 
         if timestamp_str is None or len(timestamp_str) == 0:
+
+            print "TIMESTAMP STR", timestamp_str
+            
             print "ERROR. There is a bug somewhere because there is never a situation where a measurement can be present without a timestamp."
             print "We can easily recover from this error by just accepting the importance weight anyway, but we would be sweeping a bug under the rug by doing so."
             quit()
