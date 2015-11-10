@@ -73,11 +73,12 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
         else:
             # This is okay during development, but it's not a nice way to
             # monitor a quantity.
-            if random.uniform(0,1) < 0.00001:
-                print "REJECTING WITH STALENESS", staleness
+            #if random.uniform(0,1) < 0.00001:
+            #    print "REJECTING WITH STALENESS", staleness
+            pass
 
-    if random.uniform(0,1) < 0.01:
-        print "Accepted %d / %d = %f of importance weights minibatches. " % (nbr_accepted, nbr_minibatches, nbr_accepted * 1.0 / nbr_minibatches)
+    #if random.uniform(0,1) < 0.01:
+    #    print "Accepted %d / %d = %f of importance weights minibatches. " % (nbr_accepted, nbr_minibatches, nbr_accepted * 1.0 / nbr_minibatches)
 
     if len(L_indices) == 0:
         # All the importance weights are stale.
@@ -113,21 +114,18 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
     return A_importance_weights, nbr_of_present_importance_weights
 
 
-def sample_indices_and_scaling_factors( rsconn,
+def sample_indices_and_scaling_factors( A_importance_weights,
+                                        nbr_of_usable_importance_weights,
                                         nbr_samples,
-                                        staleness_threshold=None,
                                         master_usable_importance_weights_threshold_to_ISGD=None,
                                         want_master_to_do_USGD_when_ISGD_is_not_possible=True,
-                                        Ntrain=None,
-                                        importance_weight_additive_constant=None):
+                                        Ntrain=None):
 
     # The reason why we want to pass `Ntrain` to this function is because we might
     # want to make decisions based on the number of present importance weights.
 
     if master_usable_importance_weights_threshold_to_ISGD is not None or want_master_to_do_USGD_when_ISGD_is_not_possible:
         assert Ntrain is not None, "Ntrain has to be specified to sample_indices_and_scaling_factors when we use master_usable_importance_weights_threshold_to_ISGD or want_master_to_do_USGD_when_ISGD_is_not_possible."
-
-    A_importance_weights, nbr_of_usable_importance_weights = get_importance_weights(rsconn, staleness_threshold, importance_weight_additive_constant)
 
     # Try to do ISGD before trying anything else..
     if master_usable_importance_weights_threshold_to_ISGD is not None:
@@ -184,7 +182,8 @@ def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples
     # a corresponding number of times (and then concatenate everything).
     A_sampled_indices = np.array(reduce(lambda x,y : x + y, [[i] * A_sampled_indices_counts[i] for i in I]))
 
-    A_unnormalized_scaling_factors = np.array([np.float64(1.0)/A_importance_weights[i] for i in A_sampled_indices])
+    #A_unnormalized_scaling_factors = np.array([np.float64(1.0)/A_importance_weights[i] for i in A_sampled_indices])
+    A_unnormalized_scaling_factors = A_unnormalized_scaling_factors = (np.float64(1.0) / A_importance_weights[A_sampled_indices]).astype(np.float64)
 
     # You could argue that we want to divide this by `nbr_samples`,
     # but it depends on how you negociate the role of the minibatch size

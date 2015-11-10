@@ -52,6 +52,9 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     model_config["fraction_validation"] = 0.05
 
+    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 8)
+    model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 4)
+
     return model_config
 
 
@@ -90,6 +93,9 @@ def get_database_config():
 
     # The master will only consider importance weights which were updated this number of seconds ago.
     staleness_threshold = 5*60.0
+
+    # Guillaume is not so fond of this approach.
+    importance_weight_additive_constant = None
 
     serialized_parameters_format ="opaque_string"
 
@@ -148,7 +154,8 @@ def get_database_config():
                 default_importance_weight=default_importance_weight,
                 want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
-                staleness_threshold=staleness_threshold)
+                staleness_threshold=staleness_threshold,
+                importance_weight_additive_constant=importance_weight_additive_constant)
 
 def get_helios_config():
     # Optional.
