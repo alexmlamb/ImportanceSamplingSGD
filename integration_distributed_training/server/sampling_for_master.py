@@ -132,7 +132,7 @@ def sample_indices_and_scaling_factors( A_importance_weights,
         ratio_of_usable_importance_weights = nbr_of_usable_importance_weights * 1.0 / Ntrain
         if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
             print "Master has a ratio of usable importance weights %d / %d = %f which meets the required threshold of %f." % (nbr_of_usable_importance_weights, Ntrain, ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
-            A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
+            A_sampled_indices, A_scaling_factors = recipe2(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
             return ('proceed', 'ISGD', A_sampled_indices, A_scaling_factors)
         else:
             print "Master has a ratio of usable importance weights %f which falls shorts of the required threshold of %f." % (ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
@@ -209,5 +209,43 @@ def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples
 
 
 def recipe2(A_importance_weights, nbr_of_present_importance_weights, nbr_samples):
-    # If you want to add another method, you can do it here.
-    pass
+
+    # A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
+
+    if A_importance_weights.sum() < 1e-16:
+        #print "All the importance_weight are zero. There is nothing to be done with this."
+        #print "The only possibility is to report them to be as though they were all 1.0."
+        #import pdb; pdb.set_trace()
+        A_sampled_indices = np.random.randint(low=0, high=A_importance_weights.shape[0], size=nbr_samples).astype(np.int32)
+        return A_sampled_indices, np.ones(A_sampled_indices.shape, dtype=np.float64)
+
+    # You can get complaints from np.random.multinomial if you are in float32
+    # because rounding errors can bring your sum() to a little above 1.0.
+    A_importance_weights = A_importance_weights.astype(np.float64)
+    p = A_importance_weights / A_importance_weights.sum()
+
+    A_sampled_indices = np.random.choice(p.shape[0], size=nbr_samples, p=p)
+
+    A_unnormalized_scaling_factors = A_unnormalized_scaling_factors = (np.float64(1.0) / A_importance_weights[A_sampled_indices]).astype(np.float64)
+
+    # You could argue that we want to divide this by `nbr_samples`,
+    # but it depends on how you negociate the role of the minibatch size
+    # in the loss function.
+    #
+    # Since the scaling factors will end up being used in training and each
+    # attributed to one point from the minibatch, then we probably don't want
+    # to include `nbr_samples` in any way.
+    #
+    # Basically, if we had uniform importance weights, here we would be
+    # multiplying by Ntrain and dividing by Ntrain. We are doing the equivalent
+    # of that for importance sampling.
+    #
+    # Another thing worth noting is that we could basically return
+    #     A_importance_weights.mean() / A_importance_weights
+    # but then we would not be taking into consideration the situation in which
+    # only some of the importance weights were specified and many were missing.
+    # Maybe this is not necessary, though.
+    Z = ( nbr_of_present_importance_weights / A_importance_weights.sum())
+    A_scaling_factors = (A_unnormalized_scaling_factors / Z).astype(np.float64)
+
+    return A_sampled_indices, A_scaling_factors
