@@ -1,15 +1,10 @@
 __author__ = 'chinna'
-import theano
-from theano import tensor as T
+
 import numpy as np
-import matplotlib.pyplot as plt
-from theano import shared
-from theano import function
-import scipy as sp
-from scipy import signal
-from PIL import Image
+#import matplotlib.pyplot as plt
 import re
 import math
+import matplotlib
 
 def conv_number(s):
     try:
@@ -21,13 +16,13 @@ def conv_number(s):
         return 0
 
 def get_config():
-    #data_root = '/u/lambalex/DeepLearning/ImportanceSampling/logs/'
-    data_root = '/Users/chinna/ImportanceSamplingSGD_alex/logging/'
+    data_root = '/u/lambalex/DeepLearning/ImportanceSampling/logs/'
+    #data_root = '/Users/chinna/ImportanceSamplingSGD_alex/logging/'
     config = {}
-    config['files'] = {'usgd': data_root + 'log_1447166866_.txt',
-                       'isgd': data_root + 'log_1447167499_.txt',
-                       'isgd_bug' : data_root + 'log_1447167499_.txt'}
-    config['plot'] = data_root + 'plot.jpeg'
+    config['files'] = {'usgd': data_root + 'log_1446969742_.txt',
+                       'isgd': data_root + 'log_1447143588_.txt',
+                       'isgd_bug' : data_root + 'log_1447060083_.txt'}
+    config['plot'] = '/u/sankarch/Documents/ImportanceSamplingSGD/model_protoype/exp_chinna/' + 'plot.jpeg'
     return config
 
 class parser_class:
@@ -55,7 +50,7 @@ class parser_class:
         for line in fd:
             self.update_L_accuracy(line,L_accuracy)
             #self.update_L_mini_batch(line)
-        print "finished parsing",file
+        print "finished parsing",file,len(L_accuracy)
         return L_accuracy
 
     def parse(self):
@@ -63,6 +58,8 @@ class parser_class:
             self.L_accuracy[f_type] = self.parse_file(file)
 
     def plot(self):
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
         #match = re.match(r'(log_)(\S).txt',self.file)
         #plt_file = match.group(2)
         for k,v in self.L_accuracy.items():
