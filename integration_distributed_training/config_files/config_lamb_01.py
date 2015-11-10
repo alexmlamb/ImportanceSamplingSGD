@@ -43,7 +43,7 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     config["fraction_validation"] = 0.05
 
-    config["importance_weight_additive_constant"] = 10.0
+    config["importance_weight_additive_constant"] = 5.0
 
     return config
 
