@@ -39,7 +39,7 @@ def run(DD_config, D_server_desc):
     Ntrain = DD_config['database']['Ntrain']
     # Default behavior is to have no staleness, and perform ISGD from the moment that we
     # get values for all the importance weights. Until then, we do USGD.
-    staleness_threshold = DD_config['database']['staleness_threshold_seconds']
+    staleness_threshold = DD_config['database']['staleness_threshold']
     want_master_to_do_USGD_when_ISGD_is_not_possible = DD_config['database'].get('want_master_to_do_USGD_when_ISGD_is_not_possible', True)
     master_usable_importance_weights_threshold_to_ISGD = DD_config['database'].get('master_usable_importance_weights_threshold_to_ISGD', 1.0)
     master_routine = DD_config['model']['master_routine']
@@ -184,7 +184,8 @@ def run(DD_config, D_server_desc):
                         nbr_samples=master_minibatch_size,
                         master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
                         want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
-                        turn_off_importance_sampling=turn_off_importance_sampling)
+                        turn_off_importance_sampling=turn_off_importance_sampling,
+                        Ntrain=Ntrain)
                 toc = time.time()
                 remote_redis_logger.log('timing_profiler', {'sample_indices_and_scaling_factors' : (toc-tic)})
 

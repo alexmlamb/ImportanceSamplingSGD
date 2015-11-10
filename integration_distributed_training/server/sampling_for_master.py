@@ -127,19 +127,22 @@ def sample_indices_and_scaling_factors( A_importance_weights,
                                         turn_off_importance_sampling=False,
                                         Ntrain=None):
 
-    # DEBUG : This value of `N` (previously `Ntrain`) was specified as argument before.
-    #         I don't think we need to pass it like that, but let's be careful about
-    #         assuming that this change doesn't break something.
-    N = A_importance_weights.shape[0]
+    # This value of `Ntrain` needs only to be passed when the A_importance_weights is None.
+    # Technically, it's not really the cardinality of the training set, but it's a bit less
+    # than that when the minibatches of the training set miss out a few examples.
+    # For example, 1000 training examples split into minibatches of size 32 will leave out 8 examples.
+    if A_importance_weights is not None:
+        assert Ntrain is not None
+        assert Ntrain == A_importance_weights.shape[0]
 
     if turn_off_importance_sampling:
-        A_sampled_indices = np.random.permutation(N)[0:nbr_samples]
+        A_sampled_indices = np.random.permutation(Ntrain)[0:nbr_samples]
         A_scaling_factors = np.ones(A_sampled_indices.shape)
         return ('proceed', 'USGD', A_sampled_indices, A_scaling_factors)
 
     # Try to do ISGD before trying anything else..
     if master_usable_importance_weights_threshold_to_ISGD is not None:
-        ratio_of_usable_importance_weights = nbr_of_usable_importance_weights * 1.0 / N
+        ratio_of_usable_importance_weights = nbr_of_usable_importance_weights * 1.0 / Ntrain
         if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
             if random.uniform(0,1) < 0.01:
                 print "Master has a ratio of usable importance weights %d / %d = %f which meets the required threshold of %f." % (nbr_of_usable_importance_weights, Ntrain, ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
@@ -154,7 +157,7 @@ def sample_indices_and_scaling_factors( A_importance_weights,
     # In that particular case, we don't care at all about how stale the values could be,
     # or not even about whether the importance weights are present or not.
     if want_master_to_do_USGD_when_ISGD_is_not_possible:
-        A_sampled_indices = np.random.permutation(N)[0:nbr_samples]
+        A_sampled_indices = np.random.permutation(Ntrain)[0:nbr_samples]
         A_scaling_factors = np.ones(A_sampled_indices.shape)
         return ('proceed', 'USGD', A_sampled_indices, A_scaling_factors)
     else:

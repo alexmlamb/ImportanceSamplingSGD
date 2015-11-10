@@ -172,7 +172,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
             for measurement in ["individual_loss", "individual_accuracy", "individual_gradient_square_norm"]:
                 (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
                 std = np.sqrt(variance)
-                if segment == "valid" and measurement == "accuracy" and mean > maximum_validation_accuracy:
+                if segment == "valid" and measurement == "individual_accuracy" and mean > maximum_validation_accuracy:
                     maximum_validation_accuracy = mean
                     logging.info("                                                                      ---Highest Validation Accuracy so Far---")
                 logging.info("---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, std, r))

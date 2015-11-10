@@ -67,6 +67,8 @@ def get_database_config():
     redis_dbfilename = "dump.rdb"
     redis_dir = os.path.join(os.environ['HOME'], "tmp")
 
+    logging_folder = "."
+
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
 
@@ -163,6 +165,7 @@ def get_database_config():
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
                 staleness_threshold=staleness_threshold,
                 importance_weight_additive_constant=importance_weight_additive_constant,
+                logging_folder=logging_folder,
                 redis_dbfilename=redis_dbfilename,
                 redis_dir=redis_dir)
 
