@@ -30,7 +30,6 @@ class Logger(object):
         pickle.dump(self.DL_logs, open(path, "w"))
 
 
-
 class RedisLogger(Logger):
 
     def __init__(self, rsconn, queue_prefix_identifier=None):
@@ -62,8 +61,27 @@ class RedisLogger(Logger):
         #    if channel not in self.L_channels_currently_logged_on_database:
         #        self.rsconn.rpush(self.database_name_for_L_channels, "%s/%s" % (self.queue_prefix_identifier, channel)
 
-    def commit_and_clear(self):
+        # sync to database automatically after 30 seconds
+        self.auto_sync_period = 30
+        self.last_sync_timestamp = None
 
+    def log(self, channel, e):
+        # The point of having `forbid_sync` is that we don't want to
+        # have infinite recursion due to the fact that we log the event
+        # of database synchronization (which would otherwise potentially
+        # trigger another synchronization if the user had
+        # self.auto_sync_period = 0, which is a bad idea).
+        super(RedisLogger, self).log(channel, e)
+        if self.closed:
+            return
+        else:
+            self._auto_sync_if_necessary()
+
+    def close(self):
+        super(RedisLogger, self).close()
+        self.commit_and_clear()
+
+    def commit_and_clear(self):
         for channel in self.DL_logs.keys():
             queue_name_for_that_channel = "%s/%s" % (self.queue_prefix_identifier, channel)
             for e in self.DL_logs[channel]:
@@ -73,6 +91,13 @@ class RedisLogger(Logger):
             # make sure it's recorded in the database so we know how to get it
             self.rsconn.sadd(self.database_name_for_L_channels, channel)
 
-    def close(self):
-        super(RedisLogger, self).close()
-        self.commit_and_clear()
+    def _auto_sync_if_necessary(self):
+        tic = time.time()
+        if (self.last_sync_timestamp is None or
+            self.last_sync_timestamp + self.auto_sync_period <= tic):
+            tic = time.time()
+            self.commit_and_clear()
+            toc = time.time()
+            self.last_sync_timestamp = toc
+            self.log('timing_profiler', {'commit_and_clear' : (toc-tic)})
+            

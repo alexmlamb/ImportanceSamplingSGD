@@ -14,6 +14,8 @@ import sys
 from startup import delete_bootstrap_file
 from common import get_mean_variance_measurement_on_database, get_trace_covariance_information
 
+import integration_distributed_training.server.logger
+
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
                 dataset_name,
@@ -101,6 +103,8 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     configure(  rsconn,
                 **DD_config['database'])
 
+    logger = integration_distributed_training.server.logger.RedisLogger(rsconn, queue_prefix_identifier="service_database")
+
     # Use `rserv` to be able to shut down the
     # redis-server when the user hits CTRL+C.
     # Otherwise, the server is left in the background
@@ -108,23 +112,39 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     # getting tangled together.
 
     def signal_handler(signal, frame):
-        print("You pressed CTRL+C.")
-        print("Sending shutdown command to the redis-server.")
-        rserv.stop()
+        print "You pressed CTRL+C."
+        print "Closing the logger."
+        logger.log('event', "Received SIGTERM.")
+        logger.close()
+        print "Sending save and shutdown commands to the redis-server."
+        rserv.stop(want_save=True)
         delete_bootstrap_file(bootstrap_file)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
 
+    def sansgton(x):
+        # sanitize singleton so it can be written to json.
+        # Basically, it could be None, but you can't call float(None).
+        # It can't be a np.float32 or np.float64 either, you can you have to call float(x)
+        # on those values.
+        if x is None:
+            return float(np.nan)
+        else:
+            return float(x)
+
+    logger.log('event', "Before entering service_database main loop.")
     while True:
         print "Running server. Press CTLR+C to stop. Timestamp %f." % time.time()
         #signal.pause()
-        #for segment in ["train", "valid", "test"]:
-        for segment in ["train"]:
+        #for segment in ["train"]:
+        for segment in ["train", "valid", "test"]:
             print "-- %s " % segment
             for measurement in ["individual_loss", "individual_accuracy", "individual_gradient_square_norm"]:
                 (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
-                print "---- %s : mean %0.12f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r)
+                std = np.sqrt(variance)
+                print "---- %s : mean %0.12f, std %f    with %0.4f of values used." % (measurement, mean, std, r)
+                logger.log('measurement', {'name':measurement, 'segment':segment, 'mean':sansgton(mean), 'std':sansgton(std), 'ratio_used':r})
         time.sleep(5)
         print ""
 
@@ -144,6 +164,12 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
         else:
             print "ratio_of_usable_indices_for_ISGDstale %f not high enough to report those numbers" % ratio_of_usable_indices_for_ISGDstale
 
+        logger.log( 'SGD_trace_variance',
+                    {'approx_mu2':sansgton(mu2), 'usgd2':sansgton(usgd2), 'isgd2':sansgton(isgd2), 'staleisgd2':sansgton(staleisgd2),
+                     'ratio_of_usable_indices_for_USGD_and_ISGD':ratio_of_usable_indices_for_USGD_and_ISGD,
+                     'ratio_of_usable_indices_for_ISGDstale':ratio_of_usable_indices_for_ISGDstale})
 
         time.sleep(5)
         print ""
+
+        rsconn.bgsave()

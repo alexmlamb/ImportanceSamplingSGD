@@ -42,9 +42,9 @@ def get_model_config():
 
     model_config["hidden_sizes"] = [2048, 2048, 2048, 2048]
 
-    # Note from Guillaume : I'm not fond at all of using seeds in aindividual_ context
-    # where we don't need them.
-    model_config["seed"] = 9999494
+    # Note from Guillaume : I'm not fond at all of using seeds,
+    # but here it is used ONLY for the initial partitioning into train/valid.
+    model_config["seed"] = 42
 
     #Weights are initialized to N(0,1) * initial_weight_size
     model_config["initial_weight_size"] = 0.01
@@ -59,6 +59,11 @@ def get_model_config():
 
 
 def get_database_config():
+
+    # TODO : specify stuff about the redis database
+    #dbfilename dump.rdb
+    redis_dbfilename = "dump.rdb"
+    redis_dir = os.path.join(os.environ['HOME'], "tmp")
 
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
@@ -155,7 +160,9 @@ def get_database_config():
                 want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
                 staleness_threshold=staleness_threshold,
-                importance_weight_additive_constant=importance_weight_additive_constant)
+                importance_weight_additive_constant=importance_weight_additive_constant,
+                redis_dbfilename=redis_dbfilename,
+                redis_dir=redis_dir)
 
 def get_helios_config():
     # Optional.

@@ -11,7 +11,7 @@ import os
 
 class EphemeralRedisServer():
 
-    def __init__(self, scratch_path, port=None, password=None):
+    def __init__(self, scratch_path, port=None, password=None, dbfilename=None, dir=None):
         # The use of a password would be to prevent accidents
         # from experiments talking to each other.
 
@@ -20,7 +20,10 @@ class EphemeralRedisServer():
         self.password = password
 
         assert os.path.exists(self.scratch_path)
-        self.dbfilename = "%0.3d_%0.5d.rdb" % (np.random.randint(low=0, high=1000), self.port)
+        if dbfilename is None:
+            self.dbfilename = "%0.3d_%0.5d.rdb" % (np.random.randint(low=0, high=1000), self.port)
+        else:
+            self.dbfilename = dbfilename
 
         self.server_process = None
 
@@ -78,7 +81,7 @@ class EphemeralRedisServer():
         # to return the port number anyways because we might support it in the future.
         # return {'pid' : self.server_process.pid, 'port' : self.port}
 
-    def stop(self):
+    def stop(self, want_save=False):
 
         if self.server_process is None:
             print "The server is not running. Calling `stop` does nothing."
@@ -90,11 +93,16 @@ class EphemeralRedisServer():
 
         port_cmd_str = "  -p %d" % self.port
 
+        if want_save:
+            cmd = "redis-cli %s %s save" % (password_cmd_str, port_cmd_str)
+            print cmd
+            res = subprocess.check_output(cmd, shell=True)
+            print res
+
         cmd = "redis-cli %s %s shutdown" % (password_cmd_str, port_cmd_str)
         print cmd
         res = subprocess.check_output(cmd, shell=True)
         print res
-
 
         res = self.server_process.communicate(input=None)
         self.server_process.wait()

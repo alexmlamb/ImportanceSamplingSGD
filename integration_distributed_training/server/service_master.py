@@ -101,6 +101,7 @@ def run(DD_config, D_server_desc):
         print "Will break from master main loop."
         print "Will make logger sync to database before terminating."
         print ""
+        signal_handler.logger.log('event', "Received SIGTERM.")
         signal_handler.logger.close()
         sys.exit(0)
     #
@@ -111,9 +112,9 @@ def run(DD_config, D_server_desc):
 
     # cache those values to use them for more than one computation
     A_importance_weights = None
-    nbr_of_usable_importance_weights = None
+    nbr_of_usable_importance_weights = 0
 
-    logger.log('event', "Before entering master main loop.")
+    logger.log('event', "Before entering service_master main loop.")
     while True:
 
         for next_action in master_routine:
@@ -165,12 +166,13 @@ def run(DD_config, D_server_desc):
 
             elif next_action == "process_minibatch":
 
-                if A_importance_weights is None or nbr_of_usable_importance_weights is None or nbr_of_usable_importance_weights == 0:
-                    # nothing can be done here
-                    logger.log('event', "process_minibatch skipped")
-                    continue
-                else:
-                    logger.log('event', "process_minibatch")
+                logger.log('event', "process_minibatch")
+                #if A_importance_weights is None or nbr_of_usable_importance_weights is None:
+                #    # nothing can be done here
+                #    logger.log('event', "process_minibatch skipped")
+                #    continue
+                #else:
+                #    logger.log('event', "process_minibatch")
 
                 tic = time.time()
                 (intent, mode, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(A_importance_weights=A_importance_weights,
