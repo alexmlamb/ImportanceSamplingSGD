@@ -50,7 +50,7 @@ def get_model_config():
 
 def get_database_config():
 
-    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.  
+    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.
 
     logging_folder = "/u/lambalex/DeepLearning/ImportanceSampling/logs/"
 
@@ -73,8 +73,8 @@ def get_database_config():
     workers_minibatch_size = 128
     master_minibatch_size = 128
 
-    #The master will only consider importance weights which were updated this number of seconds ago.  
-    staleness_threshold_seconds = 20.0
+    #The master will only consider importance weights which were updated this number of seconds ago.
+    staleness_threshold = 20.0
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -124,7 +124,7 @@ def get_database_config():
                 want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
-                staleness_threshold_seconds=staleness_threshold_seconds,
+                staleness_threshold=staleness_threshold,
                 minimum_number_of_minibatch_processed_before_parameter_update=minimum_number_of_minibatch_processed_before_parameter_update,
                 nbr_batch_processed_per_public_parameter_update=nbr_batch_processed_per_public_parameter_update,
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
