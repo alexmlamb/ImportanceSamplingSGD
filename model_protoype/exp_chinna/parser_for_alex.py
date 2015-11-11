@@ -5,6 +5,7 @@ import numpy as np
 import re
 import math
 import matplotlib
+import collections as c
 
 def conv_number(s):
     try:
@@ -16,14 +17,14 @@ def conv_number(s):
         return 0
 
 def get_config():
-    data_root = '/u/lambalex/DeepLearning/ImportanceSampling/logs/'
-    #data_root = '/Users/chinna/ImportanceSamplingSGD_alex/logging/'
+    #data_root = '/u/lambalex/DeepLearning/ImportanceSampling/logs/'
+    data_root = '/Users/chinna/ImportanceSamplingSGD_alex/logging/'
     config = {}
     config['files'] = {'usgd': data_root + 'log_1446969742_.txt',
-                       'isgd': data_root + 'log_1447143588_.txt'
+                       'isgd': data_root + 'log_1447230123_.txt'
                        #,'isgd_bug' : data_root + 'log_1447060083_.txt'
 		      }
-    config['plot'] = '/u/sankarch/Documents/ImportanceSamplingSGD/model_protoype/exp_chinna/plots/' + 'plot2.jpeg'
+    config['plot'] = '/Users/chinna/ImportanceSamplingSGD_alex/logging/plot.jpeg'#'/u/sankarch/Documents/ImportanceSamplingSGD/model_protoype/exp_chinna/plots/' + 'plot2.jpeg'
     config['slice'] ={'train':slice(250,6000,3),
                       'val'  :slice(250,6000,3),
                       'test' :slice(250,6000,3)}
@@ -51,11 +52,16 @@ class parser_class:
     def parse_file(self,file):
         fd = open(file,'r')
         L_accuracy = []
+        L_mini_batch = []
         for line in fd:
             self.update_L_accuracy(line,L_accuracy)
-            #self.update_L_mini_batch(line)
-        print "finished parsing",file,len(L_accuracy)
-        return L_accuracy
+            self.update_L_mini_batch(line,L_mini_batch)
+        print "finished parsing",file,len(L_mini_batch)
+        assert len(L_accuracy) == 3*len(L_mini_batch)
+        A_acc = np.array(L_accuracy).reshape(len(L_mini_batch),3)
+        A_mb = np.array(L_mini_batch)
+        D_accuracy = c.OrderedDict(zip(A_mb,A_acc))
+        return D_accuracy#L_accuracy
 
     def parse(self):
         for f_type,file in self.config['files'].items():
@@ -72,6 +78,22 @@ class parser_class:
         plt.legend()
         plt.savefig(self.config['plot'])
         print "plot saved to",self.config['plot']
+
+    def plot_v2(self,mode):
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        #match = re.match(r'(log_)(\S).txt',self.file)
+        #plt_file = match.group(2)
+ 	sl = self.config['slice'][mode]
+
+        x_axis = np.arange(600000)
+        for k,v in self.L_accuracy.items():
+            x_axis = np.intersect1d(x_axis,v.keys())
+        for k,v in self.L_accuracy.items():
+            plt.plot(x_axis, [v[i][2] for i in x_axis], label=k+mode)
+        plt.legend()
+        plt.savefig(self.config['plot'])
+        print "plot saved to",self.config['plot']
     
     def plot_diff(self,mode):
         matplotlib.use('Agg')
@@ -85,7 +107,7 @@ class parser_class:
     
     def run(self):
         self.parse()
-        self.plot('test')
+        self.plot_v2('test')
 	#self.plot_diff('test')
 
 if __name__ == "__main__":
