@@ -1,4 +1,4 @@
-
+import os
 
 def get_model_config():
 
@@ -36,6 +36,9 @@ def get_model_config():
 
     config["seed"] = 9999494
 
+    config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 8)
+    config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 4)
+
 
     #Weights are initialized to N(0,1) * initial_weight_size
     config["initial_weight_size"] = 0.01
@@ -49,6 +52,9 @@ def get_model_config():
 
 
 def get_database_config():
+
+    redis_dbfilename = "dump.rdb"
+    redis_dir = os.path.join(os.environ['HOME'], "tmp")
 
     #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.
 
@@ -74,7 +80,7 @@ def get_database_config():
     master_minibatch_size = 128
 
     #The master will only consider importance weights which were updated this number of seconds ago.
-    staleness_threshold = 20.0
+    staleness_threshold = 20000000.0
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -83,7 +89,8 @@ def get_database_config():
     # the values of (Ntrain, Nvalid, Ntest).
     dataset_name='svhn'
 
-    L_measurements=["individual_importance_weight", "gradient_square_norm", "loss", "accuracy", "minibatch_gradient_mean_square_norm", "individual_gradient_square_norm"]
+    L_measurements=["individual_importance_weight", "individual_gradient_square_norm", "individual_loss", "individual_accuracy", "minibatch_gradient_mean_square_norm"]
+
 
     minimum_number_of_minibatch_processed_before_parameter_update = 10
     nbr_batch_processed_per_public_parameter_update = 10

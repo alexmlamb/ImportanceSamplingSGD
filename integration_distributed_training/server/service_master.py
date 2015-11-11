@@ -189,6 +189,9 @@ def run(DD_config, D_server_desc):
                 toc = time.time()
                 remote_redis_logger.log('timing_profiler', {'sample_indices_and_scaling_factors' : (toc-tic)})
 
+                if random.uniform(0,1) < 0.1:
+                    print "Scaling factors", A_scaling_factors
+
                 num_minibatches_master_processed += 1
 
                 if intent == 'wait_and_retry':
