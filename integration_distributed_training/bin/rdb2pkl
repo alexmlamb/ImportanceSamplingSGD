@@ -1,0 +1,147 @@
+#!/usr/bin/env python
+
+import re
+import numpy as np
+import sys, os
+import getopt
+import time
+import json
+import pickle
+
+from integration_distributed_training.server.redis_server_wrapper import EphemeralRedisServer
+
+def get_all_contents_for_one_key(rsconn, key):
+
+    L_contents = []
+    N = rsconn.llen(key)
+    for _ in range(N):
+        e = rsconn.lpop(key)
+        if e is None:
+            print "Error. Got a None value from key %s." % key
+            continue
+        if len(e) == 0:
+            continue
+        try:
+            v = json.loads(e)
+            L_contents.append(v)
+        except:
+            print "Error. Cannot translate this element into json."
+            print e
+            continue
+    return L_contents
+
+def run(rdb_path, pkl_path):
+
+    server_port = np.random.randint(low=1025, high=65535)
+    server_password = "".join(["%d" % np.random.randint(low=0, high=10) for _ in range(10)])
+
+    scratch_path = os.path.dirname(rdb_path)
+    dbfilename = os.path.basename(rdb_path)
+
+    if len(scratch_path) == 0:
+        scratch_path = "."
+
+    print "scratch_path : %s" % scratch_path
+    print "dbfilename : %s" % dbfilename
+
+    rserv = EphemeralRedisServer(   scratch_path=scratch_path,
+                                    dbfilename=dbfilename,
+                                    port=server_port, password=server_password )
+
+    rserv.start()
+    time.sleep(5)
+    rsconn = rserv.get_client()
+    print "pinging redis server : %s" % (rsconn.ping(),)
+
+    L_logging_keys = rsconn.keys(pattern="logging/*")
+    print L_logging_keys
+
+    contents = {}
+    for logging_key in L_logging_keys:
+        print logging_key
+
+        L_contents = get_all_contents_for_one_key(rsconn, logging_key)
+        L_levels = logging_key.split("/")
+        A = contents
+        for key in L_levels[:-1]:
+            if key not in A:
+                A[key] = {}
+            A = A[key]
+        # We can't really zoom all the way to the last key
+        # because of how dictionaries work and im/mutability is
+        # something that python isn't so great with.
+        last_key = L_levels[-1]
+        A[last_key] = L_contents
+
+    #import pdb; pdb.set_trace()
+    # inspect contents
+
+    pickle.dump(contents, open(pkl_path, "w"), protocol=pickle.HIGHEST_PROTOCOL)
+    print "wrote contents to %s" % pkl_path
+
+    print "redis server shutdown"
+    rserv.stop()
+
+
+def usage():
+    print "Usage :"
+    print "    rdb2pkl --rdb=something.rdb --pkl=parameters.pkl"
+    print "or"
+    print "    rdb2pkl something.rdb"
+
+def main1(argv):
+    """
+    """
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hv", ["rdb=", "pkl="])
+    except getopt.GetoptError as err:
+        # print help information and exit:
+        print str(err) # will print something like "option -a not recognized"
+        usage()
+        sys.exit(2)
+
+    rdb_path = None
+    pkl_path = None
+
+    verbose = False
+    for o, a in opts:
+        if o == "-v":
+            verbose = True
+        elif o in ("-h", "--help"):
+            usage()
+            sys.exit()
+        elif o in ("--rdb"):
+            rdb_path = a
+        elif o in ("--pkl"):
+            pkl_path = a
+        else:
+            assert False, "unhandled option"
+
+    assert rdb_path
+    assert pkl_path
+    assert os.path.exists(rdb_path)
+
+    run(rdb_path, pkl_path)
+
+def main2(argv):
+    """
+    """
+    rdb_path = sys.argv[1]
+    assert os.path.exists(rdb_path)
+
+    m = re.match(r"(.*)\.rdb", rdb_path)
+    if m:
+        pkl_path = "%s.pkl" % m.group(1)
+    else:
+        print "Error. You can omit the pickle path argument (ex : --pkl=bleh.pkl), but then you need to have a rdb filename that ends with .rdb to infer the name of the pickle file."
+        quit()
+    print "Will output to pickle file : %s" % pkl_path
+
+    run(rdb_path, pkl_path)
+
+if __name__ == "__main__":
+    if len(sys.argv) == 2:
+        main2(sys.argv)
+    else:
+        main1(sys.argv)

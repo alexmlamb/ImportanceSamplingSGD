@@ -11,7 +11,7 @@ import os
 
 class EphemeralRedisServer():
 
-    def __init__(self, scratch_path, port=None, password=None, dbfilename=None, dir=None):
+    def __init__(self, scratch_path, port=None, password=None, dbfilename=None):
         # The use of a password would be to prevent accidents
         # from experiments talking to each other.
 

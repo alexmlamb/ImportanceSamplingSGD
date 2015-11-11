@@ -93,12 +93,23 @@ def start_redis_server(database_config):
     else:
         server_scratch_path = "."
 
+    # TODO : You might have to do something with 'redis_dir' also
+    #        if you want to be able to specify an arbitrary directory
+    #        where that dbfilename will belong.
+    if database_config.has_key('redis_dbfilename'):
+        dbfilename = database_config['redis_dbfilename']
+    else:
+        dbfilename = None
+
+
+
     server_port = np.random.randint(low=1025, high=65535)
 
     server_password = "".join(["%d" % np.random.randint(low=0, high=10) for _ in range(10)])
 
     rserv = EphemeralRedisServer(   scratch_path=server_scratch_path,
-                                    port=server_port, password=server_password)
+                                    port=server_port, password=server_password,
+                                    dbfilename=dbfilename)
 
     rserv.start()
     time.sleep(5)

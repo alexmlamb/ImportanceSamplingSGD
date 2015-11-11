@@ -101,7 +101,7 @@ def get_database_config():
     master_usable_importance_weights_threshold_to_ISGD = 0.2 # cannot be None
 
     # The master will only consider importance weights which were updated this number of seconds ago.
-    staleness_threshold = 5*60.0
+    staleness_threshold = None
 
     # Guillaume is not so fond of this approach.
     importance_weight_additive_constant = None
