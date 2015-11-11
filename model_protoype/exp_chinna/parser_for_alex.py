@@ -22,7 +22,7 @@ def get_config():
     config['files'] = {'usgd': data_root + 'log_1446969742_.txt',
                        'isgd': data_root + 'log_1447143588_.txt',
                        'isgd_bug' : data_root + 'log_1447060083_.txt'}
-    config['plot'] = '/u/sankarch/Documents/ImportanceSamplingSGD/model_protoype/exp_chinna/' + 'plot.jpeg'
+    config['plot'] = '/u/sankarch/Documents/ImportanceSamplingSGD/model_protoype/exp_chinna/plots/' + 'plot2.jpeg'
     return config
 
 class parser_class:
@@ -63,14 +63,24 @@ class parser_class:
         #match = re.match(r'(log_)(\S).txt',self.file)
         #plt_file = match.group(2)
         for k,v in self.L_accuracy.items():
-            plt.plot(v, label=k)
+            plt.plot(v[:6000], label=k)
         plt.legend()
         plt.savefig(self.config['plot'])
         print "plot saved to",self.config['plot']
-
+    
+    def plot_diff(self):
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+	diff = np.array(self.L_accuracy['isgd'][0:6000])-np.array(self.L_accuracy['usgd'][0:6000])
+	plt.plot(diff,label='isgd - usgd')
+        plt.legend()
+        plt.savefig(self.config['plot'])
+        print "plot saved to",self.config['plot']
+    
     def run(self):
         self.parse()
-        self.plot()
+        #self.plot()
+	self.plot_diff()
 
 if __name__ == "__main__":
     parser = parser_class()
