@@ -20,9 +20,13 @@ def get_config():
     #data_root = '/Users/chinna/ImportanceSamplingSGD_alex/logging/'
     config = {}
     config['files'] = {'usgd': data_root + 'log_1446969742_.txt',
-                       'isgd': data_root + 'log_1447143588_.txt',
-                       'isgd_bug' : data_root + 'log_1447060083_.txt'}
+                       'isgd': data_root + 'log_1447143588_.txt'
+                       #,'isgd_bug' : data_root + 'log_1447060083_.txt'
+		      }
     config['plot'] = '/u/sankarch/Documents/ImportanceSamplingSGD/model_protoype/exp_chinna/plots/' + 'plot2.jpeg'
+    config['slice'] ={'train':slice(250,6000,3),
+                      'val'  :slice(250,6000,3),
+                      'test' :slice(250,6000,3)}
     return config
 
 class parser_class:
@@ -57,30 +61,32 @@ class parser_class:
         for f_type,file in self.config['files'].items():
             self.L_accuracy[f_type] = self.parse_file(file)
 
-    def plot(self):
+    def plot(self,mode):
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         #match = re.match(r'(log_)(\S).txt',self.file)
         #plt_file = match.group(2)
+ 	sl = self.config['slice'][mode]
         for k,v in self.L_accuracy.items():
-            plt.plot(v[:6000], label=k)
+            plt.plot(v[sl], label=k+mode)
         plt.legend()
         plt.savefig(self.config['plot'])
         print "plot saved to",self.config['plot']
     
-    def plot_diff(self):
+    def plot_diff(self,mode):
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
-	diff = np.array(self.L_accuracy['isgd'][0:6000])-np.array(self.L_accuracy['usgd'][0:6000])
-	plt.plot(diff,label='isgd - usgd')
+	sl = self.config['slice'][mode]
+	diff = np.array(self.L_accuracy['isgd'][sl])-np.array(self.L_accuracy['usgd'][sl])
+	plt.plot(diff,label='isgd - usgd'+mode)
         plt.legend()
         plt.savefig(self.config['plot'])
         print "plot saved to",self.config['plot']
     
     def run(self):
         self.parse()
-        #self.plot()
-	self.plot_diff()
+        self.plot('test')
+	#self.plot_diff('test')
 
 if __name__ == "__main__":
     parser = parser_class()
