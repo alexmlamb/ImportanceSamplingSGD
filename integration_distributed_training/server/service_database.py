@@ -132,6 +132,11 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     # set up logging system to the redis server
     remote_redis_logger = integration_distributed_training.server.logger.RedisLogger(rsconn, queue_prefix_identifier="service_database")
 
+    # This should be a method that's shared with all the 3 components.
+    #import socket
+    #remote_redis_logger.log('info', {'hostname':socket.gethostname().lower()})
+
+
     # Use `rserv` to be able to shut down the
     # redis-server when the user hits CTRL+C.
     # Otherwise, the server is left in the background

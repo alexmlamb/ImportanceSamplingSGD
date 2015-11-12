@@ -4,7 +4,6 @@
 #PBS -l walltime=0:30:00
 #PBS -A jvb-000-ag
 #PBS -m bea
-#PBS -l feature=k80
 
 # Use msub on helios1 to submit this.
 
