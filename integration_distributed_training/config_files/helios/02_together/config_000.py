@@ -53,8 +53,8 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     model_config["fraction_validation"] = 0.05
 
-    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 8)
-    model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 4)
+    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 4)
+    model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 2)
 
     model_config["turn_off_importance_sampling"] = False
 
@@ -112,7 +112,7 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 1024*4
+    workers_minibatch_size = 1024*4*4
     master_minibatch_size = 1024*4
 
     # This is not really being used anywhere.
