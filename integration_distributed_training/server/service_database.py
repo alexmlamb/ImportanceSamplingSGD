@@ -13,7 +13,7 @@ import sys
 
 import pprint
 
-from startup import delete_bootstrap_file
+from startup import delete_bootstrap_file, check_if_parameters_are_present, check_if_any_initialization_has_even_been_done, set_initialization_as_done
 from common import get_mean_variance_measurement_on_database, get_trace_covariance_information
 
 # python's logging module
@@ -143,6 +143,7 @@ def setup_remote_logger(folder):
 
 
 def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
+
 
     # set up logging system for logging_folder
     setup_remote_logger(folder=DD_config["database"]["logging_folder"])

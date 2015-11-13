@@ -89,7 +89,7 @@ def run(DD_config, D_server_desc):
             toc = time.time()
             remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
             logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
-            continue
+
         elif serialized_parameters_format == "ndarray_float32_tostring":
             parameters_current_timestamp_str = new_parameters_current_timestamp_str
             tic = time.time()
@@ -97,7 +97,7 @@ def run(DD_config, D_server_desc):
             toc = time.time()
             remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
             logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
-            continue
+            
         else:
             logging.info("Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format)
             quit()

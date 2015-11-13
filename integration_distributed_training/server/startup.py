@@ -2,9 +2,11 @@
 import sys, os
 import getopt
 import time
+import hashlib
 
 import numpy as np
 
+import redis
 import json
 
 from integration_distributed_training.server.redis_server_wrapper import EphemeralRedisServer
@@ -170,7 +172,9 @@ def get_session_identifier(D_server_desc):
     # properly communicating the readiness of the database to resume training
     # if we don't have a unique string that refers to this current "session",
     # so to speak.
-    return D_server_desc['password'] + D_server_desc['port']
+
+    s = "initialization_is_done %s %d" % (D_server_desc['password'], D_server_desc['port'])
+    return hashlib.sha256(s).hexdigest()
 
 def get_initialized_key(session_identifier):
     return "initialization_is_done:%s" % session_identifier
@@ -179,14 +183,15 @@ def get_parameters_key():
     return "parameters:current"
 
 def check_if_parameters_are_present(rsconn):
-    if 0 < len(rsconn.get(get_parameters_key()):
+    if 0 < len(rsconn.get(get_parameters_key())):
         return True
     else:
         return False
 
 def set_initialization_as_done(rsconn, D_server_desc):
-    initialized_key = get_initialized_key(session_identifier)
-    rsconn.set(get_parameters_key, True)
+    initialized_key = get_initialized_key(get_session_identifier(D_server_desc))
+    rsconn.set(initialized_key, True)
+    print "%s was set to True" % initialized_key
 
 def check_if_any_initialization_has_even_been_done(rsconn):
     return (0 < len(rsconn.keys(pattern="initialization_is_done:*")))
@@ -207,13 +212,15 @@ def get_rsconn_with_timeout(D_server_desc,
     while time.time() - initial_conn_timestamp < timeout:
 
         try:
-            rsconn = redis.StrictRedis(host=server_ip, port=server_port, password=server_password)
+            rsconn = redis.StrictRedis(host=server_hostname, port=server_port, password=server_password)
             print "Connected to local server."
             success = True
             break
         except:
-            time.sleep(5)
+            print "Unexpected error:", sys.exc_info()[0]
+            print  sys.exc_info()
             print "Failed to connect to local server. Will retry in 5s."
+            time.sleep(5)
 
     if not success:
         print "Quitting."
@@ -241,7 +248,7 @@ def get_rsconn_with_timeout(D_server_desc,
         initial_conn_timestamp = time.time()
         success = False
         while time.time() - initial_conn_timestamp < timeout:
-            if 0 < len(rsconn.get(parameters_key):
+            if 0 < len(rsconn.get(parameters_key)):
                 print "The current parameters are found on the server. We start now."
                 success = True
                 break
