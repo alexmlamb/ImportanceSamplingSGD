@@ -121,7 +121,16 @@ def get_trace_covariance_information(rsconn, segment):
     ratio_of_usable_indices_for_USGD_and_ISGD = np.min([I.mean(), H.mean()])
     ratio_of_usable_indices_for_ISGDstale = J.mean()
 
-    assert ratio_of_usable_indices_for_ISGDstale <= ratio_of_usable_indices_for_USGD_and_ISGD
+    if not ratio_of_usable_indices_for_ISGDstale <= ratio_of_usable_indices_for_USGD_and_ISGD:
+        print "Error. Failed to verify. %f <= %f" % (ratio_of_usable_indices_for_ISGDstale, ratio_of_usable_indices_for_USGD_and_ISGD)
+        quit()
+
+    print "individual_gradient_square_norm.shape : %s" % str(individual_gradient_square_norm.shape)
+    print "minibatch_gradient_mean_square_norm.shape : %s" % str(minibatch_gradient_mean_square_norm.shape)
+    print "np.isfinite(minibatch_gradient_mean_square_norm).mean() : %f" % np.isfinite(minibatch_gradient_mean_square_norm).mean()
+    print "np.isfinite(individual_importance_weight).mean() : %f" % np.isfinite(individual_importance_weight).mean()
+    print "np.isfinite(individual_gradient_square_norm).mean() : %f" % np.isfinite(individual_gradient_square_norm).mean()
+    print "np.isfinite(previous_individual_importance_weight).mean() : %f" % np.isfinite(previous_individual_importance_weight).mean()
 
     if 0.0 < ratio_of_usable_indices_for_USGD_and_ISGD:
         approximated_mu_norm_square = np.sqrt(minibatch_gradient_mean_square_norm[H]).mean()**2

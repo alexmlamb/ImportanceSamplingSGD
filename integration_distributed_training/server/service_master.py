@@ -20,7 +20,7 @@ import random
 from integration_distributed_training.model.model import ModelAPI
 from sampling_for_master import sample_indices_and_scaling_factors, get_importance_weights
 
-from startup import get_rsconn_with_timeout
+from startup import get_rsconn_with_timeout, check_if_parameters_are_present
 from common import wait_until_all_measurements_are_updated_by_workers
 
 import integration_distributed_training.server.logger
@@ -60,8 +60,7 @@ def run(DD_config, D_server_desc):
 
     # It's very important to determine if we're resuming from a previous run,
     # in which case we really want to load the paramters to resume training.
-    resuming_from_previous_run = rsconn.get("resuming_from_previous_run")
-    if resuming_from_previous_run is None or len(resuming_from_previous_run) == 0 or resuming_from_previous_run in ['false', 'False', '0']:
+    if not check_if_parameters_are_present(rsconn):
         ### resuming_from_previous_run = False ###
         msg = "Starting a new run."
         remote_redis_logger.log('event', msg)

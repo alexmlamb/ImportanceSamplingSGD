@@ -81,9 +81,15 @@ def configure(  rsconn,
             rsconn.rpush("L_workers_%s_minibatch_indices_ALL" % segment, A_indices_str)
 
             for measurement in L_measurements:
-                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
-                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
+                if measurement in ['minibatch_gradient_mean_square_norm']:
+                    # one float32 per minibatch
+                    shape = (1,)
+                else:
+                    # one array per minibatch
+                    shape = A_indices.shape
 
+                rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(shape, dtype=np.float32)).tostring(order='C'))
+                rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), A_indices_str, time.time())
 
             for measurement in ['previous_individual_importance_weight']:
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
@@ -100,7 +106,7 @@ def configure(  rsconn,
     rsconn.delete("L_master_train_minibatch_data_and_info_QUEUE")
 
 
-def refresh_QUEUE_from_ALL(L_segments, remote_redis_logger=None, logging=None):
+def refresh_QUEUE_from_ALL(rsconn, L_segments, remote_redis_logger=None, logging=None):
 
     # This function is meant to be used when resuming training. Its goal is to
     # repair one potential thing that can break over training sessions.
