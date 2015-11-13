@@ -65,7 +65,7 @@ def get_database_config():
 
     # TODO : specify stuff about the redis database
     #dbfilename dump.rdb
-    redis_dbfilename = "dump.rdb"
+    redis_dbfilename = "experiment_000.rdb"
     redis_dir = os.path.join(os.environ['HOME'], "tmp")
 
     logging_folder = "."

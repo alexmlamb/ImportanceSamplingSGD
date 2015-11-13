@@ -31,7 +31,7 @@ export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_train
 # be reached by all the tasks launched since it's going to be how they
 # communicate between themselves initially to share where the database is running,
 # what port it's on and what's the password.
-export BOOTSTRAP_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/bootstrap_019439
+export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_000
 
 # The whole stdbuf is not necessary, but I left it there because it fixes
 # some of the strange behavior when we try to redirect the output to a file.
