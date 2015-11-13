@@ -65,13 +65,13 @@ def run(DD_config, D_server_desc):
         ### resuming_from_previous_run = False ###
         msg = "Starting a new run."
         remote_redis_logger.log('event', msg)
-        logging.info(msg)
+        print msg
     else:
         ### resuming_from_previous_run = True ###
 
         msg = "Resuming from previous run."
         remote_redis_logger.log('event', msg)
-        logging.info(msg)
+        print msg
 
         # This whole section is taken almost exactly from the service_worker.
         tic = time.time()
@@ -80,7 +80,7 @@ def run(DD_config, D_server_desc):
         remote_redis_logger.log('timing_profiler', {'sync_params_from_database' : (toc-tic)})
 
         if len(current_parameters_str) == 0:
-            logging.info("Error. No parameters found in the server.")
+            print "Error. No parameters found in the server."
             quit()
 
         if serialized_parameters_format == "opaque_string":
@@ -88,7 +88,7 @@ def run(DD_config, D_server_desc):
             model_api.set_serialized_parameters(current_parameters_str)
             toc = time.time()
             remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
-            logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
+            print "The master has received initial parameters. This took %f seconds." % (toc - tic,)
 
         elif serialized_parameters_format == "ndarray_float32_tostring":
             parameters_current_timestamp_str = new_parameters_current_timestamp_str
@@ -96,10 +96,10 @@ def run(DD_config, D_server_desc):
             model_api.set_serialized_parameters(current_parameters)
             toc = time.time()
             remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
-            logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
-            
+            print "The master has received initial parameters. This took %f seconds." % (toc - tic,)
+
         else:
-            logging.info("Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format)
+            print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
             quit()
 
 
