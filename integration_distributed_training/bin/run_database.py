@@ -18,7 +18,7 @@ def main(argv):
     want_start_redis_server_and_create_bootstrap_file = True
     (DD_config, D_server_desc, rserv, rsconn, bootstrap_file) = main_entry_point_for_all_executable_scripts(argv, want_start_redis_server_and_create_bootstrap_file)
 
-    integration_distributed_training.server.service_database.run(DD_config, rserv, rsconn, bootstrap_file)
+    integration_distributed_training.server.service_database.run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc)
 
 
 if __name__ == "__main__":

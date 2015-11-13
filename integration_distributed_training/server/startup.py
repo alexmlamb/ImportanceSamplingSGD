@@ -45,7 +45,6 @@ def main_entry_point_for_all_executable_scripts(argv, want_start_redis_server_an
     assert config_file is not None
     assert bootstrap_file is not None
 
-
     # load the config file
     # get some config for database
     # start the database if you're supposed to start it
@@ -86,30 +85,28 @@ def load_config_file(config_file):
 
 def start_redis_server(database_config):
 
-    # Right now we don't even use what is in the `database_config` argument.
+    if database_config.has_key('redis_rdb_path_plus_filename'):
 
-    if database_config.has_key('server_scratch_path'):
-        server_scratch_path = database_config['server_scratch_path']
+        rdb_dir = os.path.dirname(database_config['redis_rdb_path_plus_filename'])
+        rdb_filename = os.path.basename(database_config['redis_rdb_path_plus_filename'])
+
+        if len(rdb_dir) == 0:
+            rdb_dir = "."
+
+        print "rdb dir: %s" % rdb_dir
+        print "rdb filename : %s" % rdb_filename
+
     else:
-        server_scratch_path = "."
-
-    # TODO : You might have to do something with 'redis_dir' also
-    #        if you want to be able to specify an arbitrary directory
-    #        where that dbfilename will belong.
-    if database_config.has_key('redis_dbfilename'):
-        dbfilename = database_config['redis_dbfilename']
-    else:
-        dbfilename = None
-
-
+        rdb_dir = "."
+        rdb_filename = None
 
     server_port = np.random.randint(low=1025, high=65535)
 
     server_password = "".join(["%d" % np.random.randint(low=0, high=10) for _ in range(10)])
 
-    rserv = EphemeralRedisServer(   scratch_path=server_scratch_path,
+    rserv = EphemeralRedisServer(   scratch_path=rdb_dir,
                                     port=server_port, password=server_password,
-                                    dbfilename=dbfilename)
+                                    dbfilename=rdb_filename)
 
     rserv.start()
     time.sleep(5)
@@ -163,3 +160,97 @@ def delete_bootstrap_file(bootstrap_file):
             pass
     else:
         print "No need to delete the bootstrap_file %s beause it does not exist." % bootstrap_file
+
+# This is a way to provide a minimum of encapsulation to avoid
+# having the string "initialization_is_done" sprinkled everywhere.
+
+def get_session_identifier(D_server_desc):
+    # This returns a unique identifier that allows us to resume training.
+    # There are lots of traps, otherwise, and things that prevent us from
+    # properly communicating the readiness of the database to resume training
+    # if we don't have a unique string that refers to this current "session",
+    # so to speak.
+    return D_server_desc['password'] + D_server_desc['port']
+
+def get_initialized_key(session_identifier):
+    return "initialization_is_done:%s" % session_identifier
+
+def get_parameters_key():
+    return "parameters:current"
+
+def check_if_parameters_are_present(rsconn):
+    if 0 < len(rsconn.get(get_parameters_key()):
+        return True
+    else:
+        return False
+
+def set_initialization_as_done(rsconn, D_server_desc):
+    initialized_key = get_initialized_key(session_identifier)
+    rsconn.set(get_parameters_key, True)
+
+def check_if_any_initialization_has_even_been_done(rsconn):
+    return (0 < len(rsconn.keys(pattern="initialization_is_done:*")))
+
+
+def get_rsconn_with_timeout(D_server_desc,
+                            timeout=60, wait_for_parameters_to_be_present=True):
+
+    server_hostname = D_server_desc['hostname']
+    server_port = D_server_desc['port']
+    server_password = D_server_desc['password']
+    session_identifier = get_session_identifier(D_server_desc)
+    initialized_key = get_initialized_key(session_identifier)
+    parameters_key = get_parameters_key()
+
+    initial_conn_timestamp = time.time()
+    success = False
+    while time.time() - initial_conn_timestamp < timeout:
+
+        try:
+            rsconn = redis.StrictRedis(host=server_ip, port=server_port, password=server_password)
+            print "Connected to local server."
+            success = True
+            break
+        except:
+            time.sleep(5)
+            print "Failed to connect to local server. Will retry in 5s."
+
+    if not success:
+        print "Quitting."
+        quit()
+
+    print "Pinging local server : %s" % (rsconn.ping(),)
+
+
+    initial_conn_timestamp = time.time()
+    success = False
+    while time.time() - initial_conn_timestamp < timeout:
+        if rsconn.get(initialized_key) in ["true", "True", "1"]:
+            print "Experiment is properly initialized. We start now."
+            success = True
+            break
+        else:
+            print "Experiment is not ready to start. Waiting for key %s to be True. Will retry in 5s." % initialized_key
+            time.sleep(5)
+
+    if not success:
+        print "Quitting."
+        quit()
+
+    if wait_for_parameters_to_be_present:
+        initial_conn_timestamp = time.time()
+        success = False
+        while time.time() - initial_conn_timestamp < timeout:
+            if 0 < len(rsconn.get(parameters_key):
+                print "The current parameters are found on the server. We start now."
+                success = True
+                break
+            else:
+                print "The current parameters are not yet on the server. Will retry in 5s."
+                time.sleep(5)
+
+        if not success:
+            print "Quitting."
+            quit()
+
+    return rsconn

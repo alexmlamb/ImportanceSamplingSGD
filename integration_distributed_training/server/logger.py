@@ -100,4 +100,25 @@ class RedisLogger(Logger):
             toc = time.time()
             self.last_sync_timestamp = toc
             self.log('timing_profiler', {'commit_and_clear' : (toc-tic)})
-            
+
+
+
+def record_machine_info(remote_redis_logger):
+
+    D_info = {}
+
+    # This should be a method that's shared with all the 3 components.
+    import socket
+    D_info['hostname'] = socket.gethostname()
+
+    # We don't want to load theano unless this process is going to use theano.
+    # That would just be a bad idea.
+    import sys
+    sys.modules.keys()
+
+    if 'theano' in sys.modules:
+        import theano
+        D_info['theano.config.device'] = theano.config.device
+        D_info['theano.config.floatX'] = theano.config.floatX
+
+    remote_redis_logger.log('machine_info', D_info)

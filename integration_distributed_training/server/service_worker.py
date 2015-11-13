@@ -17,7 +17,7 @@ import getopt
 #
 # The actual model that runs on SVHN.
 from integration_distributed_training.model.model import ModelAPI
-from common import get_rsconn_with_timeout
+from startup import get_rsconn_with_timeout
 import integration_distributed_training.server.logger
 
 def run(DD_config, D_server_desc):
@@ -26,8 +26,8 @@ def run(DD_config, D_server_desc):
     if D_server_desc['hostname'] in ["szkmbp"]:
         D_server_desc['hostname'] = "localhost"
 
-    rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
-                                     timeout=60, wait_for_parameters_to_be_present=True)
+    rsconn = get_rsconn_with_timeout(D_server_desc,
+                                     timeout=DD_config['database']['connection_setup_timeout'], wait_for_parameters_to_be_present=True)
 
 
     num_importance_weight_batches_processed = 0
@@ -52,6 +52,9 @@ def run(DD_config, D_server_desc):
     signal.signal(signal.SIGINT, signal_handler)
 
     model_api = ModelAPI(DD_config['model'])
+    # This `record_machine_info` has to be called after the component that
+    # makes use of theano if we hope to properly record the theano.config.
+    integration_distributed_training.server.logger.record_machine_info(remote_redis_logger)
 
 
     #D_segment_priorities = {'train' : 50, 'valid' : 1, 'test' : 1}

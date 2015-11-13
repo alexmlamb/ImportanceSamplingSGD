@@ -46,8 +46,6 @@ def configure(  rsconn,
     # We will use **dataset_config to specify all the arguments of this function.
     # For that reason, we need to have the extra **kwargs to eat up whatever is left.
 
-    rsconn.delete("initialization_is_done")
-
     # "parameters:current" will contain a numpy float32 array
     # represented efficiently as a string (max 128MB, potential scaling problems)
     rsconn.set("parameters:current", "")
@@ -91,8 +89,6 @@ def configure(  rsconn,
                 rsconn.hset("H_%s_minibatch_%s" % (segment, measurement), A_indices_str, (np.float32(default_importance_weight) * np.ones(A_indices.shape, dtype=np.float32)).tostring(order='C'))
 
 
-
-
     # The master does not really differentiate between the various
     # segments of the dataset. It just takes whatever it is fed
     # because nothing other than the training data should go in there.
@@ -103,7 +99,33 @@ def configure(  rsconn,
     # used when `want_only_indices_for_master` is False
     rsconn.delete("L_master_train_minibatch_data_and_info_QUEUE")
 
-    rsconn.set("initialization_is_done", True)
+
+def refresh_QUEUE_from_ALL(L_segments, remote_redis_logger=None, logging=None):
+
+    # This function is meant to be used when resuming training. Its goal is to
+    # repair one potential thing that can break over training sessions.
+    # The workers can be killed in-between the time when they popped a minibatch
+    # to process, and the time where they add it back. This would cause a loss
+    # of minibatches over time, and we have to clean it up.
+
+    for segment in L_segments:
+
+        name_ALL = "L_workers_%s_minibatch_indices_ALL" % segment
+        name_QUEUE = "L_workers_%s_minibatch_indices_QUEUE" % segment
+
+        if rsconn.llen(name_ALL) == rsconn.llen(name_QUEUE):
+            continue
+        else:
+            msg = "We have %d elements in rsconn.llen(name_ALL), and %d elements in rsconn.llen(name_QUEUE). We need to add back the minibatches that slipped through the cracks." % (rsconn.llen(name_ALL), rsconn.llen(name_QUEUE))
+            rsconn.delete(name_QUEUE)
+            for i in range(rsconn.llen(name_ALL)):
+                contents_str = rsconn.lindex(name_ALL, i)
+                rsconn.rpush(name_QUEUE, contents_str)
+
+            if remote_redis_logger is not None:
+                remote_redis_logger.log('event', msg)
+            if logging is not None:
+                logging.info(msg)
 
 
 def setup_remote_logger(folder):
@@ -120,21 +142,46 @@ def setup_remote_logger(folder):
     log.addHandler(fh)
 
 
-def run(DD_config, rserv, rsconn, bootstrap_file):
-
-    configure(  rsconn,
-                **DD_config['database'])
+def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
     # set up logging system for logging_folder
-    setup_remote_logger(folder = DD_config["database"]["logging_folder"])
+    setup_remote_logger(folder=DD_config["database"]["logging_folder"])
     logging.info(pprint.pformat(DD_config))
 
     # set up logging system to the redis server
     remote_redis_logger = integration_distributed_training.server.logger.RedisLogger(rsconn, queue_prefix_identifier="service_database")
+    integration_distributed_training.server.logger.record_machine_info(remote_redis_logger)
 
-    # This should be a method that's shared with all the 3 components.
-    #import socket
-    #remote_redis_logger.log('info', {'hostname':socket.gethostname().lower()})
+    if check_if_any_initialization_has_even_been_done(rsconn):
+        #rsconn.set("resuming_from_previous_run", True)
+        msg = "Resuming from previous run."
+        remote_redis_logger.log('event', msg)
+        logging.info(msg)
+
+        # So we're about to resume training. Just as a sanity check, though, we should
+        # really 1) make sure that the parameters are all there
+        #        2) the contents of "L_workers_%s_minibatch_indices_ALL" is used to populate "L_workers_%s_minibatch_indices_QUEUE"
+        #
+
+        if not check_if_parameters_are_present(rsconn):
+            msg = "Error. We are supposed to be resuming from a previous training session, but the parameters are not found in the database."
+            remote_redis_logger.log('event', msg)
+            logging.info(msg)
+            quit()
+
+        refresh_QUEUE_from_ALL(rsconn, DD_config['database']['L_segments'], remote_redis_logger, logging)
+        set_initialization_as_done(rsconn, D_server_desc)
+
+    else:
+
+        configure(  rsconn,
+                    **DD_config['database'])
+        #rsconn.set("resuming_from_previous_run", False)
+        msg = "Starting a new run."
+        remote_redis_logger.log('event', msg)
+        logging.info(msg)
+
+        set_initialization_as_done(rsconn, D_server_desc)
 
 
     # Use `rserv` to be able to shut down the

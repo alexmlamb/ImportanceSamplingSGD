@@ -20,7 +20,8 @@ import random
 from integration_distributed_training.model.model import ModelAPI
 from sampling_for_master import sample_indices_and_scaling_factors, get_importance_weights
 
-from common import get_rsconn_with_timeout, wait_until_all_measurements_are_updated_by_workers
+from startup import get_rsconn_with_timeout
+from common import wait_until_all_measurements_are_updated_by_workers
 
 import integration_distributed_training.server.logger
 
@@ -29,8 +30,8 @@ def run(DD_config, D_server_desc):
     if D_server_desc['hostname'] in ["szkmbp"]:
         D_server_desc['hostname'] = "localhost"
 
-    rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
-                                     timeout=60, wait_for_parameters_to_be_present=False)
+    rsconn = get_rsconn_with_timeout(D_server_desc,
+                                     timeout=DD_config['database']['connection_setup_timeout'], wait_for_parameters_to_be_present=False)
 
     L_measurements = DD_config['database']['L_measurements']
     want_only_indices_for_master = DD_config['database']['want_only_indices_for_master']
@@ -53,6 +54,63 @@ def run(DD_config, D_server_desc):
     remote_redis_logger = integration_distributed_training.server.logger.RedisLogger(rsconn, queue_prefix_identifier="service_master")
 
     model_api = ModelAPI(DD_config['model'])
+    # This `record_machine_info` has to be called after the component that
+    # makes use of theano if we hope to properly record the theano.config.
+    integration_distributed_training.server.logger.record_machine_info(remote_redis_logger)
+
+    # It's very important to determine if we're resuming from a previous run,
+    # in which case we really want to load the paramters to resume training.
+    resuming_from_previous_run = rsconn.get("resuming_from_previous_run")
+    if resuming_from_previous_run is None or len(resuming_from_previous_run) == 0 or resuming_from_previous_run in ['false', 'False', '0']:
+        ### resuming_from_previous_run = False ###
+        msg = "Starting a new run."
+        remote_redis_logger.log('event', msg)
+        logging.info(msg)
+    else:
+        ### resuming_from_previous_run = True ###
+
+        msg = "Resuming from previous run."
+        remote_redis_logger.log('event', msg)
+        logging.info(msg)
+
+        # This whole section is taken almost exactly from the service_worker.
+        tic = time.time()
+        current_parameters_str = rsconn.get("parameters:current")
+        toc = time.time()
+        remote_redis_logger.log('timing_profiler', {'sync_params_from_database' : (toc-tic)})
+
+        if len(current_parameters_str) == 0:
+            logging.info("Error. No parameters found in the server.")
+            quit()
+
+        if serialized_parameters_format == "opaque_string":
+            tic = time.time()
+            model_api.set_serialized_parameters(current_parameters_str)
+            toc = time.time()
+            remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
+            logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
+            continue
+        elif serialized_parameters_format == "ndarray_float32_tostring":
+            parameters_current_timestamp_str = new_parameters_current_timestamp_str
+            tic = time.time()
+            model_api.set_serialized_parameters(current_parameters)
+            toc = time.time()
+            remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
+            logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
+            continue
+        else:
+            logging.info("Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format)
+            quit()
+
+
+
+
+
+
+
+
+
+
 
     if not want_only_indices_for_master:
         print "Error. At the current time we support only the of feeding data to the master through indices (instead of actual data)."

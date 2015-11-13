@@ -62,12 +62,15 @@ def get_model_config():
 
 def get_database_config():
 
-    # TODO : specify stuff about the redis database
-    #dbfilename dump.rdb
-    redis_dbfilename = "dump.rdb"
-    redis_dir = os.path.join(os.environ['HOME'], "tmp")
+    # Try to connect to the database for at least 10 minutes before giving up.
+    # When setting this to below 1 minute on Helios, the workers would give up
+    # way to easily. This value also controls how much time the workers will
+    # be willing to wait for the parameters to be present on the server.
+    connection_setup_timeout = 10*60
 
-    logging_folder = "."
+    redis_rdb_path_plus_filename = os.path.join(os.environ['HOME'], "tmp/09232.rdb")
+
+    logging_folder = os.path.join(os.environ['HOME'], "tmp")
 
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
@@ -149,7 +152,8 @@ def get_database_config():
     assert 0.0 <= master_usable_importance_weights_threshold_to_ISGD
     assert master_usable_importance_weights_threshold_to_ISGD <= 1.0
 
-    return dict(workers_minibatch_size=workers_minibatch_size,
+    return dict(connection_setup_timeout=connection_setup_timeout,
+                workers_minibatch_size=workers_minibatch_size,
                 master_minibatch_size=master_minibatch_size,
                 dataset_name=dataset_name,
                 Ntrain=Ntrain,
@@ -166,8 +170,7 @@ def get_database_config():
                 staleness_threshold=staleness_threshold,
                 importance_weight_additive_constant=importance_weight_additive_constant,
                 logging_folder=logging_folder,
-                redis_dbfilename=redis_dbfilename,
-                redis_dir=redis_dir)
+                redis_rdb_path_plus_filename=redis_rdb_path_plus_filename)
 
 def get_helios_config():
     # Optional.
