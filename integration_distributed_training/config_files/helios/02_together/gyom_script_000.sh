@@ -39,6 +39,11 @@ export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_000
 
 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_database.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 
+# Sleep just a little bit to make sure that, if there was some problem last time a bootstrap_file that failed to delete,
+# then the run_database.py script would get the opportunity to overwrite that bootstrap file before the master/workers
+# start sniffing around to find the bootstrap_file.
+sleep 60
+
 THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_master.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 THEANO_FLAGS=device=gpu1,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 THEANO_FLAGS=device=gpu2,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
