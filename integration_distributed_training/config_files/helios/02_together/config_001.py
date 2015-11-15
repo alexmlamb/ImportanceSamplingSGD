@@ -10,10 +10,10 @@ def get_model_config():
     #model_config["importance_algorithm"] = "sgd"
 
     #Momentum rate, where 0.0 corresponds to not using momentum
-    model_config["momentum_rate"] = 0.95
+    model_config["momentum_rate"] = 0.5
 
     #The learning rate to use on the gradient averaged over a minibatch
-    model_config["learning_rate"] = 0.0001
+    model_config["learning_rate"] = 0.001
 
     #model_config["dataset"] = "mnist"
     model_config["dataset"] = "svhn"
@@ -69,7 +69,7 @@ def get_database_config():
     # be willing to wait for the parameters to be present on the server.
     connection_setup_timeout = 10*60
 
-    redis_rdb_path_plus_filename = os.path.join(os.environ['HOME'], "tmp/000.rdb")
+    redis_rdb_path_plus_filename = os.path.join(os.environ['HOME'], "tmp/001.rdb")
     logging_folder = os.path.join(os.environ['HOME'], "tmp")
 
 
@@ -106,7 +106,7 @@ def get_database_config():
     master_usable_importance_weights_threshold_to_ISGD = 0.01 # cannot be None
 
     # The master will only consider importance weights which were updated this number of seconds ago.
-    staleness_threshold_seconds = 4
+    staleness_threshold_seconds = 8
     staleness_threshold_num_minibatches_master_processed = None
 
     # Guillaume is not so fond of this approach.
