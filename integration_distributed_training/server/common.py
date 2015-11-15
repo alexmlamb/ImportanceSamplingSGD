@@ -14,7 +14,7 @@ def setup_python_logger(folder):
     log.setLevel(logging.INFO)
     ch = logging.StreamHandler(sys.stderr)
     ch.setLevel(logging.INFO)
-    fh = logging.FileHandler(os.path.join(folder,"log_" + timestamp + "_.txt"),"w")
+    fh = logging.FileHandler(os.path.join(folder, "log_" + timestamp + "_.txt"), "w")
     fh.setLevel(logging.INFO)
     log.addHandler(ch)
     log.addHandler(fh)
