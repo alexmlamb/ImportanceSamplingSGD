@@ -140,6 +140,7 @@ def refresh_QUEUE_from_ALL(rsconn, L_segments, remote_redis_logger=None, logging
 
 def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
+    importance_weight_additive_constant = DD_config['database']['importance_weight_additive_constant']
 
     # set up logging system for logging_folder
     setup_python_logger(folder=DD_config["database"]["logging_folder"])
@@ -214,7 +215,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
     while True:
         logging.info("Running server. Press CTLR+C to stop. Timestamp %f." % time.time())
-        logging.info("Number minibatches processed by master    " + str(rsconn.get('num_minibatches_master_processed')))
+        logging.info("Number minibatches processed by master    " + str(rsconn.get("parameters:num_minibatches_master_processed")))
 
         for segment in ["train", "valid", "test"]:
             logging.info("-- %s " % segment)
@@ -231,8 +232,13 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
         time.sleep(10.0)
 
+        # TODO : Figure a way to factor the staleness into this whole thing making
+        #        making a horrible mess of spaghetti.
 
-        (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches) = get_trace_covariance_information(rsconn, "train")
+        # This is just extra. We always do the computation with 0.0 in all cases.
+        L_importance_weight_additive_constant = [importance_weight_additive_constant]
+
+        (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches, D_other_staleISGD_main_term) = get_trace_covariance_information(rsconn, "train", L_importance_weight_additive_constant=L_importance_weight_additive_constant)
         # Make sure that you have a reasonable number of readings before
         # reporting those statistics.
         if 0.1 <= ratio_of_usable_indices_for_USGD_and_ISGD:
@@ -245,12 +251,15 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
         if 0.1 <= ratio_of_usable_indices_for_ISGDstale:
             logging.info("Trace(Cov Stale ISGD) without mu2 : %0.12f." % (staleisgd2 ,))
+            for (k, v) in D_other_staleISGD_main_term.items():
+                logging.info("Trace(Cov Stale ISGD) without mu2 : %0.12f.  Using importance_weight_additive_constant %f." % (v, k))
         else:
             logging.info("ratio_of_usable_indices_for_ISGDstale %f not high enough to report those numbers" % ratio_of_usable_indices_for_ISGDstale)
         logging.info("")
 
         remote_redis_logger.log( 'SGD_trace_variance',
                     {'approx_mu2':sansgton(mu2), 'usgd2':sansgton(usgd2), 'isgd2':sansgton(isgd2), 'staleisgd2':sansgton(staleisgd2),
+                     'extra_staleisgd2' : D_other_staleISGD_main_term,
                      'ratio_of_usable_indices_for_USGD_and_ISGD':ratio_of_usable_indices_for_USGD_and_ISGD,
                      'ratio_of_usable_indices_for_ISGDstale':ratio_of_usable_indices_for_ISGDstale})
 

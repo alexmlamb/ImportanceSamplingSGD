@@ -84,7 +84,7 @@ def wait_until_all_measurements_are_updated_by_workers(rsconn, segment, measurem
 
 
 
-def get_trace_covariance_information(rsconn, segment):
+def get_trace_covariance_information(rsconn, segment, L_importance_weight_additive_constant=[]):
     #segment = "train"
 
     # In this method, there care be race conditions that lead
@@ -93,6 +93,9 @@ def get_trace_covariance_information(rsconn, segment):
     # be present if and only if `individual_gradient_square_norm` is present,
     # but that can fail to be true because of the multiprocess environment.
     # In those cases, we'll try to be as conservative as possible.
+
+    if L_importance_weight_additive_constant is None:
+        L_importance_weight_additive_constant = []
 
     db_list_name_L_minibatch_indices_str = "L_workers_%s_minibatch_indices_ALL" % segment
     nbr_minibatches = rsconn.llen(db_list_name_L_minibatch_indices_str)
@@ -157,12 +160,33 @@ def get_trace_covariance_information(rsconn, segment):
         USGD_main_term = None
         ISGD_main_term = None
 
+
+    D_other_staleISGD_main_term = {}
     if 0.0 < ratio_of_usable_indices_for_ISGDstale:
         J = J * (1e-16 < individual_gradient_square_norm)
-        staleISGD_main_term_1 = np.sqrt(previous_individual_importance_weight[J]).mean()
-        staleISGD_main_term_2 = (individual_gradient_square_norm[J] / np.sqrt(previous_individual_importance_weight[J])).mean()
-        staleISGD_main_term = staleISGD_main_term_1 * staleISGD_main_term_2
+        if J.sum() == 0:
+            staleISGD_main_term = np.NaN
+        else:
+
+            staleISGD_main_term_1 = np.sqrt(previous_individual_importance_weight[J]).mean()
+            staleISGD_main_term_2 = (individual_gradient_square_norm[J] / np.sqrt(previous_individual_importance_weight[J])).mean()
+            staleISGD_main_term = staleISGD_main_term_1 * staleISGD_main_term_2
+
+            # This is just extra information.
+            for c in L_importance_weight_additive_constant:
+                if c is None or not np.isfinite(c):
+                    continue
+                _staleISGD_main_term_1 = (np.sqrt(previous_individual_importance_weight[J]) + c).mean()
+                _staleISGD_main_term_2 = (   individual_gradient_square_norm[J] / (np.sqrt(previous_individual_importance_weight[J]) + c)   ).mean()
+                _staleISGD_main_term = _staleISGD_main_term_1 * _staleISGD_main_term_2
+
+                D_other_staleISGD_main_term[c] = _staleISGD_main_term
     else:
         staleISGD_main_term = None
 
-    return (USGD_main_term, staleISGD_main_term, ISGD_main_term, approximated_mu_norm_square, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches)
+
+
+
+
+
+    return (USGD_main_term, staleISGD_main_term, ISGD_main_term, approximated_mu_norm_square, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches, D_other_staleISGD_main_term)

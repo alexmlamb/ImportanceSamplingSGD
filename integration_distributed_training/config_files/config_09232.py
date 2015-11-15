@@ -97,6 +97,9 @@ def get_database_config():
     # of the importance weights, or other simular criterion, to define
     # what constitutes a "usable" value.
 
+    # A lot of things have been engineered around the assumption that this was np.NaN.
+    # It's not even a real option anymore. We should enforce this instead of
+    # providing it in the config.
     default_importance_weight = np.NaN
     #default_importance_weight = 1.0
 
@@ -108,7 +111,7 @@ def get_database_config():
     staleness_threshold_num_minibatches_master_processed = None
 
     # Guillaume is not so fond of this approach.
-    importance_weight_additive_constant = None
+    importance_weight_additive_constant = 1.0
 
     serialized_parameters_format ="opaque_string"
 
