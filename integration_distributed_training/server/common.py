@@ -2,6 +2,22 @@
 import time
 import redis
 import numpy as np
+import sys
+import logging
+
+def setup_python_logger(folder):
+
+    timestamp = str(int(time.time()))
+
+    log = logging.getLogger('')
+    log.setLevel(logging.INFO)
+    ch = logging.StreamHandler(sys.stderr)
+    ch.setLevel(logging.INFO)
+    fh = logging.FileHandler(folder + "log_" + timestamp + "_.txt","w")
+    fh.setLevel(logging.INFO)
+    log.addHandler(ch)
+    log.addHandler(fh)
+
 
 # Note that this is NOT the "variance" measurement that is relevant in SGD.
 # It is merely the variance on the measurement throughout the dataset.

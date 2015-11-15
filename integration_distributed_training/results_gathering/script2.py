@@ -39,13 +39,21 @@ def filter_cuts(L_domain, L_values, threshold=60):
 
     return (L_filtered_domain, L_filtered_values)
 
+
 def run():
 
-    results_pickle_file = "/home/gyomalin/tmp/backup_000_iter03.pkl"
+    results_pickle_file = "/home/gyomalin/tmp/backup_000_iter24.pkl"
     E = pickle.load(open(results_pickle_file, "r"))
 
-    L_service_worker = E['logging']['service_worker'].values()
-    L_service_master = E['logging']['service_master'].values()
+    plot_output_pattern = "/home/gyomalin/tmp/iter24_%s.png"
+    #process_loss_accuracy(E, plot_output_pattern)
+
+    process_action_ISGD_vs_USGD(E, plot_output_pattern)
+
+def process_loss_accuracy(E, plot_output_pattern):
+
+    #L_service_worker = E['logging']['service_worker'].values()
+    #L_service_master = E['logging']['service_master'].values()
     L_service_database = E['logging']['service_database'].values()
 
     DL_individual_accuracy = {'train' :[], 'valid' :[], 'test' :[]}
@@ -63,7 +71,7 @@ def run():
 
     for (measurement, DL_stv) in [('individual_accuracy', DL_individual_accuracy), ('individual_loss', DL_individual_loss)]:
 
-        output_path = "/home/gyomalin/tmp/iter03_%s.png" % measurement
+        output_path = plot_output_pattern % measurement
         pylab.hold(True)
 
         L_handles = []
@@ -85,6 +93,22 @@ def run():
         pylab.close()
         print "Wrote %s." % output_path
 
+def process_action_ISGD_vs_USGD(E, plot_output_pattern):
+
+    #L_service_worker = E['logging']['service_worker'].values()
+    L_service_master = E['logging']['service_master'].values()
+    #L_service_database = E['logging']['service_database'].values()
+
+    counts = {'USGD':0, 'ISGD':0}
+    for m in L_service_master:
+        for (timestamp, e) in m['event']:
+            #[1447495834.662256, u'Master proceeding with round of USGD.']
+            if e == "Master proceeding with round of USGD.":
+                counts['USGD'] += 1
+            elif e == "Master proceeding with round of ISGD.":
+                counts['ISGD'] += 1
+
+    print counts
 
 if __name__ == "__main__":
     run()

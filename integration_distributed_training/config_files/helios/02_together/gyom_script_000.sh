@@ -6,6 +6,11 @@
 #PBS -m bea
 
 # Use msub on helios1 to submit this.
+#
+
+# msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/02_together/gyom_script_000.sh
+# msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/02_together/gyom_script_000.sh
+
 
 # Note that the range above includes both the first and last number.
 # The %3 sign after is to instruct the scheduler that we want to run

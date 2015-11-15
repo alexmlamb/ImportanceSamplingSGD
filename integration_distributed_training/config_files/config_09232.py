@@ -104,7 +104,8 @@ def get_database_config():
     master_usable_importance_weights_threshold_to_ISGD = 0.2 # cannot be None
 
     # The master will only consider importance weights which were updated this number of seconds ago.
-    staleness_threshold = None
+    staleness_threshold_seconds = 20
+    staleness_threshold_num_minibatches_master_processed = None
 
     # Guillaume is not so fond of this approach.
     importance_weight_additive_constant = None
@@ -161,13 +162,13 @@ def get_database_config():
                 Ntest=Ntest,
                 L_measurements=L_measurements,
                 L_segments=L_segments,
-                want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
                 default_importance_weight=default_importance_weight,
                 want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
-                staleness_threshold=staleness_threshold,
+                staleness_threshold_seconds=staleness_threshold_seconds,
+                staleness_threshold_num_minibatches_master_processed=staleness_threshold_num_minibatches_master_processed,
                 importance_weight_additive_constant=importance_weight_additive_constant,
                 logging_folder=logging_folder,
                 redis_rdb_path_plus_filename=redis_rdb_path_plus_filename)

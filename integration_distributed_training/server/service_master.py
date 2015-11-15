@@ -18,11 +18,15 @@ import random
 #
 # The actual model that runs on SVHN.
 from integration_distributed_training.model.model import ModelAPI
-from sampling_for_master import sample_indices_and_scaling_factors, get_importance_weights
+from sampling_for_master import sample_indices_and_scaling_factors, get_raw_importance_weights, filter_raw_importance_weights, record_importance_weights_statistics
 
 from startup import get_rsconn_with_timeout, check_if_parameters_are_present
-from common import wait_until_all_measurements_are_updated_by_workers
+from common import setup_python_logger, wait_until_all_measurements_are_updated_by_workers
 
+# python's logging module
+import logging
+import pprint
+# our own logger that sends stuff over to the database
 import integration_distributed_training.server.logger
 
 def run(DD_config, D_server_desc):
@@ -34,13 +38,16 @@ def run(DD_config, D_server_desc):
                                      timeout=DD_config['database']['connection_setup_timeout'], wait_for_parameters_to_be_present=False)
 
     L_measurements = DD_config['database']['L_measurements']
-    want_only_indices_for_master = DD_config['database']['want_only_indices_for_master']
+
     master_minibatch_size = DD_config['database']['master_minibatch_size']
     serialized_parameters_format = DD_config['database']['serialized_parameters_format']
     Ntrain = DD_config['database']['Ntrain']
     # Default behavior is to have no staleness, and perform ISGD from the moment that we
     # get values for all the importance weights. Until then, we do USGD.
-    staleness_threshold = DD_config['database']['staleness_threshold']
+    staleness_threshold_seconds = DD_config['database']['staleness_threshold_seconds']
+    staleness_threshold_num_minibatches_master_processed = DD_config['database']['staleness_threshold_num_minibatches_master_processed']
+    importance_weight_additive_constant = DD_config['database']['importance_weight_additive_constant']
+
     want_master_to_do_USGD_when_ISGD_is_not_possible = DD_config['database'].get('want_master_to_do_USGD_when_ISGD_is_not_possible', True)
     master_usable_importance_weights_threshold_to_ISGD = DD_config['database'].get('master_usable_importance_weights_threshold_to_ISGD', 1.0)
     master_routine = DD_config['model']['master_routine']
@@ -49,9 +56,16 @@ def run(DD_config, D_server_desc):
         print master_routine
         quit()
     turn_off_importance_sampling = DD_config["model"].get("turn_off_importance_sampling", False)
-    importance_weight_additive_constant = DD_config['database'].get('importance_weight_additive_constant', None)
+
+
+
+    # set up python logging system for logging_folder
+    setup_python_logger(folder=DD_config["database"]["logging_folder"])
+    logging.info(pprint.pformat(DD_config))
 
     remote_redis_logger = integration_distributed_training.server.logger.RedisLogger(rsconn, queue_prefix_identifier="service_master")
+
+
 
     model_api = ModelAPI(DD_config['model'])
     # This `record_machine_info` has to be called after the component that
@@ -64,13 +78,13 @@ def run(DD_config, D_server_desc):
         ### resuming_from_previous_run = False ###
         msg = "Starting a new run."
         remote_redis_logger.log('event', msg)
-        print msg
+        logging.info(msg)
     else:
         ### resuming_from_previous_run = True ###
 
         msg = "Resuming from previous run."
         remote_redis_logger.log('event', msg)
-        print msg
+        logging.info(msg)
 
         # This whole section is taken almost exactly from the service_worker.
         tic = time.time()
@@ -87,7 +101,7 @@ def run(DD_config, D_server_desc):
             model_api.set_serialized_parameters(current_parameters_str)
             toc = time.time()
             remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
-            print "The master has received initial parameters. This took %f seconds." % (toc - tic,)
+            logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
 
         elif serialized_parameters_format == "ndarray_float32_tostring":
             parameters_current_timestamp_str = new_parameters_current_timestamp_str
@@ -95,25 +109,12 @@ def run(DD_config, D_server_desc):
             model_api.set_serialized_parameters(current_parameters)
             toc = time.time()
             remote_redis_logger.log('timing_profiler', {'model_api.set_serialized_parameters' : (toc-tic)})
-            print "The master has received initial parameters. This took %f seconds." % (toc - tic,)
+            logging.info("The master has received initial parameters. This took %f seconds." % (toc - tic,))
 
         else:
-            print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
+            logging.info("Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format)
             quit()
 
-
-
-
-
-
-
-
-
-
-
-    if not want_only_indices_for_master:
-        print "Error. At the current time we support only the of feeding data to the master through indices (instead of actual data)."
-        quit()
 
     # Run just a simple test to make sure that the importance weights have been
     # set to something. In theory, there should always be valid values in there,
@@ -148,8 +149,14 @@ def run(DD_config, D_server_desc):
 
     queue_name = "L_master_train_minibatch_indices_and_info_QUEUE"
 
+    num_minibatches_master_processed_str = rsconn.get("parameters:num_minibatches_master_processed")
+    if num_minibatches_master_processed_str is None or len(num_minibatches_master_processed_str) == 0:
+        num_minibatches_master_processed = 0.0
+        rsconn.set("parameters:num_minibatches_master_processed", num_minibatches_master_processed)
+    else:
+        num_minibatches_master_processed = float(num_minibatches_master_processed_str)
 
-    num_minibatches_master_processed = 0
+    print "num_minibatches_master_processed is %f" % num_minibatches_master_processed
 
     # The main loop runs until the user hits CTLR+C or until
     # the Helios cluster sends the SIGTERM to that process
@@ -169,8 +176,8 @@ def run(DD_config, D_server_desc):
     signal_handler.remote_redis_logger = remote_redis_logger
 
     # cache those values to use them for more than one computation
-    A_importance_weights = None
-    nbr_of_usable_importance_weights = 0
+    D_importance_weights_and_more = None
+    extra_statistics = None
 
     remote_redis_logger.log('event', "Before entering service_master main loop.")
     while True:
@@ -179,8 +186,6 @@ def run(DD_config, D_server_desc):
             assert next_action in [ "sync_params", "refresh_importance_weights", "process_minibatch", # the normal ones
                                     "wait_for_workers_to_update_all_the_importance_weights"]          # the special ones
 
-            # TODO : Have a clause that governs resuming from the database in which
-            #        we would not sync_params, but rather read from the database.
             if next_action == "sync_params":
 
                 remote_redis_logger.log('event', "sync_params")
@@ -190,7 +195,7 @@ def run(DD_config, D_server_desc):
                 elif serialized_parameters_format == "ndarray_float32_tostring":
                     current_parameters_str = model_api.get_serialized_parameters().tostring(order='C')
                 else:
-                    print "Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format
+                    logging.info("Fatal error : invalid serialized_parameters_format : %s." % serialized_parameters_format)
                     quit()
                 toc = time.time()
                 remote_redis_logger.log('timing_profiler', {'read_parameters_from_model' : (toc-tic)})
@@ -198,6 +203,7 @@ def run(DD_config, D_server_desc):
                 tic = time.time()
                 rsconn.set("parameters:current", current_parameters_str)
                 rsconn.set("parameters:current_timestamp", time.time())
+                rsconn.set("parameters:num_minibatches_master_processed", num_minibatches_master_processed)
                 # potentially not used
                 rsconn.set("parameters:current_datestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
                 toc = time.time()
@@ -211,15 +217,25 @@ def run(DD_config, D_server_desc):
                 # However, it's the way to see what would happen if we implemented ISGD exactly
                 # without using any stale importance weights.
                 #    wait_until_all_measurements_are_updated_by_workers(rsconn, "train", "importance_weight")
-                print "Error. Take the time to test wait_for_workers_to_update_all_the_importance_weights if you want to use it. I expect it to work, though."
+                logging.info("Error. Take the time to test wait_for_workers_to_update_all_the_importance_weights if you want to use it. I expect it to work, though.")
 
             elif next_action == "refresh_importance_weights":
 
                 remote_redis_logger.log('event', "refresh_importance_weights")
                 tic = time.time()
-                A_importance_weights, nbr_of_usable_importance_weights = get_importance_weights(rsconn,
-                                                                                                staleness_threshold=staleness_threshold,
-                                                                                                importance_weight_additive_constant=importance_weight_additive_constant)
+                _, D_importance_weights_and_more = get_raw_importance_weights(rsconn)
+
+                (_, D_importance_weights_and_more, extra_statistics) = filter_raw_importance_weights(
+                                                                            D_importance_weights_and_more,
+                                                                            staleness_threshold_seconds=staleness_threshold_seconds,
+                                                                            staleness_threshold_num_minibatches_master_processed=staleness_threshold_num_minibatches_master_processed,
+                                                                            importance_weight_additive_constant=importance_weight_additive_constant,
+                                                                            num_minibatches_master_processed=num_minibatches_master_processed)
+
+                record_importance_weights_statistics(   D_importance_weights_and_more, extra_statistics,
+                                            remote_redis_logger=remote_redis_logger, logging=logging,
+                                            want_compute_entropy=True)
+
                 toc = time.time()
                 remote_redis_logger.log('timing_profiler', {'refresh_importance_weights' : (toc-tic)})
                 #print "The master has obtained fresh importance weights."
@@ -236,17 +252,14 @@ def run(DD_config, D_server_desc):
 
                 tic = time.time()
                 (intent, mode, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(
-                        A_importance_weights=A_importance_weights,
-                        nbr_of_usable_importance_weights=nbr_of_usable_importance_weights,
+                        D_importance_weights_and_more=D_importance_weights_and_more,
+                        extra_statistics=extra_statistics,
                         nbr_samples=master_minibatch_size,
                         master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
                         want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
-                        turn_off_importance_sampling=turn_off_importance_sampling,
-                        Ntrain=Ntrain)
+                        turn_off_importance_sampling=turn_off_importance_sampling)
                 toc = time.time()
                 remote_redis_logger.log('timing_profiler', {'sample_indices_and_scaling_factors' : (toc-tic)})
-
-                num_minibatches_master_processed += 1
 
                 if intent == 'wait_and_retry':
                     remote_redis_logger.log(['event', "Master does not have enough importance weights to do ISGD, and doesn't want to default to USGD. Sleeping for 2 seconds."])
@@ -256,11 +269,15 @@ def run(DD_config, D_server_desc):
                 if intent == 'proceed':
                     remote_redis_logger.log('event', "Master proceeding with round of %s." % (mode,))
                     tic = time.time()
+
+                    #if not np.all(np.isfinite(A_scaling_factors)):
+                    #    import pdb; pdb.set_trace()
+
                     model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
                     toc = time.time()
                     remote_redis_logger.log('timing_profiler', {'master_process_minibatch' : (toc-tic), 'mode':mode})
-                    print "The master has processed a minibatch."
-
+                    logging.info("The master has processed a minibatch using %s." % mode)
+                    num_minibatches_master_processed += 1
 
 
     remote_redis_logger.log('event', "Master exited from main loop")

@@ -11,13 +11,15 @@ import getopt
 import signal
 import sys
 
-import pprint
-
 from startup import delete_bootstrap_file, check_if_parameters_are_present, check_if_any_initialization_has_even_been_done, set_initialization_as_done
-from common import get_mean_variance_measurement_on_database, get_trace_covariance_information
+from common import setup_python_logger, get_mean_variance_measurement_on_database, get_trace_covariance_information
+
+# TODO : Make use of this.
+from sampling_for_master import get_raw_importance_weights, filter_raw_importance_weights, record_importance_weights_statistics
 
 # python's logging module
 import logging
+import pprint
 # our own logger that sends stuff over to the database
 import integration_distributed_training.server.logger
 
@@ -134,25 +136,13 @@ def refresh_QUEUE_from_ALL(rsconn, L_segments, remote_redis_logger=None, logging
                 logging.info(msg)
 
 
-def setup_remote_logger(folder):
-
-    timestamp = str(int(time.time()))
-
-    log = logging.getLogger('')
-    log.setLevel(logging.INFO)
-    ch = logging.StreamHandler(sys.stderr)
-    ch.setLevel(logging.INFO)
-    fh = logging.FileHandler(folder + "log_" + timestamp + "_.txt","w")
-    fh.setLevel(logging.INFO)
-    log.addHandler(ch)
-    log.addHandler(fh)
 
 
 def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
 
     # set up logging system for logging_folder
-    setup_remote_logger(folder=DD_config["database"]["logging_folder"])
+    setup_python_logger(folder=DD_config["database"]["logging_folder"])
     logging.info(pprint.pformat(DD_config))
 
     # set up logging system to the redis server

@@ -85,6 +85,7 @@ def run(DD_config, D_server_desc):
     # with a timestamp that reflects the last time that they got a fresh set of parameters.
     current_parameters = None
     parameters_current_timestamp_str = ""
+    parameters_num_minibatches_master_processed_str = ""
 
     remote_redis_logger.log('event', "Before entering service_worker main loop.")
     while True:
@@ -97,6 +98,11 @@ def run(DD_config, D_server_desc):
                 remote_redis_logger.log('event', "sync_params")
 
                 new_parameters_current_timestamp_str = rsconn.get("parameters:current_timestamp")
+
+                # Note that `rsconn.get("parameters:num_minibatches_master_processed")` is reflected
+                # right back to the database without us even parsing it at all. It's meant to be an alternate
+                # way to specify the staleness.
+
                 if parameters_current_timestamp_str != new_parameters_current_timestamp_str:
                     tic = time.time()
                     current_parameters_str = rsconn.get("parameters:current")
@@ -110,6 +116,7 @@ def run(DD_config, D_server_desc):
 
                     if serialized_parameters_format == "opaque_string":
                         parameters_current_timestamp_str = new_parameters_current_timestamp_str
+                        parameters_num_minibatches_master_processed_str = rsconn.get("parameters:num_minibatches_master_processed")
                         tic = time.time()
                         model_api.set_serialized_parameters(current_parameters_str)
                         toc = time.time()
@@ -119,6 +126,7 @@ def run(DD_config, D_server_desc):
                     elif serialized_parameters_format == "ndarray_float32_tostring":
                         current_parameters = np.fromstring(current_parameters_str, dtype=np.float32)
                         parameters_current_timestamp_str = new_parameters_current_timestamp_str
+                        parameters_num_minibatches_master_processed_str = rsconn.get("parameters:num_minibatches_master_processed")
                         tic = time.time()
                         model_api.set_serialized_parameters(current_parameters)
                         toc = time.time()
@@ -212,6 +220,12 @@ def run(DD_config, D_server_desc):
 
                     current_update_timestamp = time.time()
                     rsconn.hset("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str, current_update_timestamp)
+
+                    # This string is reflected intact to the database. It does not get parsed. The usefulness of this comes
+                    # from the fact that the master can then how many "minibatches ago" the parameters came.
+                    # This is basically the same thing as the "delay_between_measurement_update_and_parameter_update"
+                    # below, but it's an absolute value instead of being a difference.
+                    rsconn.hset("H_%s_minibatch_%s_measurement_num_minibatches_master_processed" % (segment, measurement), current_minibatch_indices_str, parameters_num_minibatches_master_processed_str)
 
                     delay_between_measurement_update = current_update_timestamp - previous_update_timestamp
                     delay_between_measurement_update_and_parameter_update = current_update_timestamp - float(parameters_current_timestamp_str)
