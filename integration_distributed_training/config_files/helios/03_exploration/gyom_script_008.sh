@@ -8,8 +8,22 @@
 # Use msub on helios1 to submit this.
 #
 
-# msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/02_together/gyom_script_005.sh
-# msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/02_together/gyom_script_005.sh
+# msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_005.sh
+# msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_005.sh
+
+
+# More modern !
+#
+#OUTPUT=`msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_008.sh`
+#OUTPUT=`echo $OUTPUT | tr -d " "`
+#echo $OUTPUT
+#
+#OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_008.sh`
+#OUTPUT=`echo $OUTPUT | tr -d " "`
+#echo $OUTPUT
+
+
+
 
 
 # Note that the range above includes both the first and last number.
