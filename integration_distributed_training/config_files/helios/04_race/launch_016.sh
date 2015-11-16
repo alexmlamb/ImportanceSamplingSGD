@@ -1,28 +1,16 @@
 #!/bin/bash
 
-#PBS -l nodes=1:gpus=4
+#PBS -l nodes=1:gpus=2
 #PBS -l walltime=1:00:00
 #PBS -A jvb-000-ag
 #PBS -m bea
+#PBS -l feature=k20
 
 # Use msub on helios1 to submit this.
 #
 
-#OUTPUT="$(msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_004.sh)"
-#OUTPUT="$(msub -l depend=52184 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_004.sh)"
-
-#OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_004.sh`
-#OUTPUT=`echo $OUTPUT | tr -d " "`
-#echo $OUTPUT
-
-
-
-
-#
-#  tr -d " "
-
-# msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_004.sh
-# msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/03_exploration/gyom_script_004.sh
+# msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/04_race/launch_016.sh
+# msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/04_race/launch_016.sh
 
 
 # Note that the range above includes both the first and last number.
@@ -40,7 +28,7 @@ export IMPORTANCE_SAMPLING_SGD_ROOT=${HOME}/Documents/ImportanceSamplingSGD
 export PYTHONPATH=${PYTHONPATH}:${IMPORTANCE_SAMPLING_SGD_ROOT}
 export IMPORTANCE_SAMPLING_SGD_BIN=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/bin
 
-export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/helios/03_exploration/config_004.py
+export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/helios/04_race/config_016.py
 
 # The config file will contain other information such as the directory in
 # which we want to output logs.
@@ -49,7 +37,7 @@ export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_train
 # be reached by all the tasks launched since it's going to be how they
 # communicate between themselves initially to share where the database is running,
 # what port it's on and what's the password.
-export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_004
+export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_016
 
 # The whole stdbuf is not necessary, but I left it there because it fixes
 # some of the strange behavior when we try to redirect the output to a file.

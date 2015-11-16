@@ -183,8 +183,10 @@ def run():
     #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl",
     #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"]:
 
-    helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+    # lambda
     #helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+    # szkmbp
+    helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
 
     for results_pickle_file in [os.path.join(helios_experiments_dir, "000/000_24h.pkl"),
                                 os.path.join(helios_experiments_dir, "001/001_24h.pkl"),
