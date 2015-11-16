@@ -13,6 +13,17 @@
 # msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/04_race/launch_011.sh
 
 
+#OUTPUT=`msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/04_race/launch_011.sh`
+#OUTPUT=`echo $OUTPUT | tr -d " "`
+#echo $OUTPUT
+
+#OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/04_race/launch_011.sh`
+#OUTPUT=`echo $OUTPUT | tr -d " "`
+#echo $OUTPUT
+
+
+
+
 # Note that the range above includes both the first and last number.
 # The %3 sign after is to instruct the scheduler that we want to run
 # as much as %3 simultaneous jobs. For our uses, there isn't much
