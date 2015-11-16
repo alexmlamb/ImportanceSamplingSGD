@@ -24,10 +24,11 @@ class TimegapCutter(object):
         self.closed = False
 
     def add_timestamps(self, L_timestamps):
+        assert self.closed == False
         self.LL_timestamps.append(L_timestamps)
 
     def finalize(self, ):
-        self.closed = False
+        self.closed = True
         assert 0 < len(self.LL_timestamps)
 
         # flatten the list
@@ -41,7 +42,7 @@ class TimegapCutter(object):
 
         # This will make everything start at 0.
         t0 = L_timestamps[0]
-        self.L_break_points = [(t0, t0)]
+        self.L_break_points = [(t0 - 1.0, t0)]
 
         #accum_time_subtraction = L_timestamps[0]
         for (t0, t1) in zip(L_timestamps, L_timestamps[1:]):
@@ -53,7 +54,7 @@ class TimegapCutter(object):
                 # Not normal. We will throw away one point because it's hard to
                 # find where to put it when we decide to glue the two sides together.
                 #accum_time_subtraction += t1 - t0
-                self.L_break_points.append( (t0, t1 - t0) )
+                self.L_break_points.append( ( 0.5*(t0+t1), t1 - t0) )
 
     def cut(self, L_timestamps, L_values=None):
 
@@ -65,7 +66,7 @@ class TimegapCutter(object):
         # Basically, you can call this without thinking too much about things
         # if you specify L_values and you let this method take care of those concerns.
 
-        assert self.closed == False
+        assert self.closed == True
         if L_values is not None:
             assert len(L_timestamps) == len(L_values)
             if len(L_timestamps) == 0:
@@ -88,8 +89,12 @@ class TimegapCutter(object):
             A_timestamps = np.array(L_timestamps)
             A_values = None
 
+        A_timestamps_copy = np.copy(A_timestamps)
         for (t, dt) in self.L_break_points:
-            I = t < A_timestamps
+            # You really cannot be using the same `A_timestamps` to mutate
+            # and to find for the locations that should be shifted.
+            # You need to make a copy to do that.
+            I = (t <= A_timestamps_copy)
             A_timestamps[I] -= dt
 
         if A_values is None:
@@ -168,16 +173,29 @@ def filter_cuts(L_domain, L_values, threshold=60):
 def run():
 
     #results_pickle_file = "/home/gyomalin/tmp/backup_000_iter24.pkl"
-    #results_pickle_file = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl"
-    results_pickle_file = "/Users/gyomalin/Documents/helios_experiments/000/000_iter8_run2.pkl"
-    E = pickle.load(open(results_pickle_file, "r"))
+    #results_pickle_file = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"
+    #results_pickle_file = "/Users/gyomalin/Documents/helios_experiments/000/000_iter8_run2.pkl"
 
-    m = re.match(r"(.*).pkl", results_pickle_file)
-    assert m
-    plot_output_pattern = m.group(1) + "_%s.png"
-    #process_loss_accuracy(E, plot_output_pattern)
-    #process_action_ISGD_vs_USGD(E, plot_output_pattern)
-    process_trcov(E, m.group(1) + ".png")
+    for results_pickle_file in [#"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/000/000_iter8_run2.pkl",
+                                #"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/001/001_iter8_run2.pkl",
+                                #"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/002_iter10_run2.pkl",
+                                #"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl",
+                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"]:
+
+    #if True:
+        E = pickle.load(open(results_pickle_file, "r"))
+
+        m = re.match(r"(.*).pkl", results_pickle_file)
+        assert m
+        #plot_output_pattern = m.group(1) + "_%s_DEBUG.png"
+        #DEBUG_process_loss_accuracy(E, plot_output_pattern)
+        plot_output_pattern = m.group(1) + "_%s.png"
+        process_loss_accuracy(E, plot_output_pattern)
+        process_action_ISGD_vs_USGD(E, plot_output_pattern)
+        process_trcov(E, m.group(1) + ".png")
+
+    # TODO : Plot the ratios of used importance weights, just to be sure how much we're using.
+
 
 def process_loss_accuracy(E, plot_output_pattern):
 
@@ -188,6 +206,8 @@ def process_loss_accuracy(E, plot_output_pattern):
     DL_individual_accuracy = {'train' :[], 'valid' :[], 'test' :[]}
     DL_individual_loss = {'train' :[], 'valid' :[], 'test' :[]}
 
+    L_service_database = sorted(L_service_database, key=lambda e: e['measurement'][0][0])
+
     for sd in L_service_database:
         for (timestamp, e) in sd['measurement']:
             if e['name'] == 'individual_loss':
@@ -195,10 +215,16 @@ def process_loss_accuracy(E, plot_output_pattern):
             elif e['name'] == 'individual_accuracy':
                 DL_individual_accuracy[e['segment']].append((timestamp, e['mean']))
 
-
     print "Generating plots."
 
     for (measurement, DL_stv) in [('individual_accuracy', DL_individual_accuracy), ('individual_loss', DL_individual_loss)]:
+
+        # setup the timecutter
+        tgc = TimegapCutter(60)
+        for (segment, tv) in DL_stv.items():
+            L_domain = [e[0] for e in tv]
+            tgc.add_timestamps( L_domain )
+        tgc.finalize()
 
         output_path = plot_output_pattern % measurement
         pylab.hold(True)
@@ -207,20 +233,73 @@ def process_loss_accuracy(E, plot_output_pattern):
         for (segment, tv) in DL_stv.items():
 
             # we want those values sorted by increasing timestamp
-            tv = sorted(tv, key=lambda e: e[0])
+            # tv = sorted(tv, key=lambda e: e[0])
 
             L_domain = [e[0] for e in tv]
             L_values = [e[1] for e in tv]
 
-            (L_domain, L_values) = filter_cuts(L_domain, L_values)
+            (L_domain, L_values) = tgc.cut(L_domain, L_values)
+            #
+            #(L_domain, L_values) = filter_cuts(L_domain, L_values)
 
             handle = pylab.plot( np.array(L_domain), np.array(L_values), label=segment, linewidth=2 )
             L_handles.append( handle )
 
+        plt.title("%s over whole dataset" % measurement)
+        plt.xlabel("time in seconds")
         plt.legend(loc=7)
         pylab.savefig(output_path, dpi=250)
         pylab.close()
         print "Wrote %s." % output_path
+
+
+
+
+# This method is only there to debug some problems when the plotting
+# just isn't doing what it's supposed to do.
+def DEBUG_process_loss_accuracy(E, plot_output_pattern):
+
+    #L_service_worker = E['logging']['service_worker'].values()
+    #L_service_master = E['logging']['service_master'].values()
+    L_service_database = E['logging']['service_database'].values()
+
+    DL_individual_accuracy = {'train' :[], 'valid' :[], 'test' :[]}
+    DL_individual_loss = {'train' :[], 'valid' :[], 'test' :[]}
+
+    L_service_database = sorted(L_service_database, key=lambda e: e['measurement'][0][0])
+
+    print "Generating plots."
+
+    for measurement in ['individual_accuracy', 'individual_loss']:
+
+        output_path = plot_output_pattern % measurement
+        pylab.hold(True)
+
+        L_handles = []
+
+        for segment in ['train', 'valid', 'test']:
+            for sd in L_service_database:
+
+                L_domain = []
+                L_values = []
+
+                for (timestamp, e) in sd['measurement']:
+                    if e['name'] == measurement and e['segment'] == segment:
+                        L_domain.append(timestamp)
+                        L_values.append(e['mean'])
+
+                handle = pylab.plot( np.array(L_domain), np.array(L_values), label=segment, linewidth=2 )
+                L_handles.append( handle )
+
+        plt.title("%s over whole dataset" % measurement)
+        plt.xlabel("time in seconds")
+        #plt.legend(loc=7)
+        pylab.savefig(output_path, dpi=250)
+        pylab.close()
+        print "Wrote %s." % output_path
+
+
+
 
 def process_action_ISGD_vs_USGD(E, plot_output_pattern):
 
@@ -287,7 +366,7 @@ def process_trcov(E, output_path):
                     LP_extra_staleisgd2.append((timestamp, v))
                     LP_extra_staleisgd2_minusmu2.append((timestamp, v - e['approx_mu2']))
 
-    tgc = TimegapCutter(5 * 60)
+    tgc = TimegapCutter(60)
     tgc.add_timestamps( [e[0] for e in LP_approx_mu2] )
     tgc.add_timestamps( [e[0] for e in LP_usgd2] )
     tgc.add_timestamps( [e[0] for e in LP_staleisgd2] )
@@ -300,20 +379,26 @@ def process_trcov(E, output_path):
 
     L_domain = [e[0] for e in LP_usgd2_minusmu2]
     L_values = [e[1] for e in LP_usgd2_minusmu2]
+    (L_domain, L_values) = tgc.cut(L_domain, L_values)
     handle = pylab.plot( np.array(L_domain), np.sqrt(np.array(L_values)), label='USGD', linewidth=2 )
     L_handles.append( handle )
 
     L_domain = [e[0] for e in LP_staleisgd2_minusmu2]
     L_values = [e[1] for e in LP_staleisgd2_minusmu2]
+    (L_domain, L_values) = tgc.cut(L_domain, L_values)
     handle = pylab.plot( np.array(L_domain), np.sqrt(np.array(L_values)), label='ISGD stale', linewidth=2 )
     L_handles.append( handle )
 
     L_domain = [e[0] for e in LP_isgd2_minusmu2]
     L_values = [e[1] for e in LP_isgd2_minusmu2]
+    (L_domain, L_values) = tgc.cut(L_domain, L_values)
     handle = pylab.plot( np.array(L_domain), np.sqrt(np.array(L_values)), label='ISGD ideal', linewidth=2 )
     L_handles.append( handle )
 
-    plt.legend(loc=7)
+    plt.title("Square root of Trace(Cov) computed over whole dataset")
+    plt.ylabel("sqrt(tr(cov))")
+    plt.xlabel("time in seconds")
+    plt.legend(loc=2)
     pylab.savefig(output_path, dpi=250)
     pylab.close()
     print "Wrote %s." % output_path
