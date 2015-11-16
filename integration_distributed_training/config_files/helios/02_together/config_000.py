@@ -58,6 +58,10 @@ def get_model_config():
 
     model_config["turn_off_importance_sampling"] = False
 
+    model_config['image']                         = data_root + '/noisy_images/'
+    model_config['noise']                         = 'no_noise'#'uniform'#'normal'#'black_out'#'guassian'#'no_noise'
+    model_config['fraction_noise']                = 0.10
+
     return model_config
 
 

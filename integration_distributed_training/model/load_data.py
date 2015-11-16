@@ -1,7 +1,7 @@
 import numpy as np
 import gzip
 import cPickle
-
+from noise import noisify
 #Returns list of tuples containing training, validation, and test instances.
 def load_data_svhn(config):
 
@@ -98,6 +98,14 @@ def load_data_svhn(config):
 
     print "computed mean and var"
 
+    # Adding noise
+    if 'noise' in config.keys() and config['noise'] != 'no_noise':
+        noise_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (config["fraction_noise"])), replace = False)
+        print np.amax(noise_indices)
+        noisify(train_X[noise_indices], config)
+    else :
+        print "Not adding any noise"
+
     print "Training Set", train_X.shape, train_Y.shape
     print "Validation Set", valid_X.shape, valid_Y.shape
     print "Test Set", test_X.shape, test_Y.shape
@@ -120,7 +128,6 @@ def load_data_mnist(config):
 
     #[(train_set_x, train_set_y), (valid_set_x, valid_set_y),
            # (test_set_x, test_set_y)]
-
     return rval
 
 def normalizeMatrix(X, mean, std):
