@@ -203,9 +203,9 @@ def run():
         #plot_output_pattern = m.group(1) + "_%s_DEBUG.png"
         #DEBUG_process_loss_accuracy(E, plot_output_pattern)
         plot_output_pattern = m.group(1) + "_%s.png"
-        #process_loss_accuracy(E, plot_output_pattern)
+        process_loss_accuracy(E, plot_output_pattern)
         #process_action_ISGD_vs_USGD(E, plot_output_pattern)
-        #process_trcov(E, m.group(1) + "_sqrttrcov.png")
+        process_trcov(E, m.group(1) + "_sqrttrcov.png")
         process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
 
     # TODO : Plot the ratios of used importance weights, just to be sure how much we're using.
