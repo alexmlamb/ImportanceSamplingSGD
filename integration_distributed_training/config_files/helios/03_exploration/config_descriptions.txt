@@ -1,0 +1,32 @@
+
+
+config_004 (no momentum)
+    model_config["momentum_rate"] = 0.0
+    importance_weight_additive_constant = 1e-4
+    staleness_threshold_seconds = 4
+
+
+config_005 (no staleness)
+    model_config["momentum_rate"] = 0.95
+    importance_weight_additive_constant = 1e-4
+    staleness_threshold_seconds = None
+
+
+config_006 (only SGD, only 2 GPU : 1 master + 1 worker)
+    model_config["turn_off_importance_sampling"] = True
+    model_config["momentum_rate"] = 0.95
+    staleness_threshold_seconds = 4
+    importance_weight_additive_constant = 1e-4
+
+
+config_007 (smaller learning rate)
+    model_config["momentum_rate"] = 0.95
+    model_config["learning_rate"] = 0.00001
+    staleness_threshold_seconds = 4
+    importance_weight_additive_constant = 1e-4
+
+
+config_008 (no staleness, same as config_005 except with 2 GPUs : 1 master + 1 worker)
+    model_config["momentum_rate"] = 0.95
+    importance_weight_additive_constant = 1e-4
+    staleness_threshold_seconds = None

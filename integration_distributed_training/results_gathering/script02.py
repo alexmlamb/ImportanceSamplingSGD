@@ -176,10 +176,10 @@ def run():
     #results_pickle_file = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"
     #results_pickle_file = "/Users/gyomalin/Documents/helios_experiments/000/000_iter8_run2.pkl"
 
-    for results_pickle_file in [#"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/000/000_iter8_run2.pkl",
-                                #"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/001/001_iter8_run2.pkl",
-                                #"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/002_iter10_run2.pkl",
-                                #"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl",
+    for results_pickle_file in ["/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/000/000_iter8_run2.pkl",
+                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/001/001_iter8_run2.pkl",
+                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/002_iter10_run2.pkl",
+                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl",
                                 "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"]:
 
     #if True:
@@ -190,9 +190,10 @@ def run():
         #plot_output_pattern = m.group(1) + "_%s_DEBUG.png"
         #DEBUG_process_loss_accuracy(E, plot_output_pattern)
         plot_output_pattern = m.group(1) + "_%s.png"
-        process_loss_accuracy(E, plot_output_pattern)
-        process_action_ISGD_vs_USGD(E, plot_output_pattern)
-        process_trcov(E, m.group(1) + ".png")
+        #process_loss_accuracy(E, plot_output_pattern)
+        #process_action_ISGD_vs_USGD(E, plot_output_pattern)
+        #process_trcov(E, m.group(1) + "_sqrttrcov.png")
+        process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
 
     # TODO : Plot the ratios of used importance weights, just to be sure how much we're using.
 
@@ -402,6 +403,63 @@ def process_trcov(E, output_path):
     pylab.savefig(output_path, dpi=250)
     pylab.close()
     print "Wrote %s." % output_path
+
+
+
+
+
+def process_ratio_of_usable_importance_weights(E, output_path):
+
+    L_service_master = E['logging']['service_master'].values()
+
+    LPL_results = []
+    for sm in L_service_master:
+        L_domain = []
+        L_values_ratio = []
+        #L_values_entropy = []
+        for (timestamp, e) in sm['importance_weights_statistics']:
+            L_domain.append(timestamp)
+            L_values_ratio.append(e['ratio_of_usable_importance_weights'])
+            #L_values_entropy.append(e['importance_weights:ratio_satisfying:staleness_threshold_seconds'])
+
+        LPL_results.append( (L_domain, L_values_ratio) )
+
+
+
+    print "Generating plots."
+
+    pylab.hold(True)
+    #L_handles = []
+
+    L_domain_flattened = sum([e[0] for e in LPL_results], [])
+    L_values_flattened = sum([e[1] for e in LPL_results], [])
+
+    # setup the timecutter
+    tgc = TimegapCutter(60)
+    tgc.add_timestamps( L_domain_flattened )
+    tgc.finalize()
+
+
+    (L_domain_flattened, L_values_flattened) = tgc.cut(L_domain_flattened, L_values_flattened)
+
+    # smoothing taken from
+    #     http://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve.html#scipy.signal.convolve
+    from scipy import signal
+    win = signal.hann(20)
+    L_values_flattened_filtered = signal.convolve(L_values_flattened, win, mode='same') / sum(win)
+
+    handle = pylab.plot( np.array(L_domain_flattened), np.array(L_values_flattened_filtered), linewidth=2 )
+    #handle = pylab.plot( np.array(L_domain_flattened), np.array(L_values_flattened), linewidth=2 )
+    #L_handles.append( handle )
+
+    plt.title("ratio of usable importance weights")
+    plt.xlabel("time in seconds")
+    #plt.legend(loc=7)
+    pylab.savefig(output_path, dpi=250)
+    pylab.close()
+    print "Wrote %s." % output_path
+
+
 
 
 
