@@ -1,0 +1,39 @@
+
+config_000
+
+  model_config["momentum_rate"] = 0.95
+  model_config["learning_rate"] = 0.0001
+  master_usable_importance_weights_threshold_to_ISGD = 0.01
+  staleness_threshold_seconds = 4
+  staleness_threshold_num_minibatches_master_processed = None
+  importance_weight_additive_constant = None
+
+
+config_001
+
+  model_config["momentum_rate"] = 0.5
+  model_config["learning_rate"] = 0.001
+  master_usable_importance_weights_threshold_to_ISGD = 0.01
+  staleness_threshold_seconds = 8
+  staleness_threshold_num_minibatches_master_processed = None
+  importance_weight_additive_constant = None
+
+
+config_002
+
+  model_config["momentum_rate"] = 0.95
+  model_config["learning_rate"] = 0.0001
+  master_usable_importance_weights_threshold_to_ISGD = 0.01
+  staleness_threshold_seconds = 4
+  staleness_threshold_num_minibatches_master_processed = None
+  importance_weight_additive_constant = 1.0
+
+
+config_003
+
+  model_config["momentum_rate"] = 0.5
+  model_config["learning_rate"] = 0.001
+  master_usable_importance_weights_threshold_to_ISGD = 0.01
+  staleness_threshold_seconds = 8
+  staleness_threshold_num_minibatches_master_processed = None
+  importance_weight_additive_constant = 1.0

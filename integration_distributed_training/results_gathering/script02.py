@@ -176,13 +176,25 @@ def run():
     #results_pickle_file = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"
     #results_pickle_file = "/Users/gyomalin/Documents/helios_experiments/000/000_iter8_run2.pkl"
 
-    for results_pickle_file in ["/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/000/000_iter8_run2.pkl",
-                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/001/001_iter8_run2.pkl",
-                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/002_iter10_run2.pkl",
-                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl",
-                                "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"]:
+    #for results_pickle_file in ["/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/000/000_iter8_run2.pkl",
+    #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/001/001_iter8_run2.pkl",
+    #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/002_iter10_run2.pkl",
+    #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl",
+    #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"]:
 
-    #if True:
+    helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+    #helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "000/000_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "001/001_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "002/002_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "003/003_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "004/004_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "005/005_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "006/006_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "007/007_24h.pkl"),
+                                os.path.join(helios_experiments_dir, "008/008_24h.pkl"),]:
+
         E = pickle.load(open(results_pickle_file, "r"))
 
         m = re.match(r"(.*).pkl", results_pickle_file)
