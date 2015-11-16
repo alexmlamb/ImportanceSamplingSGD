@@ -2,6 +2,7 @@
 import numpy as np
 import pickle
 import re
+import os
 
 import matplotlib
 # This has already been specified in .scitools.cfg
