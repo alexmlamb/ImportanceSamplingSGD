@@ -73,7 +73,7 @@ def get_database_config():
     # be willing to wait for the parameters to be present on the server.
     connection_setup_timeout = 10*60
 
-    experiment_root_dir = "/rap/jvb-000-aa/data/chinna/iclr2015/logging/noise_exp/isgd"
+    experiment_root_dir = "/rap/jvb-000-aa/data/chinna/iclr2015/logging/noise_exp/isgd_uniform"
     redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "uniform.rdb")
     logging_folder = experiment_root_dir
 

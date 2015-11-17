@@ -14,13 +14,13 @@
 
 
 
-#OUTPUT=`msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/05_noise_exp/launch_014.sh`
+#OUTPUT=`msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/05_noise_exp/launch_015.sh`
 #OUTPUT=`echo $OUTPUT | tr -d " "`
 #echo $OUTPUT
 
 #for i in `seq 2 24`;
 #do
-#    OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/05_noise_exp/launch_014.sh`
+#    OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/05_noise_exp/launch_015.sh`
 #    OUTPUT=`echo $OUTPUT | tr -d " "`
 #    echo $OUTPUT
 #done
