@@ -44,7 +44,7 @@ def add_gnoise(images):
 def noisify(images, config):
     images=np.swapaxes(images,axis1=2,axis2=3)
     images=np.swapaxes(images,axis1=1,axis2=2)
-    init_shape = images[0].shape
+    init_shape = images.shape[0]
     print "# of images to add noise :",init_shape[0]
     convert_to_image(images[0],config['image']+'before.jpeg')
 
