@@ -188,15 +188,25 @@ def run():
     # szkmbp
     helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "000/000_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "001/001_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "002/002_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "003/003_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "004/004_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "005/005_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "006/006_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "007/007_24h.pkl"),
-                                os.path.join(helios_experiments_dir, "008/008_24h.pkl"),]:
+    # for results_pickle_file in [os.path.join(helios_experiments_dir, "000/000_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "001/001_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "002/002_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "003/003_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "004/004_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "005/005_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "006/006_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "007/007_24h.pkl"),
+    #                             os.path.join(helios_experiments_dir, "008/008_24h.pkl")]:
+
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "010/010.pkl"),
+                                os.path.join(helios_experiments_dir, "011/011.pkl"),
+                                os.path.join(helios_experiments_dir, "012/012.pkl"),
+                                os.path.join(helios_experiments_dir, "013/013.pkl"),
+                                os.path.join(helios_experiments_dir, "014/014.pkl"),
+                                os.path.join(helios_experiments_dir, "015/015.pkl"),
+                                os.path.join(helios_experiments_dir, "016/016.pkl"),
+                                os.path.join(helios_experiments_dir, "017/017.pkl")]:
+
 
         E = pickle.load(open(results_pickle_file, "r"))
 
