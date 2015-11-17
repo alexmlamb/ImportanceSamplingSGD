@@ -42,7 +42,7 @@ export IMPORTANCE_SAMPLING_SGD_ROOT=${HOME}/Documents/ImportanceSamplingSGD
 export PYTHONPATH=${PYTHONPATH}:${IMPORTANCE_SAMPLING_SGD_ROOT}
 export IMPORTANCE_SAMPLING_SGD_BIN=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/bin
 
-export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/helios/05_noise_exp/config_014.py
+export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/helios/05_noise_exp/config_015.py
 
 # The config file will contain other information such as the directory in
 # which we want to output logs.
@@ -51,7 +51,7 @@ export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_train
 # be reached by all the tasks launched since it's going to be how they
 # communicate between themselves initially to share where the database is running,
 # what port it's on and what's the password.
-export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_014
+export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_015
 
 # The whole stdbuf is not necessary, but I left it there because it fixes
 # some of the strange behavior when we try to redirect the output to a file.
