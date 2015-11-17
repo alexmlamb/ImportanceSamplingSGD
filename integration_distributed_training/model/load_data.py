@@ -98,6 +98,9 @@ def load_data_svhn(config):
 
     print "computed mean and var"
 
+    old_seed = np.random.randint(low=0, high=np.iinfo(np.uint32).max)
+    if config.has_key("seed"):
+        np.random.seed(config["seed"])
     # Adding noise
     if 'noise' in config.keys() and config['noise'] != 'no_noise':
         noise_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (config["fraction_noise"])), replace = False)
@@ -105,6 +108,7 @@ def load_data_svhn(config):
         noisify(train_X[noise_indices], config)
     else :
         print "Not adding any noise"
+    np.random.seed(old_seed)
 
     print "Training Set", train_X.shape, train_Y.shape
     print "Validation Set", valid_X.shape, valid_Y.shape
