@@ -69,6 +69,10 @@ THEANO_FLAGS=device=gpu3,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_S
 THEANO_FLAGS=device=gpu4,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 THEANO_FLAGS=device=gpu5,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 THEANO_FLAGS=device=gpu6,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
+# We have to allocate an even number of GPUs. Not sure I really want 7 workers instead of 6 workers, though, because I'm comparing it with the baseline of 3.
+#THEANO_FLAGS=device=gpu7,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
+
+
 
 sleep 3600
 sleep 3600
