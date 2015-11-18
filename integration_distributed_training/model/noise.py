@@ -41,11 +41,11 @@ def add_gnoise(images):
     return images
 
 # inplace noise addition
-def noisify(images, config):
-    images=np.swapaxes(images,axis1=2,axis2=3)
+def noisify(input_images, config):
+    images=np.swapaxes(input_images,axis1=2,axis2=3)
     images=np.swapaxes(images,axis1=1,axis2=2)
     init_shape = images.shape[0]
-    print "# of images to add noise :",init_shape[0]
+    print "# of images to add noise :",init_shape
     convert_to_image(images[0],config['image']+'before.jpeg')
 
     print "adding noise type:", config['noise']
@@ -66,6 +66,7 @@ def noisify(images, config):
     images=np.swapaxes(images,axis1=1,axis2=2)
     images=np.swapaxes(images,axis1=2,axis2=3)
     print images.shape
+    return images
 
 
 

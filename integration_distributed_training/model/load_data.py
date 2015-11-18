@@ -105,7 +105,7 @@ def load_data_svhn(config):
     if 'noise' in config.keys() and config['noise'] != 'no_noise':
         noise_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (config["fraction_noise"])), replace = False)
         print np.amax(noise_indices)
-        noisify(train_X[noise_indices], config)
+        train_X[noise_indices] = noisify(train_X[noise_indices], config)
     else :
         print "Not adding any noise"
     np.random.seed(old_seed)

@@ -1,58 +1,84 @@
-
+import numpy as np
+import os
 
 def get_model_config():
 
-    config = {}
+    model_config = {}
 
     #Importance sampling or vanilla sgd.
-    config["turn_off_importance_sampling"] = False
+    model_config["importance_algorithm"] = "isgd"
+    #model_config["importance_algorithm"] = "sgd"
 
     #Momentum rate, where 0.0 corresponds to not using momentum
-    config["momentum_rate"] = 0.9
+    model_config["momentum_rate"] = 0.95
 
     #The learning rate to use on the gradient averaged over a minibatch
+    model_config["learning_rate"] = 0.0001
 
-    config["learning_rate"] = 0.01
+    #model_config["dataset"] = "mnist"
+    model_config["dataset"] = "svhn"
 
-    #config["dataset"] = "mnist"
-    config["dataset"] = "svhn"
+    if model_config["dataset"] == "mnist":
+        model_config["num_input"] = 784
+    elif model_config["dataset"] == "svhn":
+        model_config["num_input"] = 3072
 
-    if config["dataset"] == "mnist":
-        config["num_input"] = 784
-    elif config["dataset"] == "svhn":
-        config["num_input"] = 3072
-    data_root = "/Users/chinna/Downloads/"#"/u/lambalex/data/"
-    config["mnist_file"] = data_root + "mnist/mnist.pkl.gz"
-    config["svhn_file_train"] = data_root + "svhn/train_32x32.mat"
-    config["svhn_file_extra"] = data_root + "svhn/extra_32x32.mat"
-    config["svhn_file_test"] =  data_root + "svhn/test_32x32.mat"
+    # Pick one, depending where you run this.
+    # This could be done differently too by looking at fuelrc
+    # or at the hostname.
+    #import socket
+    #data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
+    #                "lambda":"/home/gyomalin/ML/data_lisa_data",
+    #                "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname().lower()]
+    data_root = "/Users/chinna/Downloads"
 
-    config["save_svhn_normalization_to_file"] = False
-    config["load_svhn_normalization_from_file"] = True
+    model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
+    model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
+    model_config["svhn_file_extra"] = os.path.join(data_root, "svhn/extra_32x32.mat")
+    model_config["svhn_file_test"] = os.path.join(data_root, "svhn/test_32x32.mat")
 
-    config["svhn_normalization_value_file"] = "/u/lambalex/data/svhn/svhn_normalization_values.pkl"
+    model_config["load_svhn_normalization_from_file"] = True
+    model_config["save_svhn_normalization_to_file"] = False
+    model_config["svhn_normalization_value_file"] = os.path.join(data_root, "svhn/svhn_normalization_values.pkl")
 
-    config["hidden_sizes"] = [2048, 2048, 2048, 2048]
+    model_config["hidden_sizes"] = [2048, 2048, 2048, 2048]
 
-    config["seed"] = 9999494
-
+    # Note from Guillaume : I'm not fond at all of using seeds,
+    # but here it is used ONLY for the initial partitioning into train/valid.
+    model_config["seed"] = 42
 
     #Weights are initialized to N(0,1) * initial_weight_size
-    config["initial_weight_size"] = 0.01
+    model_config["initial_weight_size"] = 0.01
 
     #Hold this fraction of the instances in the validation dataset
-    config["fraction_validation"] = 0.05
+    model_config["fraction_validation"] = 0.05
 
-    config["importance_weight_additive_constant"] = 10.0
+    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 16)
+    model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 2)
 
-    return config
+    model_config["turn_off_importance_sampling"] = False
+
+    model_config['image']                         = '/Users/chinna/Documents/logging/noise_exp/'
+    model_config['noise']                         = 'guassian'#'uniform'#'normal'#'black_out'#'guassian'#'no_noise'
+    model_config['fraction_noise']                = 0.10
+
+    return model_config
 
 
 def get_database_config():
 
-    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.
+    # Try to connect to the database for at least 10 minutes before giving up.
+    # When setting this to below 1 minute on Helios, the workers would give up
+    # way to easily. This value also controls how much time the workers will
+    # be willing to wait for the parameters to be present on the server.
+    connection_setup_timeout = 10*60
 
-    logging_folder = "/Users/chinna/ImportanceSamplingSGD_Alex/model_protoype/exp_chinna/logging"#"/data/lisatmp3/chinna/logging/"
+    experiment_root_dir = "/Users/chinna/Documents/logging/noise_exp/"
+    redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "guassian.rdb")
+    logging_folder = experiment_root_dir
+
+
+
 
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
@@ -63,18 +89,42 @@ def get_database_config():
     # Test Set (26032, 32, 3, 32) (26032, 1)
     # svhn data loaded...
 
-    master_usable_importance_weights_threshold_to_ISGD = 0.1
+    # When skipping the "extra" part of the dataset.
+    #(Ntrain, Nvalid, Ntest) = (69594, 3663, 26032)
+
+
+
+
+    # This is part of a discussion about when we should the master
+    # start its training with uniform sampling SGD and when it should
+    # perform importance sampling SGD.
+    # The default value is set to np.Nan, and right now the criterion
+    # to decide if a weight is usable is to check if it's not np.Nan.
+    #
+    # We can decide to add other options later to include the staleness
+    # of the importance weights, or other simular criterion, to define
+    # what constitutes a "usable" value.
+
+    default_importance_weight = np.NaN
+    #default_importance_weight = 1.0
+
+    want_master_to_do_USGD_when_ISGD_is_not_possible = True
+    master_usable_importance_weights_threshold_to_ISGD = 0.01 # cannot be None
+
+    # The master will only consider importance weights which were updated this number of seconds ago.
+    staleness_threshold_seconds = None
+    staleness_threshold_num_minibatches_master_processed = None
+
+    # Guillaume is not so fond of this approach.
+    importance_weight_additive_constant = 1e-32
 
     serialized_parameters_format ="opaque_string"
 
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 128
-    master_minibatch_size = 128
-
-    #The master will only consider importance weights which were updated this number of seconds ago.
-    staleness_threshold = 20.0
+    workers_minibatch_size = 1024*4*4
+    master_minibatch_size = 1024*4
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -83,12 +133,7 @@ def get_database_config():
     # the values of (Ntrain, Nvalid, Ntest).
     dataset_name='svhn'
 
-    L_measurements=["individual_importance_weight", "gradient_square_norm", "loss", "accuracy", "minibatch_gradient_mean_square_norm", "individual_gradient_square_norm"]
-
-    minimum_number_of_minibatch_processed_before_parameter_update = 10
-    nbr_batch_processed_per_public_parameter_update = 10
-
-    # Optional field : 'server_scratch_path'
+    L_measurements=["individual_importance_weight", "individual_gradient_square_norm", "individual_loss", "individual_accuracy", "minibatch_gradient_mean_square_norm"]
 
     #
     # The rest of this code is just checks and quantities generated automatically.
@@ -113,7 +158,11 @@ def get_database_config():
 
     assert serialized_parameters_format in ["opaque_string", "ndarray_float32_tostring"]
 
-    return dict(workers_minibatch_size=workers_minibatch_size,
+    assert 0.0 <= master_usable_importance_weights_threshold_to_ISGD
+    assert master_usable_importance_weights_threshold_to_ISGD <= 1.0
+
+    return dict(connection_setup_timeout=connection_setup_timeout,
+                workers_minibatch_size=workers_minibatch_size,
                 master_minibatch_size=master_minibatch_size,
                 dataset_name=dataset_name,
                 Ntrain=Ntrain,
@@ -124,12 +173,16 @@ def get_database_config():
                 want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
-                staleness_threshold=staleness_threshold,
-                minimum_number_of_minibatch_processed_before_parameter_update=minimum_number_of_minibatch_processed_before_parameter_update,
-                nbr_batch_processed_per_public_parameter_update=nbr_batch_processed_per_public_parameter_update,
+                default_importance_weight=default_importance_weight,
+                want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
-                logging_folder = logging_folder)
+                staleness_threshold_seconds=staleness_threshold_seconds,
+                staleness_threshold_num_minibatches_master_processed=staleness_threshold_num_minibatches_master_processed,
+                importance_weight_additive_constant=importance_weight_additive_constant,
+                logging_folder=logging_folder,
+                redis_rdb_path_plus_filename=redis_rdb_path_plus_filename)
 
 def get_helios_config():
     # Optional.
+
     return {}
