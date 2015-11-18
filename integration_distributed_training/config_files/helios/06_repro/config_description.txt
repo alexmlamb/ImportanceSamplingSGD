@@ -1,0 +1,15 @@
+
+All done with Alex's config.
+
+020 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 10, additive_importance +10.0
+021 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 1, additive_importance +10.0
+022 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 1, worker fetch params every 1, additive_importance +10.0
+023 : ISGD with Alex's setup, 7 GPU, master fetch importance weights every 1, worker fetch params every 1, additive_importance +10.0
+024 : USGD with Alex's setup
+
+
+
+025 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 10, additive_importance +1.0
+026 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 1, additive_importance +1.0
+027 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 1, worker fetch params every 1, additive_importance +1.0
+028 : ISGD with Alex's setup, 7 GPU, master fetch importance weights every 1, worker fetch params every 1, additive_importance +1.0
