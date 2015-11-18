@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#PBS -l nodes=1:gpus=7
+#PBS -l nodes=1:gpus=8
 #PBS -l walltime=1:00:00
 #PBS -A jvb-000-ag
 #PBS -m bea
@@ -17,7 +17,7 @@
 #OUTPUT=`echo $OUTPUT | tr -d " "`
 #echo $OUTPUT
 
-#for i in `seq 2 24`;
+#for i in `seq 2 8`;
 #do
 #    OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/06_repro/launch_023.sh`
 #    OUTPUT=`echo $OUTPUT | tr -d " "`
