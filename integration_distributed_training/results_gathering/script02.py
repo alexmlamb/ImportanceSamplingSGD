@@ -184,9 +184,9 @@ def run():
     #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"]:
 
     # lambda
-    #helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+    helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
     # szkmbp
-    helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
+    #helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
 
     # for results_pickle_file in [os.path.join(helios_experiments_dir, "000/000_24h.pkl"),
     #                             os.path.join(helios_experiments_dir, "001/001_24h.pkl"),
@@ -198,16 +198,19 @@ def run():
     #                             os.path.join(helios_experiments_dir, "007/007_24h.pkl"),
     #                             os.path.join(helios_experiments_dir, "008/008_24h.pkl")]:
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "010/010.pkl"),
-                                os.path.join(helios_experiments_dir, "011/011.pkl"),
-                                os.path.join(helios_experiments_dir, "012/012.pkl"),
-                                os.path.join(helios_experiments_dir, "013/013.pkl"),
-                                os.path.join(helios_experiments_dir, "014/014.pkl"),
-                                os.path.join(helios_experiments_dir, "015/015.pkl"),
-                                os.path.join(helios_experiments_dir, "016/016.pkl"),
-                                os.path.join(helios_experiments_dir, "017/017.pkl")]:
+    # for results_pickle_file in [os.path.join(helios_experiments_dir, "010/010.pkl"),
+    #                             os.path.join(helios_experiments_dir, "011/011.pkl"),
+    #                             os.path.join(helios_experiments_dir, "012/012.pkl"),
+    #                             os.path.join(helios_experiments_dir, "013/013.pkl"),
+    #                             os.path.join(helios_experiments_dir, "014/014.pkl"),
+    #                             os.path.join(helios_experiments_dir, "015/015.pkl"),
+    #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
+    #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
+    # note that 23 doesn't exist
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in [20,21,22,24]]:
 
+        print "Processing %s." % results_pickle_file
         E = pickle.load(open(results_pickle_file, "r"))
 
         m = re.match(r"(.*).pkl", results_pickle_file)
@@ -216,7 +219,7 @@ def run():
         #DEBUG_process_loss_accuracy(E, plot_output_pattern)
         plot_output_pattern = m.group(1) + "_%s.png"
         process_loss_accuracy(E, plot_output_pattern)
-        #process_action_ISGD_vs_USGD(E, plot_output_pattern)
+        process_action_ISGD_vs_USGD(E, plot_output_pattern)
         process_trcov(E, m.group(1) + "_sqrttrcov.png")
         process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
 
@@ -268,11 +271,25 @@ def process_loss_accuracy(E, plot_output_pattern):
             #
             #(L_domain, L_values) = filter_cuts(L_domain, L_values)
 
-            handle = pylab.plot( np.array(L_domain), np.array(L_values), label=segment, linewidth=2 )
+            handle = pylab.plot( np.array(L_domain) / 3600, np.array(L_values), label=segment, linewidth=2 )
             L_handles.append( handle )
 
-        plt.title("%s over whole dataset" % measurement)
-        plt.xlabel("time in seconds")
+            N = len(L_values)
+            print "Average of last values for %s %s : %f" % (measurement, segment, np.array(L_values)[(N*9/10):].mean()   )
+
+        pylab.plot( [L_domain[0]/3600, L_domain[-1]/3600], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
+        plt.xlabel("time in hours")
+        if measurement == "individual_accuracy":
+            plt.ylim([0.70, 1.05])
+            plt.title("Prediction accuracy over whole dataset")
+        elif measurement == "individual_loss":
+            plt.title("Loss over whole dataset")
+
+        # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
+        xx, locs = plt.xticks()
+        ll = ['%.2f' % a for a in xx]
+        plt.xticks(xx, ll)
+
         plt.legend(loc=7)
         pylab.savefig(output_path, dpi=250)
         pylab.close()
