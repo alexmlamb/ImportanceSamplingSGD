@@ -11,6 +11,8 @@ import matplotlib
 import pylab
 import matplotlib.pyplot as plt
 
+from matplotlib.backends.backend_pdf import PdfPages
+
 
 class TimegapCutter(object):
 
@@ -183,12 +185,17 @@ def run():
     #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/003/003_iter10_run2.pkl",
     #                            "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments/002/backup_002.pkl"]:
 
-    # lambda
-    helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
-    # szkmbp
-    #helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
+    import socket
+    helios_experiments_dir = {   #"serendib":"/home/dpln/data/data_lisa_data",
+                    "lambda":"/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments",
+                    "szkmbp":"/Users/gyomalin/Documents/helios_experiments"}[socket.gethostname().lower()]
 
-    # for results_pickle_file in [os.path.join(helios_experiments_dir, "000/000_24h.pkl"),
+    # lambda
+    #helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+    # szkmbp
+    # helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
+
+    #for results_pickle_file in [os.path.join(helios_experiments_dir, "000/000_24h.pkl"),
     #                             os.path.join(helios_experiments_dir, "001/001_24h.pkl"),
     #                             os.path.join(helios_experiments_dir, "002/002_24h.pkl"),
     #                             os.path.join(helios_experiments_dir, "003/003_24h.pkl"),
@@ -207,21 +214,29 @@ def run():
     #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
     #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
-    # note that 23 doesn't exist
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in [20,21,22,24]]:
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(10,29)]:
+
+        if not os.path.exists(results_pickle_file):
+            print "Error. File %s does not exist."
+            continue
 
         print "Processing %s." % results_pickle_file
         E = pickle.load(open(results_pickle_file, "r"))
 
         m = re.match(r"(.*).pkl", results_pickle_file)
         assert m
-        #plot_output_pattern = m.group(1) + "_%s_DEBUG.png"
-        #DEBUG_process_loss_accuracy(E, plot_output_pattern)
-        plot_output_pattern = m.group(1) + "_%s.png"
-        process_loss_accuracy(E, plot_output_pattern)
-        process_action_ISGD_vs_USGD(E, plot_output_pattern)
+
+        recorded_results = process_loss_accuracy(E, m.group(1) + "_%s.png")
+        recorded_results = process_loss_accuracy(E, m.group(1) + "_%s.pdf")
+        plot_output_path = m.group(1) + "_raw_accuracy_loss.pkl"
+        pickle.dump(recorded_results, open(plot_output_path, "w"), protocol=pickle.HIGHEST_PROTOCOL)
+
+        #process_action_ISGD_vs_USGD(E, plot_output_pattern)
         process_trcov(E, m.group(1) + "_sqrttrcov.png")
-        process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
+        process_trcov(E, m.group(1) + "_sqrttrcov.pdf")
+        #process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
+        #process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.pdf")
+
 
     # TODO : Plot the ratios of used importance weights, just to be sure how much we're using.
 
@@ -246,6 +261,7 @@ def process_loss_accuracy(E, plot_output_pattern):
 
     print "Generating plots."
 
+    recorded_results = {}
     for (measurement, DL_stv) in [('individual_accuracy', DL_individual_accuracy), ('individual_loss', DL_individual_loss)]:
 
         # setup the timecutter
@@ -276,6 +292,7 @@ def process_loss_accuracy(E, plot_output_pattern):
 
             N = len(L_values)
             print "Average of last values for %s %s : %f" % (measurement, segment, np.array(L_values)[(N*9/10):].mean()   )
+            recorded_results[(segment, measurement)] = (np.array(L_domain), np.array(L_values))
 
         pylab.plot( [L_domain[0]/3600, L_domain[-1]/3600], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
         plt.xlabel("time in hours")
@@ -291,10 +308,17 @@ def process_loss_accuracy(E, plot_output_pattern):
         plt.xticks(xx, ll)
 
         plt.legend(loc=7)
-        pylab.savefig(output_path, dpi=250)
+
+        if re.match(r".*\.pdf", output_path):
+            with PdfPages(output_path) as pdf:
+                pdf.savefig()
+        else:
+            pylab.savefig(output_path, dpi=250)
+
         pylab.close()
         print "Wrote %s." % output_path
 
+    return recorded_results
 
 
 
@@ -423,26 +447,39 @@ def process_trcov(E, output_path):
     L_domain = [e[0] for e in LP_usgd2_minusmu2]
     L_values = [e[1] for e in LP_usgd2_minusmu2]
     (L_domain, L_values) = tgc.cut(L_domain, L_values)
-    handle = pylab.plot( np.array(L_domain), np.sqrt(np.array(L_values)), label='USGD', linewidth=2 )
+
+    handle = pylab.plot( np.array(L_domain) / 3600, np.sqrt(np.array(L_values)), label='SGD', linewidth=2, c='#0000FF' )
     L_handles.append( handle )
 
     L_domain = [e[0] for e in LP_staleisgd2_minusmu2]
     L_values = [e[1] for e in LP_staleisgd2_minusmu2]
     (L_domain, L_values) = tgc.cut(L_domain, L_values)
-    handle = pylab.plot( np.array(L_domain), np.sqrt(np.array(L_values)), label='ISGD stale', linewidth=2 )
+    handle = pylab.plot( np.array(L_domain) / 3600, np.sqrt(np.array(L_values)), label='ISSGD stale', linewidth=2, c='#00a65a' )
     L_handles.append( handle )
 
     L_domain = [e[0] for e in LP_isgd2_minusmu2]
     L_values = [e[1] for e in LP_isgd2_minusmu2]
     (L_domain, L_values) = tgc.cut(L_domain, L_values)
-    handle = pylab.plot( np.array(L_domain), np.sqrt(np.array(L_values)), label='ISGD ideal', linewidth=2 )
+    handle = pylab.plot( np.array(L_domain) / 3600, np.sqrt(np.array(L_values)), label='ISSGD ideal', linewidth=2, c='#bc0024' )
     L_handles.append( handle )
 
-    plt.title("Square root of Trace(Cov) computed over whole dataset")
+    #params = {  'legend.fontsize': 20, 'font.size':16   }
+    #pylab.rcParams.update(params)
+
+    # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
+    xx, locs = plt.xticks()
+    ll = ['%.2f' % a for a in xx]
+    plt.xticks(xx, ll)
+
+    #plt.title("Square root of Trace(Cov) computed over whole dataset")
     plt.ylabel("sqrt(tr(cov))")
-    plt.xlabel("time in seconds")
+    plt.xlabel("time in hours")
     plt.legend(loc=2)
-    pylab.savefig(output_path, dpi=250)
+    if re.match(r".*\.pdf", output_path):
+        with PdfPages(output_path) as pdf:
+            pdf.savefig()
+    else:
+        pylab.savefig(output_path, dpi=250)
     pylab.close()
     print "Wrote %s." % output_path
 
