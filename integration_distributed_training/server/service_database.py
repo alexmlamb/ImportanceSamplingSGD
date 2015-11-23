@@ -163,7 +163,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
 
         time.sleep(20.0)
 
-        (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches) = get_trace_covariance_information(rsconn, "train")
+        (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches) = get_trace_covariance_information(rsconn, "train", DD_config["model"]["importance_weight_additive_constant"])
         # Make sure that you have a reasonable number of readings before
         # reporting those statistics.
         if 0.1 <= ratio_of_usable_indices_for_USGD_and_ISGD:

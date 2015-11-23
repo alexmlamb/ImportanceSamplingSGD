@@ -105,6 +105,32 @@ def load_data_svhn(config):
 
     return {"train": (train_X, train_Y.flatten()), "valid" : (valid_X, valid_Y.flatten()), "test" : (test_X, test_Y.flatten()), "mean" : x_mean, "std" : x_std}
 
+def load_data_kaldi_i84(config):
+
+    fileTrain = gzip.open(config["kaldi-i84_file_train"], "r")
+    fileValid = gzip.open(config["kaldi-i84_file_valid"], "r")
+    fileTest = gzip.open(config["kaldi-i84_file_test"], "r")
+
+    def read_kaldi_file(fh):
+
+        featureLst = []
+        labelLst = []
+
+
+        for line in fh:
+            obj = cPickle.loads(line.replace("newline_rep","\n"))
+            features = obj[0]
+            label = obj[1]
+
+            featureLst += [features]
+            labelLst += [label]
+
+        featureMatrix = np.vstack(featureLst)
+        labelMatrix = np.vstack(labelLst)
+
+        return featureMatrix, labelMatrix.flatten()
+
+    return {"train" : read_kaldi_file(fileTrain), "valid": read_kaldi_file(fileValid), "test" : read_kaldi_file(fileTest)}
 
 def load_data_mnist(config):
     dataset = config["mnist_file"]
@@ -135,5 +161,10 @@ def load_data(config):
         return load_data_svhn(config)
     elif config["dataset"] == "mnist":
         return load_data_mnist(config)
+    elif config["dataset"] == "kaldi-i84":
+        return load_data_kaldi_i84(config)
     else:
         raise Exception("Dataset must be either svhn or mnist")
+
+
+

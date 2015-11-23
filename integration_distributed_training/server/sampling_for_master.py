@@ -41,23 +41,18 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
         current_minibatch_indices_str = rsconn.lindex(db_list_name, i)
 
 
-        #Here let's pull up the staleness records!
-        timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
 
         try:
-            minibatch_of_parameters_used_for_importance_weights = float(rsconn.hget("H_%s_minibatch_%s_measurement_num_minibatches_master_processed" % (segment, measurement), current_minibatch_indices_str))
+            minibatch_of_parameters_used_for_importance_weights = float(rsconn.hget("H_%s_minibatch_%s_measurement_num_minibatches_master_processed" % (segment, measurement), str(hash(current_minibatch_indices_str))))
             last_minibatch_updated_by_master = float(rsconn.get('num_minibatches_master_processed'))
             staleness = last_minibatch_updated_by_master - minibatch_of_parameters_used_for_importance_weights
         except:
             staleness = float('inf')
 
-        if timestamp_str is None or len(timestamp_str) == 0:
 
-            print "TIMESTAMP STR", timestamp_str
-            
-            print "ERROR. There is a bug somewhere because there is never a situation where a measurement can be present without a timestamp."
-            print "We can easily recover from this error by just accepting the importance weight anyway, but we would be sweeping a bug under the rug by doing so."
-            quit()
+
+        if staleness > staleness_threshold:
+            continue
 
         #Key refers to a list of indices.
         #value refers to the associated importance weights.
@@ -77,12 +72,9 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
 
 
 
-        if staleness <= staleness_threshold:
-            nbr_accepted += 1
-            L_indices.append(A_some_indices)
-            L_importance_weights.append(A_some_importance_weights)
-        else:
-            pass
+        nbr_accepted += 1
+        L_indices.append(A_some_indices)
+        L_importance_weights.append(A_some_importance_weights)
 
 
     if random.uniform(0,1) < 0.01:
@@ -137,7 +129,10 @@ def sample_indices_and_scaling_factors( rsconn,
     if master_usable_importance_weights_threshold_to_ISGD is not None or want_master_to_do_USGD_when_ISGD_is_not_possible:
         assert Ntrain is not None, "Ntrain has to be specified to sample_indices_and_scaling_factors when we use master_usable_importance_weights_threshold_to_ISGD or want_master_to_do_USGD_when_ISGD_is_not_possible."
 
+    t0 = time.time()
     A_importance_weights, nbr_of_usable_importance_weights = get_importance_weights(rsconn, staleness_threshold, importance_weight_additive_constant)
+    if random.uniform(0,1) < 0.01:
+        print time.time() - t0, "time to compute importance weights"
 
     if turn_off_importance_sampling and A_importance_weights is not None:
         A_importance_weights *= 0.0
@@ -148,7 +143,10 @@ def sample_indices_and_scaling_factors( rsconn,
         if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
             if random.uniform(0,1) < 0.01:
                 print "Master has a ratio of usable importance weights %d / %d = %f which meets the required threshold of %f." % (nbr_of_usable_importance_weights, Ntrain, ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
+            t0 = time.time()
             A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
+            if random.uniform(0,1) < 0.01:
+                print "time to call recipe1", time.time() - t0
             return ('proceed', 'ISGD', A_sampled_indices, A_scaling_factors)
         else:
             if random.uniform(0,1) < 0.01:
@@ -191,14 +189,16 @@ def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples
 
     p = A_importance_weights / A_importance_weights.sum()
 
-    A_sampled_indices_counts = np.random.multinomial(nbr_samples, p)
+    #A_sampled_indices_counts = np.random.multinomial(nbr_samples, p)
     # Find out where the non-zero values are.
-    I = np.where(0 < A_sampled_indices_counts)[0]
+    #I = np.where(0 < A_sampled_indices_counts)[0]
 
 
     # For each such non-zero value, we need to repeat that index
     # a corresponding number of times (and then concatenate everything).
-    A_sampled_indices = np.array(reduce(lambda x,y : x + y, [[i] * A_sampled_indices_counts[i] for i in I]))
+    #A_sampled_indices = np.array(reduce(lambda x,y : x + y, [[i] * A_sampled_indices_counts[i] for i in I]))
+
+    A_sampled_indices = np.random.choice(p.shape[0], size=nbr_samples, p=p)
 
     A_unnormalized_scaling_factors = np.array([np.float64(1.0)/A_importance_weights[i] for i in A_sampled_indices])
 

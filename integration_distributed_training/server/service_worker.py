@@ -26,7 +26,7 @@ def run(DD_config, D_server_desc):
         D_server_desc['hostname'] = "localhost"
 
     rsconn = get_rsconn_with_timeout(D_server_desc['hostname'], D_server_desc['port'], D_server_desc['password'],
-                                     timeout=60, wait_for_parameters_to_be_present=True)
+                                     timeout=600, wait_for_parameters_to_be_present=True)
 
 
     num_importance_weight_batches_processed = 0
@@ -195,7 +195,7 @@ def run(DD_config, D_server_desc):
 
                 print "NUMBER MINIBATCHES IMPORTANCE WEIGHTS PROCESSED", num_importance_weight_batches_processed
 
-                rsconn.hset("H_%s_minibatch_%s_measurement_num_minibatches_master_processed" % (segment, measurement), current_minibatch_indices_str, num_minibatches_master_processed)
+                rsconn.hset("H_%s_minibatch_%s_measurement_num_minibatches_master_processed" % (segment, measurement), str(hash(current_minibatch_indices_str)), num_minibatches_master_processed)
 
                 previous_update_timestamp_str = rsconn.hget("H_%s_minibatch_%s_measurement_last_update_timestamp" % (segment, measurement), current_minibatch_indices_str)
                 if previous_update_timestamp_str is None or len(previous_update_timestamp_str) == 0:

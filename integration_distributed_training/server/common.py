@@ -132,7 +132,7 @@ def wait_until_all_measurements_are_updated_by_workers(rsconn, segment, measurem
 
 
 
-def get_trace_covariance_information(rsconn, segment):
+def get_trace_covariance_information(rsconn, segment, importance_sampling_additive_constant):
     #segment = "train"
 
     # In this method, there care be race conditions that lead
@@ -198,8 +198,8 @@ def get_trace_covariance_information(rsconn, segment):
 
     if 0.0 < ratio_of_usable_indices_for_ISGDstale:
         J = J * (1e-16 < individual_gradient_square_norm)
-        staleISGD_main_term_1 = np.sqrt(previous_individual_importance_weight[J]).mean()
-        staleISGD_main_term_2 = (individual_gradient_square_norm[J] / np.sqrt(previous_individual_importance_weight[J])).mean()
+        staleISGD_main_term_1 = np.sqrt(previous_individual_importance_weight[J] + importance_sampling_additive_constant).mean()
+        staleISGD_main_term_2 = (individual_gradient_square_norm[J] / np.sqrt(importance_sampling_additive_constant + previous_individual_importance_weight[J])).mean()
         staleISGD_main_term = staleISGD_main_term_1 * staleISGD_main_term_2
     else:
         staleISGD_main_term = None

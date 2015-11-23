@@ -80,6 +80,9 @@ def run(DD_config, D_server_desc):
     # TODO : Might make this stochastic, but right now it's just
     #        a bunch of iterations.
 
+    if DD_config['database']['use_yoshuas_trick'] and DD_config['model']['turn_off_importance_sampling']:
+        raise Exception("Importance sampling turned off, but using Yoshuas trick for importance sampling.  This is a contradiction")
+
     queue_name = "L_master_train_minibatch_indices_and_info_QUEUE"
 
     num_minibatches_master_processed = 0
@@ -120,6 +123,7 @@ def run(DD_config, D_server_desc):
             tic = time.time()
 
             while True:
+                t0 = time.time()
                 (intent, mode, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(rsconn,
                     master_minibatch_size,
                     staleness_threshold=staleness_threshold,
@@ -129,6 +133,9 @@ def run(DD_config, D_server_desc):
                     importance_weight_additive_constant=DD_config["model"]["importance_weight_additive_constant"],
                     turn_off_importance_sampling=DD_config["model"]["turn_off_importance_sampling"])
 
+                if random.uniform(0,1) < 0.01:
+                    print "Time to do sampling", time.time() - t0
+
                 # Note from Guillaume : This should probably instead be a call to
                 # get_mean_variance_measurement_on_database(rsconn, "train", "accuracy")
                 # get_mean_variance_measurement_on_database(rsconn, "test", "accuracy")
@@ -136,6 +143,7 @@ def run(DD_config, D_server_desc):
 
                 if random.uniform(0,1) < 0.01:
                     print "scaling factors", A_scaling_factors
+
 
 
                 num_minibatches_master_processed += 1
@@ -157,7 +165,10 @@ def run(DD_config, D_server_desc):
                     if not debug_this_section:
 
                         print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
+                        t0 = time.time()
                         model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
+                        if random.uniform(0,1) < 0.01:
+                            print time.time() - t0, "time to call master process minibatch"
                         # breaking will continue to the main looping section
                         break
                     else:
@@ -166,15 +177,27 @@ def run(DD_config, D_server_desc):
                         # This section has a problem. This has been discussed.
                         # Until something useful is done here, Guillaume commented it out.
 
+                        if DD_config['database']['use_yoshuas_trick']:
+                            #Recompute gradients for selected instances.  
+                            #Making scaling factors 1 / this.  
+
+                            new_gradient_norm = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])["importance_weight"]
+
+                            old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=float('inf'), N=DD_config['database']['Ntrain'])[0][A_sampled_indices]
+
+
+                            A_scaling_factors = A_scaling_factors * (DD_config['model']['importance_weight_additive_constant'] + old_gradient_norm) / (new_gradient_norm + 0.0001)
 
                         model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
                         # breaking will continue to the main looping section
 
-                        new_gradient_norm_from_worker_after_update = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])["importance_weight"]
 
-                        old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=float('inf'), N=DD_config['database']['Ntrain'])
+                        if random.uniform(0,1) < 0.005:
 
-                        if random.uniform(0,1) < 0.01:
+                            new_gradient_norm_from_worker_after_update = model_api.worker_process_minibatch(A_sampled_indices, "train", ["importance_weight"])["importance_weight"]
+
+                            old_gradient_norm = get_importance_weights(rsconn, staleness_threshold=float('inf'), N=DD_config['database']['Ntrain'])
+
                             print "Master proceeding with round of %s at timestamp %f." % (mode, time.time())
                             print "old,new pairs", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm_from_worker.round(8).tolist())
                             print "old,new pairs after update", zip(old_gradient_norm[0][A_sampled_indices].round(8).tolist(), new_gradient_norm_from_worker_after_update.round(8).tolist())
@@ -184,6 +207,7 @@ def run(DD_config, D_server_desc):
                         break
 
 
+            
 
             toc = time.time()
             if random.uniform(0,1) < 0.01:

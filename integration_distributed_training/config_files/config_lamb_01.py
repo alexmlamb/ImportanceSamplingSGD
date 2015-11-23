@@ -5,22 +5,29 @@ def get_model_config():
     config = {}
 
     #Importance sampling or vanilla sgd.
-    config["turn_off_importance_sampling"] = False
+    config["turn_off_importance_sampling"] = True
 
     #Momentum rate, where 0.0 corresponds to not using momentum
-    config["momentum_rate"] = 0.9
+    config["momentum_rate"] = 0.95
 
     #The learning rate to use on the gradient averaged over a minibatch
 
     config["learning_rate"] = 0.01
 
     #config["dataset"] = "mnist"
-    config["dataset"] = "svhn"
+    #config["dataset"] = "svhn"
+    config["dataset"] = "kaldi-i84"
 
     if config["dataset"] == "mnist":
         config["num_input"] = 784
     elif config["dataset"] == "svhn":
         config["num_input"] = 3072
+        config["num_output"] = 10
+        config["normalize_features"] = True
+    elif config["dataset"] == "kaldi-i84":
+        config["num_input"] = 861
+        config["num_output"] = 3472
+        config["normalize_features"] = False
 
     config["mnist_file"] = "/u/lambalex/data/mnist/mnist.pkl.gz"
     config["svhn_file_train"] = "/u/lambalex/data/svhn/train_32x32.mat"
@@ -30,12 +37,15 @@ def get_model_config():
     config["save_svhn_normalization_to_file"] = False
     config["load_svhn_normalization_from_file"] = True
 
+    config["kaldi-i84_file_train"] = "/u/lambalex/data/kaldi/i84_train.gz"
+    config["kaldi-i84_file_valid"] = "/u/lambalex/data/kaldi/i84_valid.gz"
+    config["kaldi-i84_file_test"] = "/u/lambalex/data/kaldi/i84_test.gz"
+
     config["svhn_normalization_value_file"] = "/u/lambalex/data/svhn/svhn_normalization_values.pkl"
 
     config["hidden_sizes"] = [2048, 2048, 2048, 2048]
 
     config["seed"] = 9999494
-
 
     #Weights are initialized to N(0,1) * initial_weight_size
     config["initial_weight_size"] = 0.01
@@ -43,7 +53,7 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     config["fraction_validation"] = 0.05
 
-    config["importance_weight_additive_constant"] = 5.0
+    config["importance_weight_additive_constant"] = 1.0
 
     return config
 
@@ -57,21 +67,28 @@ def get_database_config():
     # Some of those values are placeholder.
     # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
 
-    (Ntrain, Nvalid, Ntest) = (574168, 30220, 26032)
+    #USE THIS FOR SVHN
+    #(Ntrain, Nvalid, Ntest) = (574168, 30220, 26032)
+
+    #USE THIS FOR KALDI
+    (Ntrain, Nvalid, Ntest) = (5436921, 389077, 253204)
+
     # Training Set (574168, 32, 3, 32) (574168, 1)
     # Validation Set (30220, 32, 3, 32) (30220, 1)
     # Test Set (26032, 32, 3, 32) (26032, 1)
     # svhn data loaded...
 
-    master_usable_importance_weights_threshold_to_ISGD = 0.1
+    use_yoshuas_trick = False
+
+    master_usable_importance_weights_threshold_to_ISGD = 0.02
 
     serialized_parameters_format ="opaque_string"
 
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 128
-    master_minibatch_size = 128
+    workers_minibatch_size = 2048
+    master_minibatch_size = 256
 
     #The master will only consider importance weights which were updated this number of seconds ago.  
     staleness_threshold_seconds = 20.0
@@ -128,7 +145,8 @@ def get_database_config():
                 minimum_number_of_minibatch_processed_before_parameter_update=minimum_number_of_minibatch_processed_before_parameter_update,
                 nbr_batch_processed_per_public_parameter_update=nbr_batch_processed_per_public_parameter_update,
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
-                logging_folder = logging_folder)
+                logging_folder = logging_folder,
+                use_yoshuas_trick = use_yoshuas_trick)
 
 def get_helios_config():
     # Optional.
