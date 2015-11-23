@@ -25,8 +25,12 @@ class NeuralNetwork:
 
         nhidden_layers = len(model_config["hidden_sizes"])
         nhidden = model_config["hidden_sizes"][0]
+        if 'rms_rate' not in model_config.keys():
+            model_config['rms_rate'] = 0.0
         print "num_hidden_layers      :",nhidden_layers
         print "hidden_units_per_layer :",nhidden
+        print "Momemtum rate          :", model_config['momentum_rate']
+        print "RMSprop rate           :", model_config['rms_rate']
         X = T.fmatrix()
         Y = T.ivector()
         scaling_factors = T.fvector()
