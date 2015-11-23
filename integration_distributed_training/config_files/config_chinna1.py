@@ -10,10 +10,10 @@ def get_model_config():
     #model_config["importance_algorithm"] = "sgd"
 
     #Momentum rate, where 0.0 corresponds to not using momentum
-    model_config["momentum_rate"] = 0.95
+    model_config["momentum_rate"] = 0.0
 
     #RMS rate of 0 corresponds to not using RMS prop
-    model_config['rms_rate'] = 0.1
+    model_config['rms_rate'] = 0.0
 
     #The learning rate to use on the gradient averaged over a minibatch
     model_config["learning_rate"] = 0.0001

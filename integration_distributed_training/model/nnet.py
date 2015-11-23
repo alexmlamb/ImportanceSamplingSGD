@@ -76,7 +76,18 @@ class NeuralNetwork:
         # will have a scaling factor of 0.5.
         scaled_cost = T.mean(scaled_individual_cost)
 
-        updates = NeuralNetwork.sgd(scaled_cost, self.parameters, self.momentum, self.rms, model_config["learning_rate"], model_config["momentum_rate"],model_config['rms_rate'])
+        #both methods cannot be supported at the same time
+        assert model_config['momentum_rate']*model_config['rms_rate'] == 0.0
+
+        if model_config['momentum_rate'] != 0.0 :
+            print "Using momentum..."
+            updates = NeuralNetwork.sgd_momentum(scaled_cost, self.parameters, self.momentum,  model_config["learning_rate"], model_config["momentum_rate"])
+        elif model_config['rms_rate'] != 0.0 :
+            print "Using RMSprop..."
+            updates = NeuralNetwork.sgd_rmsprop(scaled_cost, self.parameters, self.rms, model_config["learning_rate"], model_config['rms_rate'])
+        else :
+            print "Not using RMSprop or momentum. Just plain vanilla sgd..."
+            updates = NeuralNetwork.sgd(scaled_cost, self.parameters, model_config["learning_rate"] )
 
         # To be clear, this is the square norm of the (mean gradient in the minibatch).
         # Not to be confused with the mean of the (square norm of the gradients of each element of the minibatch).
@@ -163,7 +174,7 @@ class NeuralNetwork:
     def floatX(X):
         return np.asarray(X, dtype=theano.config.floatX)
 
-    # if scale = -1, return all ones
+    # if scale = -1, return all ones (needed for RMSprop init)
     @staticmethod
     def init_weights(shape, name, scale = 0.01):
         if scale == -1.0:
@@ -172,20 +183,35 @@ class NeuralNetwork:
             return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape) * scale), name=name)
 
     @staticmethod
-    def sgd(cost, params, momemtum, rms, lr, mr, rms_r):
+    def sgd(cost, params, lr):
         grads = T.grad(cost=cost, wrt=params)
         updates = []
-        for p, g, v, r in zip(params, grads, momemtum, rms):
-            updates.append([r, r*(1-rms_r) + (T.sqr(g))*rms_r])
+        for p, g in zip(params, grads):
+            updates.append([p, p  - g*lr ])
+        return updates
+
+    @staticmethod
+    def sgd_momentum(cost, params, momentum, lr, mr):
+        grads = T.grad(cost=cost, wrt=params)
+        updates = []
+        for p, g, v in zip(params, grads, momentum):
             v_prev = v
-            g = g/T.sqrt(r)
             updates.append([v, mr * v - g * lr])
             v = mr*v - g*lr
             updates.append([p, p  - mr*v_prev + (1 + mr)*v ])
 
         return updates
 
+    @staticmethod
+    def sgd_rmsprop(cost, params, rms, lr, rms_r):
+        grads = T.grad(cost=cost, wrt=params)
+        updates = []
+        for p, g, r in zip(params, grads, rms):
+            updates.append([r, r*(1-rms_r) + (T.sqr(g))*rms_r])
+            g = g/T.sqrt(r)
+            updates.append([p, p - g*lr ])
 
+        return updates
 
     @staticmethod
     def build_parameters(num_input, num_output, hidden_sizes, scale, name_suffix=""):
