@@ -36,10 +36,12 @@ class NeuralNetwork:
         self.num_minibatches_processed_master = 0
         self.num_minibatches_processed_worker = 0
 
-        L_W, L_b = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=0.01)
-        L_W_momentum, L_b_momentum, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=0.0, name_suffix="_momentum")
+        L_W, L_b = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[0.01,0.0])
+        L_W_momentum, L_b_momentum, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[0.0,0.0], name_suffix="_momentum")
+        L_W_rms, L_b_rms, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[-1.0, -1.0], name_suffix="_rms")
         self.parameters = L_W + L_b
         self.momentum   = L_W_momentum + L_b_momentum
+        self.rms        = L_W_rms + L_b_rms
 
         print self.parameters
 
@@ -70,7 +72,7 @@ class NeuralNetwork:
         # will have a scaling factor of 0.5.
         scaled_cost = T.mean(scaled_individual_cost)
 
-        updates = NeuralNetwork.sgd(scaled_cost, self.parameters, self.momentum, model_config["learning_rate"], model_config["momentum_rate"])
+        updates = NeuralNetwork.sgd(scaled_cost, self.parameters, self.momentum, self.rms, model_config["learning_rate"], model_config["momentum_rate"],model_config['rms_rate'])
 
         # To be clear, this is the square norm of the (mean gradient in the minibatch).
         # Not to be confused with the mean of the (square norm of the gradients of each element of the minibatch).
@@ -157,21 +159,28 @@ class NeuralNetwork:
     def floatX(X):
         return np.asarray(X, dtype=theano.config.floatX)
 
+    # if scale = -1, return all ones
     @staticmethod
     def init_weights(shape, name, scale = 0.01):
-        return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape) * scale), name=name)
+        if scale == -1.0:
+            return theano.shared(NeuralNetwork.floatX(np.ones(shape)), name=name)
+        else:
+            return theano.shared(NeuralNetwork.floatX(np.random.randn(*shape) * scale), name=name)
 
     @staticmethod
-    def sgd(cost, params, momemtum, lr, mr):
+    def sgd(cost, params, momemtum, rms, lr, mr, rms_r):
         grads = T.grad(cost=cost, wrt=params)
         updates = []
-        for p, g, v in zip(params, grads, momemtum):
+        for p, g, v, r in zip(params, grads, momemtum, rms):
+            updates.append([r, r*(1-rms_r) + (T.sqr(g))*rms_r])
             v_prev = v
+            g = g/T.sqrt(r)
             updates.append([v, mr * v - g * lr])
             v = mr*v - g*lr
             updates.append([p, p  - mr*v_prev + (1 + mr)*v ])
 
         return updates
+
 
 
     @staticmethod
@@ -184,8 +193,8 @@ class NeuralNetwork:
         L_b = []
 
         for (layer_number, (dim_in, dim_out)) in enumerate(zip(L_sizes, L_sizes[1:])):
-            W = NeuralNetwork.init_weights((dim_in, dim_out), scale=scale, name=("%0.3d_weight%s"%(layer_number, name_suffix)))
-            b = NeuralNetwork.init_weights((dim_out,), scale=0.0, name=("%0.3d_bias%s"%(layer_number, name_suffix)))
+            W = NeuralNetwork.init_weights((dim_in, dim_out), scale=scale[0], name=("%0.3d_weight%s"%(layer_number, name_suffix)))
+            b = NeuralNetwork.init_weights((dim_out,), scale=scale[1], name=("%0.3d_bias%s"%(layer_number, name_suffix)))
             L_W.append(W)
             L_b.append(b)
 

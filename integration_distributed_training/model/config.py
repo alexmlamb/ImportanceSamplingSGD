@@ -11,6 +11,9 @@ def get_config():
     #Momentum rate, where 0.0 corresponds to not using momentum
     config["momentum_rate"] = 0.9
 
+    #RMS rate of 0 corresponds to not using RMS prop
+    config['rms_rate'] = 0.1
+
     #The learning rate to use on the gradient averaged over a minibatch
     config["learning_rate"] = 0.01
 
