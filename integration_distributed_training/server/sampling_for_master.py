@@ -50,17 +50,9 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
             staleness = float('inf')
 
 
-<<<<<<< HEAD
-
         if staleness > staleness_threshold:
             continue
-=======
-            print "TIMESTAMP STR", timestamp_str
 
-            print "ERROR. There is a bug somewhere because there is never a situation where a measurement can be present without a timestamp."
-            print "We can easily recover from this error by just accepting the importance weight anyway, but we would be sweeping a bug under the rug by doing so."
-            quit()
->>>>>>> master
 
         #Key refers to a list of indices.
         #value refers to the associated importance weights.
@@ -80,17 +72,10 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
 
 
 
-<<<<<<< HEAD
         nbr_accepted += 1
         L_indices.append(A_some_indices)
         L_importance_weights.append(A_some_importance_weights)
 
-=======
-        if staleness <= staleness_threshold:
-            nbr_accepted += 1
-            L_indices.append(A_some_indices)
-            L_importance_weights.append(A_some_importance_weights)
->>>>>>> master
 
     #if random.uniform(0,1) < 0.01:
     #    print "Accepted %d / %d = %f of importance weights minibatches. " % (nbr_accepted, nbr_minibatches, nbr_accepted * 1.0 / nbr_minibatches)
@@ -134,7 +119,6 @@ def sample_indices_and_scaling_factors( A_importance_weights,
                                         nbr_samples,
                                         master_usable_importance_weights_threshold_to_ISGD=None,
                                         want_master_to_do_USGD_when_ISGD_is_not_possible=True,
-<<<<<<< HEAD
                                         Ntrain=None,
                                         importance_weight_additive_constant=None,
                                         turn_off_importance_sampling=False):
@@ -152,9 +136,6 @@ def sample_indices_and_scaling_factors( A_importance_weights,
 
     if turn_off_importance_sampling and A_importance_weights is not None:
         A_importance_weights *= 0.0
-=======
-                                        turn_off_importance_sampling=False,
-                                        Ntrain=None):
 
     # This value of `Ntrain` needs only to be passed when the A_importance_weights is None.
     # Technically, it's not really the cardinality of the training set, but it's a bit less
@@ -168,7 +149,6 @@ def sample_indices_and_scaling_factors( A_importance_weights,
         A_sampled_indices = np.random.permutation(Ntrain)[0:nbr_samples]
         A_scaling_factors = np.ones(A_sampled_indices.shape)
         return ('proceed', 'USGD', A_sampled_indices, A_scaling_factors)
->>>>>>> master
 
     # Try to do ISGD before trying anything else..
     if master_usable_importance_weights_threshold_to_ISGD is not None:
@@ -176,14 +156,7 @@ def sample_indices_and_scaling_factors( A_importance_weights,
         if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
             if random.uniform(0,1) < 0.01:
                 print "Master has a ratio of usable importance weights %d / %d = %f which meets the required threshold of %f." % (nbr_of_usable_importance_weights, Ntrain, ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
-<<<<<<< HEAD
-            t0 = time.time()
-            A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
-            if random.uniform(0,1) < 0.01:
-                print "time to call recipe1", time.time() - t0
-=======
             A_sampled_indices, A_scaling_factors = recipe2(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
->>>>>>> master
             return ('proceed', 'ISGD', A_sampled_indices, A_scaling_factors)
         else:
             if random.uniform(0,1) < 0.01:
