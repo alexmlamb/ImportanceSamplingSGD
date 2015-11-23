@@ -50,9 +50,17 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
             staleness = float('inf')
 
 
+<<<<<<< HEAD
 
         if staleness > staleness_threshold:
             continue
+=======
+            print "TIMESTAMP STR", timestamp_str
+
+            print "ERROR. There is a bug somewhere because there is never a situation where a measurement can be present without a timestamp."
+            print "We can easily recover from this error by just accepting the importance weight anyway, but we would be sweeping a bug under the rug by doing so."
+            quit()
+>>>>>>> master
 
         #Key refers to a list of indices.
         #value refers to the associated importance weights.
@@ -72,13 +80,20 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
 
 
 
+<<<<<<< HEAD
         nbr_accepted += 1
         L_indices.append(A_some_indices)
         L_importance_weights.append(A_some_importance_weights)
 
+=======
+        if staleness <= staleness_threshold:
+            nbr_accepted += 1
+            L_indices.append(A_some_indices)
+            L_importance_weights.append(A_some_importance_weights)
+>>>>>>> master
 
-    if random.uniform(0,1) < 0.01:
-        print "Accepted %d / %d = %f of importance weights minibatches. " % (nbr_accepted, nbr_minibatches, nbr_accepted * 1.0 / nbr_minibatches)
+    #if random.uniform(0,1) < 0.01:
+    #    print "Accepted %d / %d = %f of importance weights minibatches. " % (nbr_accepted, nbr_minibatches, nbr_accepted * 1.0 / nbr_minibatches)
 
     if len(L_indices) == 0:
         # All the importance weights are stale.
@@ -114,11 +129,12 @@ def get_importance_weights(rsconn, staleness_threshold=None, importance_weight_a
     return A_importance_weights, nbr_of_present_importance_weights
 
 
-def sample_indices_and_scaling_factors( rsconn,
+def sample_indices_and_scaling_factors( A_importance_weights,
+                                        nbr_of_usable_importance_weights,
                                         nbr_samples,
-                                        staleness_threshold=None,
                                         master_usable_importance_weights_threshold_to_ISGD=None,
                                         want_master_to_do_USGD_when_ISGD_is_not_possible=True,
+<<<<<<< HEAD
                                         Ntrain=None,
                                         importance_weight_additive_constant=None,
                                         turn_off_importance_sampling=False):
@@ -136,6 +152,23 @@ def sample_indices_and_scaling_factors( rsconn,
 
     if turn_off_importance_sampling and A_importance_weights is not None:
         A_importance_weights *= 0.0
+=======
+                                        turn_off_importance_sampling=False,
+                                        Ntrain=None):
+
+    # This value of `Ntrain` needs only to be passed when the A_importance_weights is None.
+    # Technically, it's not really the cardinality of the training set, but it's a bit less
+    # than that when the minibatches of the training set miss out a few examples.
+    # For example, 1000 training examples split into minibatches of size 32 will leave out 8 examples.
+    if A_importance_weights is not None:
+        assert Ntrain is not None
+        assert Ntrain == A_importance_weights.shape[0]
+
+    if turn_off_importance_sampling:
+        A_sampled_indices = np.random.permutation(Ntrain)[0:nbr_samples]
+        A_scaling_factors = np.ones(A_sampled_indices.shape)
+        return ('proceed', 'USGD', A_sampled_indices, A_scaling_factors)
+>>>>>>> master
 
     # Try to do ISGD before trying anything else..
     if master_usable_importance_weights_threshold_to_ISGD is not None:
@@ -143,10 +176,14 @@ def sample_indices_and_scaling_factors( rsconn,
         if master_usable_importance_weights_threshold_to_ISGD <= ratio_of_usable_importance_weights:
             if random.uniform(0,1) < 0.01:
                 print "Master has a ratio of usable importance weights %d / %d = %f which meets the required threshold of %f." % (nbr_of_usable_importance_weights, Ntrain, ratio_of_usable_importance_weights, master_usable_importance_weights_threshold_to_ISGD)
+<<<<<<< HEAD
             t0 = time.time()
             A_sampled_indices, A_scaling_factors = recipe1(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
             if random.uniform(0,1) < 0.01:
                 print "time to call recipe1", time.time() - t0
+=======
+            A_sampled_indices, A_scaling_factors = recipe2(A_importance_weights, nbr_of_usable_importance_weights, nbr_samples)
+>>>>>>> master
             return ('proceed', 'ISGD', A_sampled_indices, A_scaling_factors)
         else:
             if random.uniform(0,1) < 0.01:
@@ -163,7 +200,10 @@ def sample_indices_and_scaling_factors( rsconn,
     else:
         return ('wait_and_retry', None, None, None)
 
-
+#
+# This `recipe1` is kept around in case we find a bug with `recipe2`,
+# which is just strictly better.
+#
 def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples):
 
     # A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
@@ -200,7 +240,8 @@ def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples
 
     A_sampled_indices = np.random.choice(p.shape[0], size=nbr_samples, p=p)
 
-    A_unnormalized_scaling_factors = np.array([np.float64(1.0)/A_importance_weights[i] for i in A_sampled_indices])
+    #A_unnormalized_scaling_factors = np.array([np.float64(1.0)/A_importance_weights[i] for i in A_sampled_indices])
+    A_unnormalized_scaling_factors = A_unnormalized_scaling_factors = (np.float64(1.0) / A_importance_weights[A_sampled_indices]).astype(np.float64)
 
     # You could argue that we want to divide this by `nbr_samples`,
     # but it depends on how you negociate the role of the minibatch size
@@ -226,5 +267,43 @@ def recipe1(A_importance_weights, nbr_of_present_importance_weights, nbr_samples
 
 
 def recipe2(A_importance_weights, nbr_of_present_importance_weights, nbr_samples):
-    # If you want to add another method, you can do it here.
-    pass
+
+    # A_importance_weights, nbr_of_present_importance_weights = get_importance_weights(rsconn)
+
+    if A_importance_weights.sum() < 1e-16:
+        #print "All the importance_weight are zero. There is nothing to be done with this."
+        #print "The only possibility is to report them to be as though they were all 1.0."
+        #import pdb; pdb.set_trace()
+        A_sampled_indices = np.random.randint(low=0, high=A_importance_weights.shape[0], size=nbr_samples).astype(np.int32)
+        return A_sampled_indices, np.ones(A_sampled_indices.shape, dtype=np.float64)
+
+    # You can get complaints from np.random.multinomial if you are in float32
+    # because rounding errors can bring your sum() to a little above 1.0.
+    A_importance_weights = A_importance_weights.astype(np.float64)
+    p = A_importance_weights / A_importance_weights.sum()
+
+    A_sampled_indices = np.random.choice(p.shape[0], size=nbr_samples, p=p)
+
+    A_unnormalized_scaling_factors = A_unnormalized_scaling_factors = (np.float64(1.0) / A_importance_weights[A_sampled_indices]).astype(np.float64)
+
+    # You could argue that we want to divide this by `nbr_samples`,
+    # but it depends on how you negociate the role of the minibatch size
+    # in the loss function.
+    #
+    # Since the scaling factors will end up being used in training and each
+    # attributed to one point from the minibatch, then we probably don't want
+    # to include `nbr_samples` in any way.
+    #
+    # Basically, if we had uniform importance weights, here we would be
+    # multiplying by Ntrain and dividing by Ntrain. We are doing the equivalent
+    # of that for importance sampling.
+    #
+    # Another thing worth noting is that we could basically return
+    #     A_importance_weights.mean() / A_importance_weights
+    # but then we would not be taking into consideration the situation in which
+    # only some of the importance weights were specified and many were missing.
+    # Maybe this is not necessary, though.
+    Z = ( nbr_of_present_importance_weights / A_importance_weights.sum())
+    A_scaling_factors = (A_unnormalized_scaling_factors / Z).astype(np.float64)
+
+    return A_sampled_indices, A_scaling_factors

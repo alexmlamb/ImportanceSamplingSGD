@@ -16,7 +16,10 @@ import pprint
 from startup import delete_bootstrap_file
 from common import get_mean_variance_measurement_on_database, get_trace_covariance_information
 
+# python's logging module
 import logging
+# our own logger that sends stuff over to the database
+import integration_distributed_training.server.logger
 
 def configure(  rsconn,
                 workers_minibatch_size, master_minibatch_size,
@@ -103,7 +106,7 @@ def configure(  rsconn,
     rsconn.set("initialization_is_done", True)
 
 
-def setup_logger(folder):
+def setup_remote_logger(folder):
 
     timestamp = str(int(time.time()))
 
@@ -122,12 +125,12 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
     configure(  rsconn,
                 **DD_config['database'])
 
-    #Set up logging system.  
-
-    setup_logger(folder = DD_config["database"]["logging_folder"])
-
-
+    # set up logging system for logging_folder
+    setup_remote_logger(folder = DD_config["database"]["logging_folder"])
     logging.info(pprint.pformat(DD_config))
+
+    # set up logging system to the redis server
+    remote_redis_logger = integration_distributed_training.server.logger.RedisLogger(rsconn, queue_prefix_identifier="service_database")
 
     # Use `rserv` to be able to shut down the
     # redis-server when the user hits CTRL+C.
@@ -137,31 +140,48 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
 
     def signal_handler(signal, frame):
         logging.info("You pressed CTRL+C.")
-        logging.info("Sending shutdown command to the redis-server.")
-        rserv.stop()
+        logging.info("Closing the remote_redis_logger.")
+        remote_redis_logger.log('event', "Received SIGTERM.")
+        remote_redis_logger.close()
+        logging.info("Sending save and shutdown commands to the redis-server.")
+        rserv.stop(want_save=True)
         delete_bootstrap_file(bootstrap_file)
         sys.exit(0)
-
     signal.signal(signal.SIGINT, signal_handler)
 
     maximum_validation_accuracy = -1.0
 
+    def sansgton(x):
+        # sanitize singleton so it can be written to json.
+        # Basically, it could be None, but you can't call float(None).
+        # It can't be a np.float32 or np.float64 either, you can you have to call float(x)
+        # on those values.
+        if x is None:
+            return float(np.nan)
+        else:
+            return float(x)
+
+    remote_redis_logger.log('event', "Before entering service_database main loop.")
+
     while True:
         logging.info("Running server. Press CTLR+C to stop. Timestamp %f." % time.time())
         logging.info("Number minibatches processed by master    " + str(rsconn.get('num_minibatches_master_processed')))
-        #signal.pause()
+
         for segment in ["train", "valid", "test"]:
             logging.info("-- %s " % segment)
-            for measurement in ["loss", "accuracy", "gradient_variance"]:
+            for measurement in ["individual_loss", "individual_accuracy", "individual_gradient_square_norm"]:
                 (mean, variance, N, r) = get_mean_variance_measurement_on_database(rsconn, segment, measurement)
-                if segment == "valid" and measurement == "accuracy" and mean > maximum_validation_accuracy:
+                std = np.sqrt(variance)
+                if segment == "valid" and measurement == "individual_accuracy" and mean > maximum_validation_accuracy:
                     maximum_validation_accuracy = mean
                     logging.info("                                                                      ---Highest Validation Accuracy so Far---")
-                logging.info("---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, np.sqrt(variance), r))
+                logging.info("---- %s : mean %f, std %f    with %0.4f of values used." % (measurement, mean, std, r))
+                remote_redis_logger.log('measurement', {'name':measurement, 'segment':segment, 'mean':sansgton(mean), 'std':sansgton(std), 'ratio_used':r})
 
         logging.info("Highest Validation Accuracy seen so far " + str(maximum_validation_accuracy))
 
-        time.sleep(20.0)
+        time.sleep(10.0)
+
 
         (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches) = get_trace_covariance_information(rsconn, "train", DD_config["model"]["importance_weight_additive_constant"])
         # Make sure that you have a reasonable number of readings before
@@ -178,9 +198,15 @@ def run(DD_config, rserv, rsconn, bootstrap_file):
             logging.info("Trace(Cov Stale ISGD) without mu2 : %0.12f." % (staleisgd2 ,))
         else:
             logging.info("ratio_of_usable_indices_for_ISGDstale %f not high enough to report those numbers" % ratio_of_usable_indices_for_ISGDstale)
-
         logging.info("")
 
+        remote_redis_logger.log( 'SGD_trace_variance',
+                    {'approx_mu2':sansgton(mu2), 'usgd2':sansgton(usgd2), 'isgd2':sansgton(isgd2), 'staleisgd2':sansgton(staleisgd2),
+                     'ratio_of_usable_indices_for_USGD_and_ISGD':ratio_of_usable_indices_for_USGD_and_ISGD,
+                     'ratio_of_usable_indices_for_ISGDstale':ratio_of_usable_indices_for_ISGDstale})
 
+        time.sleep(10.0)
+        logging.info("")
 
-
+        # have the database save itself to the file at every iteration through the loop
+        rsconn.bgsave()

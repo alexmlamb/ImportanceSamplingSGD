@@ -1,4 +1,4 @@
-
+import os
 
 def get_model_config():
 
@@ -47,6 +47,10 @@ def get_model_config():
 
     config["seed"] = 9999494
 
+    config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 8)
+    config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 4)
+
+
     #Weights are initialized to N(0,1) * initial_weight_size
     config["initial_weight_size"] = 0.01
 
@@ -60,7 +64,10 @@ def get_model_config():
 
 def get_database_config():
 
-    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.  
+    redis_dbfilename = "dump.rdb"
+    redis_dir = os.path.join(os.environ['HOME'], "tmp")
+
+    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.
 
     logging_folder = "/u/lambalex/DeepLearning/ImportanceSampling/logs/"
 
@@ -90,8 +97,8 @@ def get_database_config():
     workers_minibatch_size = 2048
     master_minibatch_size = 256
 
-    #The master will only consider importance weights which were updated this number of seconds ago.  
-    staleness_threshold_seconds = 20.0
+    #The master will only consider importance weights which were updated this number of seconds ago.
+    staleness_threshold = 20000000.0
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -100,7 +107,8 @@ def get_database_config():
     # the values of (Ntrain, Nvalid, Ntest).
     dataset_name='svhn'
 
-    L_measurements=["individual_importance_weight", "gradient_square_norm", "loss", "accuracy", "minibatch_gradient_mean_square_norm", "individual_gradient_square_norm"]
+    L_measurements=["individual_importance_weight", "individual_gradient_square_norm", "individual_loss", "individual_accuracy", "minibatch_gradient_mean_square_norm"]
+
 
     minimum_number_of_minibatch_processed_before_parameter_update = 10
     nbr_batch_processed_per_public_parameter_update = 10
@@ -141,7 +149,7 @@ def get_database_config():
                 want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
-                staleness_threshold_seconds=staleness_threshold_seconds,
+                staleness_threshold=staleness_threshold,
                 minimum_number_of_minibatch_processed_before_parameter_update=minimum_number_of_minibatch_processed_before_parameter_update,
                 nbr_batch_processed_per_public_parameter_update=nbr_batch_processed_per_public_parameter_update,
                 master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,

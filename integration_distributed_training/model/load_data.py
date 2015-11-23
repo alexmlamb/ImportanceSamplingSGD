@@ -5,8 +5,6 @@ import cPickle
 #Returns list of tuples containing training, validation, and test instances.
 def load_data_svhn(config):
 
-    np.random.seed(config["seed"])
-
     import scipy.io as sio
     train_file = config["svhn_file_train"]
     extra_file = config["svhn_file_extra"]
@@ -62,7 +60,8 @@ def load_data_svhn(config):
     # because otherwise we can't talk about the "importance weight of training example 17"
     # if nobody agrees on which training example has index 17.
     old_seed = np.random.randint(low=0, high=np.iinfo(np.uint32).max)
-    np.random.seed(42)
+    if config.has_key("seed"):
+        np.random.seed(config["seed"])
     train_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
     valid_indices = np.setdiff1d(range(0,train_X.shape[0]), train_indices)
     np.random.seed(old_seed)
