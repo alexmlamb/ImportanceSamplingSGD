@@ -4,6 +4,8 @@ import pickle
 import re
 import os
 
+from collections import defaultdict
+
 import matplotlib
 # This has already been specified in .scitools.cfg
 # so we don't need to explicitly pick 'Agg'.
@@ -214,7 +216,7 @@ def run():
     #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
     #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(10,29)]:
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(20,29)]:
 
         if not os.path.exists(results_pickle_file):
             print "Error. File %s does not exist."
@@ -226,17 +228,23 @@ def run():
         m = re.match(r"(.*).pkl", results_pickle_file)
         assert m
 
-        recorded_results = process_loss_accuracy(E, m.group(1) + "_%s.png")
-        recorded_results = process_loss_accuracy(E, m.group(1) + "_%s.pdf")
-        plot_output_path = m.group(1) + "_raw_accuracy_loss.pkl"
-        pickle.dump(recorded_results, open(plot_output_path, "w"), protocol=pickle.HIGHEST_PROTOCOL)
+        #recorded_results = process_loss_accuracy(E, m.group(1) + "_%s.png")
+        #recorded_results = process_loss_accuracy(E, m.group(1) + "_%s.pdf")
+        #plot_output_path = m.group(1) + "_raw_accuracy_loss.pkl"
+        #pickle.dump(recorded_results, open(plot_output_path, "w"), protocol=pickle.HIGHEST_PROTOCOL)
 
         #process_action_ISGD_vs_USGD(E, plot_output_pattern)
-        process_trcov(E, m.group(1) + "_sqrttrcov.png")
-        process_trcov(E, m.group(1) + "_sqrttrcov.pdf")
+        #process_trcov(E, m.group(1) + "_sqrttrcov.png")
+        #process_trcov(E, m.group(1) + "_sqrttrcov.pdf")
         #process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
         #process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.pdf")
 
+        #process_profiling_time_spent_workers(E, m.group(1) + "_worker_activity_pie.png")
+        #process_profiling_time_spent_workers(E, m.group(1) + "_worker_activity_pie.pdf")
+
+        #process_profiling_time_spent_master(E, m.group(1) + "_master_activity_pie.png")
+        process_profiling_time_spent_master(E, m.group(1) + "_master_activity_prop_pie.pdf", report_proportional_values=True)
+        process_profiling_time_spent_master(E, m.group(1) + "_master_activity_separate_pie.pdf", report_proportional_values=False)
 
     # TODO : Plot the ratios of used importance weights, just to be sure how much we're using.
 
@@ -539,6 +547,120 @@ def process_ratio_of_usable_importance_weights(E, output_path):
     print "Wrote %s." % output_path
 
 
+
+
+def process_profiling_time_spent_workers(E, output_path, report_proportional_values=True):
+
+    L_service_worker = E['logging']['service_worker'].values()
+
+    D_worker_total_time_spent = defaultdict(float)
+    D_worker_total_time_counts = defaultdict(int)
+
+    for sw in L_service_worker:
+        if  not sm.has_key('timing_profiler'):
+            print "Error. Failed to find the timing_profiler so we'll skip this whole experiment."
+            return
+        for (timestamp, e) in sw['timing_profiler']:
+            for (k, v) in e.items():
+                if k in ['mode']:
+                    # omit that one since it's a string that says "USGD" or "ISGD"
+                    continue
+                D_worker_total_time_spent[k] += v
+                D_worker_total_time_counts[k] += 1
+
+    L_things_to_compare = [ ('read_params_from_database', D_worker_total_time_spent['sync_params_from_database', D_worker_total_time_counts['sync_params_from_database']),
+                            ('move_params_to_GPU', D_worker_total_time_spent['model_api.set_serialized_parameters'], D_worker_total_time_counts['model_api.set_serialized_parameters']),
+                            ('send_prob_weights_to_database', D_worker_total_time_spent['send_measurements_to_database'], D_worker_total_time_counts['send_measurements_to_database']),
+                            ('process_minibatch', D_worker_total_time_spent['worker_process_minibatch'], D_worker_total_time_counts['worker_process_minibatch']) ]
+
+    total_time = sum([e[1] for e in L_things_to_compare])
+    for (k,v) in L_things_to_compare:
+        print "Worker activity %s took %0.3f of %f seconds." % (k, v / total_time, total_time)
+
+    if report_proportional_values:
+        labels, sizes = zip(*L_things_to_compare)
+        #sizes = [e / z for e in sizes]
+    else:
+        pass
+
+    # http://matplotlib.org/examples/pie_and_polar_charts/pie_demo_features.html
+    colors = ['yellowgreen', 'gold', 'lightskyblue', 'lightcoral']
+    explode = (0, 0, 0, 0)
+    plt.pie(sizes, explode=explode, labels=labels, colors=colors,
+                    autopct='%1.1f%%', shadow=False, startangle=90)
+    # Set aspect ratio to be equal so that pie is drawn as a circle.
+    plt.axis('equal')
+
+    if re.match(r".*\.pdf", output_path):
+        with PdfPages(output_path) as pdf:
+            pdf.savefig()
+    else:
+        pylab.savefig(output_path, dpi=250)
+    pylab.close()
+    print "Wrote %s." % output_path
+
+
+
+
+def process_profiling_time_spent_master(E, output_path, report_proportional_values=True):
+
+    L_service_master = E['logging']['service_master'].values()
+
+    D_master_total_time_spent = defaultdict(float)
+    D_master_total_counts = defaultdict(int)
+
+    for sm in L_service_master:
+        if  not sm.has_key('timing_profiler'):
+            print "Error. Failed to find the timing_profiler so we'll skip this whole experiment."
+            return
+
+        for (timestamp, e) in sm['timing_profiler']:
+            for (k, v) in e.items():
+                if k in ['mode']:
+                    # omit that one since it's a string that says "USGD" or "ISGD"
+                    continue
+                D_master_total_time_spent[k] += v
+                D_master_total_counts[k] += 1
+
+    L_things_to_compare = [ ('read prob weights from database', 'db weights', D_master_total_time_spent['refresh_importance_weights'], D_master_total_counts['refresh_importance_weights']),
+                            ('sample indices', 'indices', D_master_total_time_spent['sample_indices_and_scaling_factors'], D_master_total_counts['sample_indices_and_scaling_factors']),
+                            ('process minibatch', 'fwd-back', D_master_total_time_spent['master_process_minibatch'], D_master_total_counts['master_process_minibatch']),
+                            ('read params from GPU', 'GPU params', D_master_total_time_spent['read_parameters_from_model'], D_master_total_counts['read_parameters_from_model']),
+                            ('send params to database', 'db params', D_master_total_time_spent['sync_params_to_database'], D_master_total_counts['sync_params_to_database'])                             ]
+
+    total_time = sum([e[2] for e in L_things_to_compare])
+    for (lk, sk, v, c) in L_things_to_compare:
+        print "Master activity %s took %0.3f of %f seconds." % (lk, v / total_time, total_time)
+
+    long_labels, short_labels, sizes, counts = zip(*L_things_to_compare)
+    if report_proportional_values:
+        pass
+    else:
+        sizes = [e / z for (e, z) in zip(sizes, counts)]
+
+    z = sum(e for e in sizes)
+    sizes = [e / z for e in sizes]
+
+
+    # http://matplotlib.org/examples/pie_and_polar_charts/pie_demo_features.html
+    #sizes = [e / z for e in sizes]
+    colors = ['yellowgreen', 'gold', '#ff0031', 'lightskyblue', '#ffc4fc']
+    explode = (0, 0, 0, 0, 0)
+    patches, texts, autotexts = plt.pie(sizes, explode=explode, labels=short_labels, colors=colors,
+                    autopct='%1.1f%%', shadow=False, startangle=90)
+
+    plt.legend(patches, long_labels, loc="best")
+
+    # Set aspect ratio to be equal so that pie is drawn as a circle.
+    plt.axis('equal')
+
+    if re.match(r".*\.pdf", output_path):
+        with PdfPages(output_path) as pdf:
+            pdf.savefig()
+    else:
+        pylab.savefig(output_path, dpi=250)
+    pylab.close()
+    print "Wrote %s." % output_path
 
 
 
