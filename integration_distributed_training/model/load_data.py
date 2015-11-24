@@ -1,9 +1,11 @@
 import numpy as np
 import gzip
 import cPickle
-from noise import noisify
+
 #Returns list of tuples containing training, validation, and test instances.
 def load_data_svhn(config):
+
+    np.random.seed(config["seed"])
 
     import scipy.io as sio
     train_file = config["svhn_file_train"]
@@ -60,8 +62,7 @@ def load_data_svhn(config):
     # because otherwise we can't talk about the "importance weight of training example 17"
     # if nobody agrees on which training example has index 17.
     old_seed = np.random.randint(low=0, high=np.iinfo(np.uint32).max)
-    if config.has_key("seed"):
-        np.random.seed(config["seed"])
+    np.random.seed(42)
     train_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
     valid_indices = np.setdiff1d(range(0,train_X.shape[0]), train_indices)
     np.random.seed(old_seed)
@@ -98,24 +99,38 @@ def load_data_svhn(config):
 
     print "computed mean and var"
 
-    old_seed = np.random.randint(low=0, high=np.iinfo(np.uint32).max)
-    if config.has_key("seed"):
-        np.random.seed(config["seed"])
-    # Adding noise
-    if 'noise' in config.keys() and config['noise'] != 'no_noise':
-        noise_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (config["fraction_noise"])), replace = False)
-        print np.amax(noise_indices)
-        noisify(train_X[noise_indices], config)
-    else :
-        print "Not adding any noise"
-    np.random.seed(old_seed)
-
     print "Training Set", train_X.shape, train_Y.shape
     print "Validation Set", valid_X.shape, valid_Y.shape
     print "Test Set", test_X.shape, test_Y.shape
 
     return {"train": (train_X, train_Y.flatten()), "valid" : (valid_X, valid_Y.flatten()), "test" : (test_X, test_Y.flatten()), "mean" : x_mean, "std" : x_std}
 
+def load_data_kaldi_i84(config):
+
+    fileTrain = gzip.open(config["kaldi-i84_file_train"], "r")
+    fileValid = gzip.open(config["kaldi-i84_file_valid"], "r")
+    fileTest = gzip.open(config["kaldi-i84_file_test"], "r")
+
+    def read_kaldi_file(fh):
+
+        featureLst = []
+        labelLst = []
+
+
+        for line in fh:
+            obj = cPickle.loads(line.replace("newline_rep","\n"))
+            features = obj[0]
+            label = obj[1]
+
+            featureLst += [features]
+            labelLst += [label]
+
+        featureMatrix = np.vstack(featureLst)
+        labelMatrix = np.vstack(labelLst)
+
+        return featureMatrix, labelMatrix.flatten()
+
+    return {"train" : read_kaldi_file(fileTrain), "valid": read_kaldi_file(fileValid), "test" : read_kaldi_file(fileTest)}
 
 def load_data_mnist(config):
     dataset = config["mnist_file"]
@@ -132,6 +147,7 @@ def load_data_mnist(config):
 
     #[(train_set_x, train_set_y), (valid_set_x, valid_set_y),
            # (test_set_x, test_set_y)]
+
     return rval
 
 def normalizeMatrix(X, mean, std):
@@ -145,5 +161,10 @@ def load_data(config):
         return load_data_svhn(config)
     elif config["dataset"] == "mnist":
         return load_data_mnist(config)
+    elif config["dataset"] == "kaldi-i84":
+        return load_data_kaldi_i84(config)
     else:
         raise Exception("Dataset must be either svhn or mnist")
+
+
+

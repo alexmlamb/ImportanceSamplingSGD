@@ -23,6 +23,8 @@ class NeuralNetwork:
 
     def __init__(self, model_config):
 
+        self.model_config = model_config
+
         nhidden_layers = len(model_config["hidden_sizes"])
         nhidden = model_config["hidden_sizes"][0]
         print "num_hidden_layers      :",nhidden_layers
@@ -31,7 +33,7 @@ class NeuralNetwork:
         Y = T.ivector()
         scaling_factors = T.fvector()
         num_input = model_config["num_input"]
-        num_output = 10
+        num_output = model_config["num_output"]
 
         self.num_minibatches_processed_master = 0
         self.num_minibatches_processed_worker = 0
@@ -116,8 +118,9 @@ class NeuralNetwork:
 
         print "Model compilation complete"
         self.data = load_data(model_config)
-        self.mean = self.data["mean"]
-        self.std = self.data["std"]
+        if model_config["normalize_data"]:
+            self.mean = self.data["mean"]
+            self.std = self.data["std"]
         print "%s data loaded..." % model_config["dataset"]
 
 
@@ -203,7 +206,12 @@ class NeuralNetwork:
                             "importance_weight", "gradient_square_norm",
                             "loss", "accuracy"]
 
-        X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
+        if self.model_config["normalize_data"]:
+            X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
+        else:
+            X_minibatch = self.data[segment][0][A_indices]
+
+
         Y_minibatch = self.data[segment][1][A_indices]
         assert np.all(np.isfinite(X_minibatch))
         assert np.all(np.isfinite(Y_minibatch))
@@ -268,7 +276,11 @@ class NeuralNetwork:
         assert A_indices.shape == A_scaling_factors.shape, "Failed to assertion that %s == %s." % (A_indices.shape, A_scaling_factors.shape)
         assert segment in ["train"]
 
-        X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
+        if self.model_config["normalize_data"]:
+            X_minibatch = normalizeMatrix(self.data[segment][0][A_indices], self.mean, self.std)
+        else:
+            X_minibatch = self.data[segment][0][A_indices]
+
         Y_minibatch = self.data[segment][1][A_indices]
         assert np.all(np.isfinite(X_minibatch))
         assert np.all(np.isfinite(Y_minibatch))

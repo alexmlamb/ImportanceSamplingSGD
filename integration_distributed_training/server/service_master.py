@@ -41,7 +41,7 @@ def run(DD_config, D_server_desc):
 
     master_minibatch_size = DD_config['database']['master_minibatch_size']
     serialized_parameters_format = DD_config['database']['serialized_parameters_format']
-    Ntrain = DD_config['database']['Ntrain']
+    Ntrain = DD_config['model']['Ntrain']
     # Default behavior is to have no staleness, and perform ISGD from the moment that we
     # get values for all the importance weights. Until then, we do USGD.
     staleness_threshold_seconds = DD_config['database']['staleness_threshold_seconds']
