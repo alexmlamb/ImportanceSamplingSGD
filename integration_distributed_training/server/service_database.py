@@ -172,7 +172,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
     else:
 
-        configure(  rsconn,
+        configure(  rsconn, Ntrain = DD_config['model']['Ntrain'], Nvalid = DD_config['model']['Nvalid'], Ntest = DD_config['model']['Ntest'],
                     **DD_config['database'])
         #rsconn.set("resuming_from_previous_run", False)
         msg = "Starting a new run."
@@ -267,4 +267,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
         logging.info("")
 
         # have the database save itself to the file at every iteration through the loop
-        rsconn.bgsave()
+        if DD_config['database']['do_background_save']:
+            rsconn.bgsave()
+
+
