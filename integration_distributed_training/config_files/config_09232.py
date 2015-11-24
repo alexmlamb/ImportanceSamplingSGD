@@ -13,15 +13,31 @@ def get_model_config():
     model_config["momentum_rate"] = 0.95
 
     #The learning rate to use on the gradient averaged over a minibatch
-    model_config["learning_rate"] = 0.001
+    model_config["learning_rate"] = 0.01
 
-    #model_config["dataset"] = "mnist"
+    #config["dataset"] = "mnist"
     model_config["dataset"] = "svhn"
+    #config["dataset"] = "kaldi-i84"
 
     if model_config["dataset"] == "mnist":
+        print "Error. Missing values of (Ntrain, Nvalid, Ntest)"
+        quit()
         model_config["num_input"] = 784
+        model_config["num_output"] = 10
     elif model_config["dataset"] == "svhn":
+        (Ntrain, Nvalid, Ntest) = (574168, 30220, 26032)
         model_config["num_input"] = 3072
+        model_config["num_output"] = 10
+        model_config["normalize_data"] = True
+    elif model_config["dataset"] == "kaldi-i84":
+        (Ntrain, Nvalid, Ntest) = (5436921, 389077, 253204)
+        model_config["num_input"] = 861
+        model_config["num_output"] = 3472
+        model_config["normalize_data"] = False
+
+    model_config['Ntrain'] = Ntrain
+    model_config['Nvalid'] = Nvalid
+    model_config['Ntest'] = Ntest
 
     # Pick one, depending where you run this.
     # This could be done differently too by looking at fuelrc
@@ -30,11 +46,16 @@ def get_model_config():
     data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
                     "lambda":"/home/gyomalin/ML/data_lisa_data",
                     "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname().lower()]
+    #data_root = "/rap/jvb-000-aa/data/alaingui"
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
     model_config["svhn_file_extra"] = os.path.join(data_root, "svhn/extra_32x32.mat")
     model_config["svhn_file_test"] = os.path.join(data_root, "svhn/test_32x32.mat")
+
+    model_config["kaldi-i84_file_train"] = os.path.join(data_root, "kaldi/i84_train.gz")
+    model_config["kaldi-i84_file_valid"] = os.path.join(data_root, "kaldi/i84_valid.gz")
+    model_config["kaldi-i84_file_test"] = os.path.join(data_root, "kaldi/i84_test.gz")
 
     model_config["load_svhn_normalization_from_file"] = True
     model_config["save_svhn_normalization_to_file"] = False
@@ -44,7 +65,7 @@ def get_model_config():
 
     # Note from Guillaume : I'm not fond at all of using seeds,
     # but here it is used ONLY for the initial partitioning into train/valid.
-    model_config["seed"] = 42
+    model_config["seed"] = 9999494
 
     #Weights are initialized to N(0,1) * initial_weight_size
     model_config["initial_weight_size"] = 0.01
@@ -52,10 +73,14 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     model_config["fraction_validation"] = 0.05
 
-    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 8)
-    model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 4)
+    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 512)
+    model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 10)
 
-    model_config["turn_off_importance_sampling"] = False
+    model_config["turn_off_importance_sampling"] = True
+
+    assert model_config['Ntrain'] is not None and 0 < model_config['Ntrain']
+    assert model_config['Nvalid'] is not None
+    assert model_config['Ntest'] is not None
 
     return model_config
 
@@ -68,24 +93,18 @@ def get_database_config():
     # be willing to wait for the parameters to be present on the server.
     connection_setup_timeout = 10*60
 
-    redis_rdb_path_plus_filename = os.path.join(os.environ['HOME'], "tmp/09232.rdb")
+    # Pick one, depending where you run this.
+    # This could be done differently too by looking at fuelrc
+    # or at the hostname.
+    import socket
+    experiment_root_dir = { "serendib":"/home/dpln/tmp",
+                            "lambda":"/home/gyomalin/ML/tmp",
+                            "szkmbp":"/Users/gyomalin/tmp"}[socket.gethostname().lower()]
+    #experiment_root_dir = "/rap/jvb-000-aa/data/alaingui/experiments_ISGD/030"
 
-    logging_folder = os.path.join(os.environ['HOME'], "tmp")
-
-    # Some of those values are placeholder.
-    # Need to update the (Ntrain, Nvalid, Ntest) to the actual values for SVHN.
-
-    (Ntrain, Nvalid, Ntest) = (574168, 30220, 26032)
-    # Training Set (574168, 32, 3, 32) (574168, 1)
-    # Validation Set (30220, 32, 3, 32) (30220, 1)
-    # Test Set (26032, 32, 3, 32) (26032, 1)
-    # svhn data loaded...
-
-    # When skipping the "extra" part of the dataset.
-    #(Ntrain, Nvalid, Ntest) = (69594, 3663, 26032)
-
-
-
+    redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "09232.rdb")
+    logging_folder = experiment_root_dir
+    want_rdb_background_save = True
 
     # This is part of a discussion about when we should the master
     # start its training with uniform sampling SGD and when it should
@@ -97,29 +116,26 @@ def get_database_config():
     # of the importance weights, or other simular criterion, to define
     # what constitutes a "usable" value.
 
-    # A lot of things have been engineered around the assumption that this was np.NaN.
-    # It's not even a real option anymore. We should enforce this instead of
-    # providing it in the config.
     default_importance_weight = np.NaN
     #default_importance_weight = 1.0
 
     want_master_to_do_USGD_when_ISGD_is_not_possible = True
-    master_usable_importance_weights_threshold_to_ISGD = 0.2 # cannot be None
+    master_usable_importance_weights_threshold_to_ISGD = 0.1 # cannot be None
 
     # The master will only consider importance weights which were updated this number of seconds ago.
     staleness_threshold_seconds = 20
     staleness_threshold_num_minibatches_master_processed = None
 
     # Guillaume is not so fond of this approach.
-    importance_weight_additive_constant = 1.0
+    importance_weight_additive_constant = 10.0
 
     serialized_parameters_format ="opaque_string"
 
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 1024*4
-    master_minibatch_size = 1024*4
+    workers_minibatch_size = 2048
+    master_minibatch_size = 128
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -129,27 +145,15 @@ def get_database_config():
     dataset_name='svhn'
 
     L_measurements=["individual_importance_weight", "individual_gradient_square_norm", "individual_loss", "individual_accuracy", "minibatch_gradient_mean_square_norm"]
+    L_segments = ["train", "valid", "test"]
 
     #
     # The rest of this code is just checks and quantities generated automatically.
     #
 
-    L_segments = []
-    assert 0 < Ntrain
-    if Ntrain != 0:
-        L_segments.append("train")
-    if Nvalid != 0:
-        L_segments.append("valid")
-    if Ntest != 0:
-        L_segments.append("test")
-
-
     assert workers_minibatch_size is not None and 0 < workers_minibatch_size
     assert master_minibatch_size is not None and 0 < master_minibatch_size
     assert dataset_name is not None
-    assert Ntrain is not None and 0 < Ntrain
-    assert Nvalid is not None
-    assert Ntest is not None
 
     assert serialized_parameters_format in ["opaque_string", "ndarray_float32_tostring"]
 
@@ -160,11 +164,9 @@ def get_database_config():
                 workers_minibatch_size=workers_minibatch_size,
                 master_minibatch_size=master_minibatch_size,
                 dataset_name=dataset_name,
-                Ntrain=Ntrain,
-                Nvalid=Nvalid,
-                Ntest=Ntest,
                 L_measurements=L_measurements,
                 L_segments=L_segments,
+                want_only_indices_for_master=True,
                 want_exclude_partial_minibatch=True,
                 serialized_parameters_format=serialized_parameters_format,
                 default_importance_weight=default_importance_weight,
@@ -174,7 +176,8 @@ def get_database_config():
                 staleness_threshold_num_minibatches_master_processed=staleness_threshold_num_minibatches_master_processed,
                 importance_weight_additive_constant=importance_weight_additive_constant,
                 logging_folder=logging_folder,
-                redis_rdb_path_plus_filename=redis_rdb_path_plus_filename)
+                redis_rdb_path_plus_filename=redis_rdb_path_plus_filename,
+                want_rdb_background_save=want_rdb_background_save)
 
 def get_helios_config():
     # Optional.

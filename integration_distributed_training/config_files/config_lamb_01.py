@@ -72,7 +72,7 @@ def get_model_config():
 
 def get_database_config():
 
-    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.  
+    #Log files will be put into this folder.  If "logging_folder" is set to none, then nothing will be logged to the file.
 
     logging_folder = "/u/lambalex/DeepLearning/ImportanceSampling/logs/"
 
@@ -84,7 +84,7 @@ def get_database_config():
 
     connection_setup_timeout = 10*60
 
-    do_background_save = False
+    want_rdb_background_save = False
 
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
@@ -92,7 +92,7 @@ def get_database_config():
     workers_minibatch_size = 2048
     master_minibatch_size = 256
 
-    #The master will only consider importance weights which were updated this number of seconds ago.  
+    #The master will only consider importance weights which were updated this number of seconds ago.
     staleness_threshold_seconds = 20.0
 
     # This is not really being used anywhere.
@@ -152,7 +152,7 @@ def get_database_config():
                 importance_weight_additive_constant=importance_weight_additive_constant,
                 connection_setup_timeout=connection_setup_timeout,
                 staleness_threshold_num_minibatches_master_processed=staleness_threshold_num_minibatches_master_processed,
-                do_background_save=do_background_save)
+                want_rdb_background_save=want_rdb_background_save)
 
 def get_helios_config():
     # Optional.
