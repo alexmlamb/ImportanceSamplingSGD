@@ -2,6 +2,8 @@ import numpy as np
 import gzip
 import cPickle
 
+from noise import noisify
+
 #Returns list of tuples containing training, validation, and test instances.
 def load_data_svhn(config):
 
@@ -65,9 +67,7 @@ def load_data_svhn(config):
     np.random.seed(42)
     train_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (1.0 - config["fraction_validation"])), replace = False)
     valid_indices = np.setdiff1d(range(0,train_X.shape[0]), train_indices)
-    np.random.seed(old_seed)
 
-    print "indices collected"
 
     valid_X = train_X[valid_indices]
     valid_Y = train_Y[valid_indices]
@@ -75,7 +75,14 @@ def load_data_svhn(config):
     train_X = train_X[train_indices]
     train_Y = train_Y[train_indices]
 
-    print "indices indexed"
+    if 'noise' in config.keys() and config['noise'] != 'no_noise':
+        noise_indices = np.random.choice(train_X.shape[0], int(train_X.shape[0] * (config["fraction_noise"])), replace = False)
+        print np.amax(noise_indices)
+        train_X[noise_indices] = noisify(train_X[noise_indices], config)
+    else :
+        print "Not adding any noise"
+
+    np.random.seed(old_seed)
 
     assert not (config["load_svhn_normalization_from_file"] and config["save_svhn_normalization_to_file"])
 
