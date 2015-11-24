@@ -206,9 +206,10 @@ class NeuralNetwork:
     def sgd_rmsprop(cost, params, rms, lr, rms_r):
         grads = T.grad(cost=cost, wrt=params)
         updates = []
+        tau = 1e-6
         for p, g, r in zip(params, grads, rms):
             updates.append([r, r*(1-rms_r) + (T.sqr(g))*rms_r])
-            g = g/T.sqrt(r)
+            g = g/T.sqrt(r + tau)
             updates.append([p, p - g*lr ])
 
         return updates
