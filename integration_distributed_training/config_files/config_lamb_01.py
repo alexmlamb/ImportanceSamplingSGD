@@ -89,11 +89,11 @@ def get_database_config():
     # These two values don't have to be the same.
     # It might be possible that the master runs on a GPU
     # and the workers run on CPUs just to try stuff out.
-    workers_minibatch_size = 2048
+    workers_minibatch_size = 4096
     master_minibatch_size = 256
 
     #The master will only consider importance weights which were updated this number of seconds ago.  
-    staleness_threshold_seconds = 20.0
+    staleness_threshold_seconds = 30.0
 
     # This is not really being used anywhere.
     # We should consider deleting it after making sure that it
@@ -128,7 +128,7 @@ def get_database_config():
         L_segments.append("test")
 
 
-    staleness_threshold_num_minibatches_master_processed = 20
+    staleness_threshold_num_minibatches_master_processed = 60
 
     assert workers_minibatch_size is not None and 0 < workers_minibatch_size
     assert master_minibatch_size is not None and 0 < master_minibatch_size
