@@ -1,0 +1,16 @@
+
+All done with Alex's config. All with staleness_threshold_seconds = 20, and learning_rate = 0.001.
+
+040 : USGD with Alex's setup,
+
+041 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 32, additive_importance +10.0
+042 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 32, additive_importance +1.0
+043 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 32, additive_importance +0.1
+
+044 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 512, additive_importance +10.0
+045 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 512, additive_importance +1.0
+046 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 512, additive_importance +0.1
+
+047 : ISGD with Alex's setup, 2 GPU, master fetch importance weights every 32, additive_importance +10.0
+048 : ISGD with Alex's setup, 2 GPU, master fetch importance weights every 32, additive_importance +1.0
+049 : ISGD with Alex's setup, 2 GPU, master fetch importance weights every 32, additive_importance +0.1
