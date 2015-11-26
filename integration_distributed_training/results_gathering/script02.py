@@ -216,10 +216,10 @@ def run():
     #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
     #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(36,40)]:
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(30,40)]:
 
         if not os.path.exists(results_pickle_file):
-            print "Error. File %s does not exist."
+            print "Error. File %s does not exist." % results_pickle_file
             continue
 
         print "Processing %s." % results_pickle_file
