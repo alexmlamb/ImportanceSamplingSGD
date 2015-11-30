@@ -34,7 +34,7 @@
 # Not sure why again, but it works for the HTTP address and not the SSH address.
 # git clone https://github.com/alexmlamb/ImportanceSamplingSGD.git ImportanceSamplingSGD
 
-export IMPORTANCE_SAMPLING_SGD_ROOT=${HOME}/Documents/ImportanceSamplingSGD
+export IMPORTANCE_SAMPLING_SGD_ROOT=${HOME}/Documents/adam
 export PYTHONPATH=${PYTHONPATH}:${IMPORTANCE_SAMPLING_SGD_ROOT}
 export IMPORTANCE_SAMPLING_SGD_BIN=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/bin
 
