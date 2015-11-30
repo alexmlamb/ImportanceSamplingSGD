@@ -42,12 +42,17 @@ class NeuralNetwork:
 
         L_W, L_b = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[0.01,0.0])
         L_W_momentum, L_b_momentum, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[0.0,0.0], name_suffix="_momentum")
-        L_W_rms, L_b_rms, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[-1.0, -1.0], name_suffix="_rms")
+        L_W_rms, L_b_rms, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[0.0, 0.0], name_suffix="_rms")
+
 
 
         self.parameters = L_W + L_b
         self.momentum   = L_W_momentum + L_b_momentum
         self.rms        = L_W_rms + L_b_rms
+
+        #params for ADAM
+        self.mr_hat = self.init_weights(shape=(1,),name='mr_hat',scale=-1)
+        self.rmsr_hat = self.init_weights(shape=(1,),name='rmsr_hat',scale=-1)
 
         print self.parameters
 
@@ -90,6 +95,10 @@ class NeuralNetwork:
         elif model_config['adagrad'] != 0.0 :
             print "Using Adagrad..."
             updates = NeuralNetwork.sgd_adagrad(scaled_cost, self.parameters, self.rms, model_config["learning_rate"])
+        elif model_config['adam_r_rate'] != 0.0 :
+            print "Using ADAM..."
+            updates = NeuralNetwork.sgd_adam(scaled_cost,self.parameters, self.rms, self.momentum, self.mr_hat, self.rmsr_hat, model_config["learning_rate"], model_config["adam_m_rate"], model_config["adam_r_rate"])
+        #sgd_adam(cost, params, rms, momentum, mr_hat, rms_r_hat, lr, mr, rms_r)
         else :
             print "Not using RMSprop or momentum. Just plain vanilla sgd..."
             updates = NeuralNetwork.sgd(scaled_cost, self.parameters, model_config["learning_rate"] )
@@ -227,6 +236,25 @@ class NeuralNetwork:
         for p, g, r in zip(params, grads, rms):
             updates.append([r, r + T.sqr(g)])
             g = g/T.sqrt(r + tau)
+            updates.append([p, p - g*lr ])
+
+        return updates
+
+    @staticmethod
+    def sgd_adam(cost, params, rms, momentum, mr_hat, rms_r_hat, lr, mr, rms_r):
+        grads = T.grad(cost=cost, wrt=params)
+        updates = []
+        tau = 1e-6
+        updates.append([mr_hat, mr_hat * mr])
+        updates.append([rms_r_hat, rms_r_hat * rms_r])
+        for p, g, m, r  in zip(params, grads, momentum, rms):
+            updates.append([m, mr*m + (1-mr)*g])
+            updates.append([r, r*(rms_r) + (T.sqr(g))*(1-rms_r)])
+            m = mr*m + (1-mr)*g
+            r = r*(rms_r) + (T.sqr(g))*(1-rms_r)
+            m_hat = m / (1 - mr_hat)
+            r_hat = r / (1 - rms_r_hat)
+            g = m_hat/T.sqrt(r_hat + tau)
             updates.append([p, p - g*lr ])
 
         return updates
