@@ -43,6 +43,8 @@ class NeuralNetwork:
         L_W, L_b = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[0.01,0.0])
         L_W_momentum, L_b_momentum, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[0.0,0.0], name_suffix="_momentum")
         L_W_rms, L_b_rms, = NeuralNetwork.build_parameters(num_input, num_output, model_config["hidden_sizes"], scale=[-1.0, -1.0], name_suffix="_rms")
+
+
         self.parameters = L_W + L_b
         self.momentum   = L_W_momentum + L_b_momentum
         self.rms        = L_W_rms + L_b_rms
@@ -85,6 +87,9 @@ class NeuralNetwork:
         elif model_config['rms_rate'] != 0.0 :
             print "Using RMSprop..."
             updates = NeuralNetwork.sgd_rmsprop(scaled_cost, self.parameters, self.rms, model_config["learning_rate"], model_config['rms_rate'])
+        elif model_config['adagrad'] != 0.0 :
+            print "Using Adagrad..."
+            updates = NeuralNetwork.sgd_adagrad(scaled_cost, self.parameters, self.rms, model_config["learning_rate"])
         else :
             print "Not using RMSprop or momentum. Just plain vanilla sgd..."
             updates = NeuralNetwork.sgd(scaled_cost, self.parameters, model_config["learning_rate"] )
@@ -209,6 +214,18 @@ class NeuralNetwork:
         tau = 1e-6
         for p, g, r in zip(params, grads, rms):
             updates.append([r, r*(1-rms_r) + (T.sqr(g))*rms_r])
+            g = g/T.sqrt(r + tau)
+            updates.append([p, p - g*lr ])
+
+        return updates
+
+    @staticmethod
+    def sgd_adagrad(cost, params, rms, lr):
+        grads = T.grad(cost=cost, wrt=params)
+        updates = []
+        tau = 1e-6
+        for p, g, r in zip(params, grads, rms):
+            updates.append([r, r + T.sqr(g)])
             g = g/T.sqrt(r + tau)
             updates.append([p, p - g*lr ])
 
