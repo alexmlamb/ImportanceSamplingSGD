@@ -22,7 +22,6 @@ def get_model_config():
     model_config['adam_r_rate'] = 0.999
     model_config['adam_m_rate'] = 0.9
 
-
     #The learning rate to use on the gradient averaged over a minibatch
     model_config["learning_rate"] = 0.0001
 
@@ -41,7 +40,7 @@ def get_model_config():
     #data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
     #                "lambda":"/home/gyomalin/ML/data_lisa_data",
     #                "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname().lower()]
-    data_root = "/Users/chinna/Downloads"
+    data_root = "/rap/jvb-000-aa/data/alaingui"
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
@@ -67,11 +66,11 @@ def get_model_config():
     model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 16)
     model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 2)
 
-    model_config["turn_off_importance_sampling"] = False
+    model_config["turn_off_importance_sampling"] = True
 
-    model_config['image']                         = '/Users/chinna/Documents/logging/noise_exp/'
-    model_config['noise']                         = 'guassian'#'uniform'#'normal'#'black_out'#'guassian'#'no_noise'
-    model_config['fraction_noise']                = 0.10
+    model_config['image']                         = '/rap/jvb-000-aa/data/chinna/iclr2015/logging/noisy_images/'
+    model_config['noise']                         = 'no_noise'#'uniform'#'normal'#'black_out'#'guassian'#'no_noise'
+    model_config['fraction_noise']                = 0.0
 
     return model_config
 
@@ -84,8 +83,8 @@ def get_database_config():
     # be willing to wait for the parameters to be present on the server.
     connection_setup_timeout = 10*60
 
-    experiment_root_dir = "/Users/chinna/Documents/logging/noise_exp/"
-    redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "guassian.rdb")
+    experiment_root_dir = "/rap/jvb-000-aa/data/chinna/iclr2015/logging/rms_prop_exp/usgd_r"
+    redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "uniform.rdb")
     logging_folder = experiment_root_dir
 
 
