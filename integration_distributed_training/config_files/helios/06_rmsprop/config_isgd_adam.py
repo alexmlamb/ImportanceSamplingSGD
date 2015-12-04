@@ -19,7 +19,7 @@ def get_model_config():
     model_config['adagrad'] = 0.0
 
     #ADAM
-    model_config['adam_r_rate'] = 0.9
+    model_config['adam_r_rate'] = 0.0
     model_config['adam_m_rate'] = 0.9
 
     #The learning rate to use on the gradient averaged over a minibatch
