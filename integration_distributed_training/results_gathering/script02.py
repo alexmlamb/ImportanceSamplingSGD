@@ -216,7 +216,10 @@ def run():
     #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
     #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(30,40)]:
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in [46, 49]]:
+
+    #for results_pickle_file in [os.path.join(helios_experiments_dir, "034/034.pkl"),
+    #                            os.path.join(helios_experiments_dir, "034b/034b.pkl")]:
 
         if not os.path.exists(results_pickle_file):
             print "Error. File %s does not exist." % results_pickle_file
@@ -479,6 +482,9 @@ def process_trcov(E, output_path):
     xx, locs = plt.xticks()
     ll = ['%.2f' % a for a in xx]
     plt.xticks(xx, ll)
+
+    # remove this to get the actual curve
+    plt.ylim([0.0, 100.0])
 
     #plt.title("Square root of Trace(Cov) computed over whole dataset")
     plt.ylabel("sqrt(tr(cov))")
