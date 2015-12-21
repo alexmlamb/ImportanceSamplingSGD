@@ -250,6 +250,21 @@ def run(DD_config, D_server_desc):
                 #else:
                 #    remote_redis_logger.log('event', "process_minibatch")
 
+                # Cause importance sampling to be done randomly if the value of
+                # `turn_off_importance_sampling` is a floating-point value.
+                # Note that another good approach would have been to alternate between
+                # one mode and the other.
+                if type(turn_off_importance_sampling) == float:
+                    assert 0.0 <= turn_off_importance_sampling
+                    assert turn_off_importance_sampling <= 1.0
+                    if np.random.rand() <= turn_off_importance_sampling:
+                        decision_to_turn_off_importance_sampling_this_iteration = True
+                    else:
+                        decision_to_turn_off_importance_sampling_this_iteration = False
+                else:
+                    assert type(turn_off_importance_sampling) == bool
+                    decision_to_turn_off_importance_sampling_this_iteration = turn_off_importance_sampling
+
                 tic = time.time()
                 (intent, mode, A_sampled_indices, A_scaling_factors) = sample_indices_and_scaling_factors(
                         D_importance_weights_and_more=D_importance_weights_and_more,
@@ -257,7 +272,7 @@ def run(DD_config, D_server_desc):
                         nbr_samples=master_minibatch_size,
                         master_usable_importance_weights_threshold_to_ISGD=master_usable_importance_weights_threshold_to_ISGD,
                         want_master_to_do_USGD_when_ISGD_is_not_possible=want_master_to_do_USGD_when_ISGD_is_not_possible,
-                        turn_off_importance_sampling=turn_off_importance_sampling)
+                        turn_off_importance_sampling=decision_to_turn_off_importance_sampling_this_iteration)
                 toc = time.time()
                 remote_redis_logger.log('timing_profiler', {'sample_indices_and_scaling_factors' : (toc-tic)})
 
