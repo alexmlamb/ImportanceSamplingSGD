@@ -193,7 +193,7 @@ def run():
                     "szkmbp":"/Users/gyomalin/Documents/helios_experiments"}[socket.gethostname().lower()]
 
     # lambda
-    #helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+    helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
     # szkmbp
     # helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
 
@@ -216,7 +216,7 @@ def run():
     #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
     #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in [46, 49]]:
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(51, 60)]:
 
     #for results_pickle_file in [os.path.join(helios_experiments_dir, "034/034.pkl"),
     #                            os.path.join(helios_experiments_dir, "034b/034b.pkl")]:
