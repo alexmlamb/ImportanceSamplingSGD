@@ -38,8 +38,11 @@ for experiment_index in range(experiment_start_index, experiment_start_index + n
                     # Write to destination regardless of whether you matches something or not.
                     f_out.write(line)
 
-    L_extra_cmds_1.append("mkdir %0.5d" % experiment_index)
+    L_extra_cmds_1.append("mkdir /rap/jvb-000-aa/data/alaingui/experiments_ISGD/%0.5d" % experiment_index)
+
+    L_extra_cmds_2.append("cd /rap/jvb-000-aa/data/alaingui/experiments_ISGD/%0.5d" % experiment_index)
     L_extra_cmds_2.append("msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/12_repeat20x030/launch_%0.5d.sh" % experiment_index)
+    L_extra_cmds_2.append("")
 
 with open("extra_cmd_1.sh", 'w') as f:
     for cmd in L_extra_cmds_1:
