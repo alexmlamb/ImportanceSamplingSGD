@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#PBS -l nodes=1:gpus=4
-#PBS -l walltime=1:00:00
+#PBS -l nodes=1:gpus=2
+#PBS -l walltime=4:00:00
 #PBS -A jvb-000-ag
 #PBS -m bea
 #PBS -l feature=k20
@@ -9,22 +9,20 @@
 # Use msub on helios1 to submit this.
 #
 
-# msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/06_repro/launch_010.sh
-# msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/06_repro/launch_010.sh
+# msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/12_repeat20x030/launch_00105.sh
+# msub -l depend=51777 ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/12_repeat20x030/launch_00105.sh
 
 
-#OUTPUT=`msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/10_alternating_ISSGD_USGD_based_on_08/launch_051.sh`
+#OUTPUT=`msub ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/12_repeat20x030/launch_00105.sh`
 #OUTPUT=`echo $OUTPUT | tr -d " "`
 #echo $OUTPUT
 
 #for i in `seq 2 8`;
 #do
-#    OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/10_alternating_ISSGD_USGD_based_on_08/launch_051.sh`
+#    OUTPUT=`msub -l depend=${OUTPUT} ~/Documents/ImportanceSamplingSGD/integration_distributed_training/config_files/helios/12_repeat20x030/launch_00105.sh`
 #    OUTPUT=`echo $OUTPUT | tr -d " "`
 #    echo $OUTPUT
 #done
-
-
 
 
 # Note that the range above includes both the first and last number.
@@ -42,7 +40,7 @@ export IMPORTANCE_SAMPLING_SGD_ROOT=${HOME}/Documents/ImportanceSamplingSGD
 export PYTHONPATH=${PYTHONPATH}:${IMPORTANCE_SAMPLING_SGD_ROOT}
 export IMPORTANCE_SAMPLING_SGD_BIN=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/bin
 
-export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/helios/10_alternating_ISSGD_USGD_based_on_08/config_051.py
+export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_training/config_files/helios/12_repeat20x030/config_00105.py
 
 # The config file will contain other information such as the directory in
 # which we want to output logs.
@@ -51,7 +49,7 @@ export CONFIG_FILE=${IMPORTANCE_SAMPLING_SGD_ROOT}/integration_distributed_train
 # be reached by all the tasks launched since it's going to be how they
 # communicate between themselves initially to share where the database is running,
 # what port it's on and what's the password.
-export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_051
+export BOOTSTRAP_FILE=${HOME}/bootstrap_experiment_00105
 
 # The whole stdbuf is not necessary, but I left it there because it fixes
 # some of the strange behavior when we try to redirect the output to a file.
@@ -66,8 +64,12 @@ sleep 10
 
 THEANO_FLAGS=device=gpu0,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_master.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 THEANO_FLAGS=device=gpu1,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
-THEANO_FLAGS=device=gpu2,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
-THEANO_FLAGS=device=gpu3,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
+#THEANO_FLAGS=device=gpu2,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
+#THEANO_FLAGS=device=gpu3,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_SAMPLING_SGD_BIN}/run_worker.py --config_file=${CONFIG_FILE} --bootstrap_file=${BOOTSTRAP_FILE} &
 
+sleep 3600
+sleep 3600
+sleep 3600
+sleep 3600
 sleep 3600
 sleep 3600

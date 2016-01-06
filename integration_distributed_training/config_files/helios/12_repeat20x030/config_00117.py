@@ -42,11 +42,11 @@ def get_model_config():
     # Pick one, depending where you run this.
     # This could be done differently too by looking at fuelrc
     # or at the hostname.
-    import socket
-    data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
-                    "lambda":"/home/gyomalin/ML/data_lisa_data",
-                    "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname().lower()]
-    #data_root = "/rap/jvb-000-aa/data/alaingui"
+    #import socket
+    #data_root = {   "serendib":"/home/dpln/data/data_lisa_data",
+    #                "lambda":"/home/gyomalin/ML/data_lisa_data",
+    #                "szkmbp":"/Users/gyomalin/Documents/fuel_data"}[socket.gethostname().lower()]
+    data_root = "/rap/jvb-000-aa/data/alaingui"
 
     model_config["mnist_file"] = os.path.join(data_root, "mnist/mnist.pkl.gz")
     model_config["svhn_file_train"] = os.path.join(data_root, "svhn/train_32x32.mat")
@@ -73,10 +73,10 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     model_config["fraction_validation"] = 0.05
 
-    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 32)
+    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 512)
     model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 10)
 
-    model_config["turn_off_importance_sampling"] = 0.5
+    model_config["turn_off_importance_sampling"] = True
 
     assert model_config['Ntrain'] is not None and 0 < model_config['Ntrain']
     assert model_config['Nvalid'] is not None
@@ -96,13 +96,13 @@ def get_database_config():
     # Pick one, depending where you run this.
     # This could be done differently too by looking at fuelrc
     # or at the hostname.
-    import socket
-    experiment_root_dir = { "serendib":"/home/dpln/tmp",
-                            "lambda":"/home/gyomalin/ML/tmp",
-                            "szkmbp":"/Users/gyomalin/tmp"}[socket.gethostname().lower()]
-    #experiment_root_dir = "/rap/jvb-000-aa/data/alaingui/experiments_ISGD/030"
+    #import socket
+    #experiment_root_dir = { "serendib":"/home/dpln/tmp",
+    #                        "lambda":"/home/gyomalin/ML/tmp",
+    #                        "szkmbp":"/Users/gyomalin/tmp"}[socket.gethostname().lower()]
 
-    redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "09232.rdb")
+    experiment_root_dir = "/rap/jvb-000-aa/data/alaingui/experiments_ISGD/00117"
+    redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "00117.rdb")
     logging_folder = experiment_root_dir
     want_rdb_background_save = True
 
