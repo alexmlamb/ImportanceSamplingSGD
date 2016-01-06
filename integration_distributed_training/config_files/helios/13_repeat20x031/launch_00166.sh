@@ -70,3 +70,7 @@ THEANO_FLAGS=device=gpu3,floatX=float32 stdbuf -i0 -o0 -e0 python ${IMPORTANCE_S
 
 sleep 3600
 sleep 3600
+sleep 3600
+sleep 3600
+sleep 3600
+sleep 3600
