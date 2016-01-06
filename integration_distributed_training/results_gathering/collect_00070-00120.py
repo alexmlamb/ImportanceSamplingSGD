@@ -70,8 +70,6 @@ def run():
 
         R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
 
-        E[]
-
         handle = pylab.plot( np.array([e[0] for e in R[segment]]) / 3600,
                              np.array([e[1] for e in R[segment]]),
                              label=segment, linewidth=1 )
