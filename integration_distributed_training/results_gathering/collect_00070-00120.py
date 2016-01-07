@@ -17,21 +17,28 @@ def parse_results(results):
 
     sd = results['logging']['service_database'].values()[0]
 
-    t0 = sd['measurement'][0][0]
+    # We don't want to have the initial time be set by other measurements
+    # that we're not even interested in. But this is a debatable decision.
+    t0 = None
 
     DL_individual_accuracy = {'train' :[], 'valid' :[], 'test' :[]}
     DL_individual_loss = {'train' :[], 'valid' :[], 'test' :[]}
 
     for (timestamp, e) in sd['measurement']:
         if e['name'] == 'individual_loss':
+            if t0 is None:
+                t0 = timestamp
             DL_individual_loss[e['segment']].append((timestamp - t0, e['mean']))
         elif e['name'] == 'individual_accuracy':
+            if t0 is None:
+                t0 = timestamp
             DL_individual_accuracy[e['segment']].append((timestamp - t0, e['mean']))
 
     return (DL_individual_accuracy, DL_individual_loss)
 
 
-
+import numpy as np
+import re
 import os
 import pickle
 
@@ -47,8 +54,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 def run():
 
-    start_experiment_index = 70
-    end_experiment_index = 120
+    #(start_experiment_index, end_experiment_index) = (70, 120)
+    (start_experiment_index, end_experiment_index) = (70, 75)
+    #(start_experiment_index, end_experiment_index) = (120, 150)
 
     L_parsed_results = []
 
@@ -60,25 +68,32 @@ def run():
 
         results = pickle.load(open(pkl_path, "r"))
         L_parsed_results.append(parse_results(results))
+        print "Parsed %s." % pkl_path
 
     measurement = 'individual_accuracy'
     segment = 'train'
 
     output_path = '%0.5d-%0.5d_%s_%s.pdf' % (start_experiment_index, end_experiment_index, measurement, segment)
     pylab.hold(True)
+    max_timestamp = 0.0
     for E in L_parsed_results:
 
         R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
 
-        handle = pylab.plot( np.array([e[0] for e in R[segment]]) / 3600,
-                             np.array([e[1] for e in R[segment]]),
+        domain = np.array([r[0] for r in R[segment]]) / 3600
+        values = np.array([r[1] for r in R[segment]])
+        if max_timestamp < domain[-1]:
+            max_timestamp = domain[-1]
+
+        handle = pylab.plot( domain,
+                             values,
                              label=segment, linewidth=1 )
 
     #pylab.plot( [L_domain[0]/3600, L_domain[-1]/3600], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
 
     plt.xlabel("time in hours")
     if measurement == "individual_accuracy":
-        plt.ylim([0.70, 1.05])
+        plt.ylim([0.50, 1.05])
         plt.title("Prediction accuracy over whole dataset")
     elif measurement == "individual_loss":
         plt.title("Loss over whole dataset")
@@ -88,7 +103,7 @@ def run():
     ll = ['%.2f' % a for a in xx]
     plt.xticks(xx, ll)
 
-    plt.legend(loc=7)
+    #plt.legend(loc=7)
 
     if re.match(r".*\.pdf", output_path):
         with PdfPages(output_path) as pdf:
@@ -98,3 +113,7 @@ def run():
 
     pylab.close()
     print "Wrote %s." % output_path
+
+
+if __name__ == "__main__":
+    run()
