@@ -63,7 +63,7 @@ def run(DD_config, D_server_desc):
     setup_python_logger(folder=DD_config["database"]["logging_folder"])
     logging.info(pprint.pformat(DD_config))
 
-    remote_redis_logger = integration_distributed_trainlogging
+    remote_redis_logger = integration_distributed_train
     model_api = ModelAPI(DD_config['model'])
     # This `record_machine_info` has to be called after the component that
     # makes use of theano if we hope to properly record the theano.config.
