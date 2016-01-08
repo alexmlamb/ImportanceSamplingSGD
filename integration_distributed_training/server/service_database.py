@@ -213,8 +213,13 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
     remote_redis_logger.log('event', "Before entering service_database main loop.")
 
+    last_save_database_timestamp = None
+    # save every 5 minutes (this should remove some pressure)
+    save_database_threshold = 5*60
+
     while True:
-        logging.info("Running server. Press CTLR+C to stop. Timestamp %f." % time.time())
+        logging.info("Running server. Press CTLR+C to stop. Timestamp %f. %s" % (   time.time(),
+                                                                                    time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
         logging.info("Number minibatches processed by master    " + str(rsconn.get("parameters:num_minibatches_master_processed")))
 
         for segment in ["train", "valid", "test"]:
@@ -268,4 +273,12 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
         # have the database save itself to the file at every iteration through the loop
         if DD_config['database']['want_rdb_background_save']:
-            rsconn.bgsave()
+            # redundant logic, but clearer to read
+            if last_save_database_timestamp is None:
+                last_save_database_timestamp = time.time()
+                rsconn.bgsave()
+                continue
+            elif save_database_threshold <= (time.time() - last_save_database_timestamp):
+                last_save_database_timestamp = time.time()
+                rsconn.bgsave()
+                continue

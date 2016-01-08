@@ -166,7 +166,8 @@ def run(DD_config, D_server_desc):
         print "Will break from master main loop."
         print "Will make logger sync to database before terminating."
         print ""
-        signal_handler.remote_redis_logger.log('event', "Received SIGTERM.")
+        signal_handler.logging.info("Master received SIGTERM. %f, %s" % (time.time(), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
+        signal_handler.remote_redis_logger.log('event', "Master received SIGTERM.")
         signal_handler.remote_redis_logger.close()
         sys.exit(0)
     #
@@ -174,6 +175,7 @@ def run(DD_config, D_server_desc):
     # I'm forced to use weird function properties because python
     # has stupid scoping rules.
     signal_handler.remote_redis_logger = remote_redis_logger
+    signal_handler.logging = logging
 
     # cache those values to use them for more than one computation
     D_importance_weights_and_more = None
@@ -291,11 +293,12 @@ def run(DD_config, D_server_desc):
                     model_api.master_process_minibatch(A_sampled_indices, A_scaling_factors, "train")
                     toc = time.time()
                     remote_redis_logger.log('timing_profiler', {'master_process_minibatch' : (toc-tic), 'mode':mode})
-                    logging.info("The master has processed a minibatch using %s." % mode)
+                    logging.info("The master has processed a minibatch using %s. %f, %s" % (mode, time.time(), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
                     num_minibatches_master_processed += 1
 
 
     remote_redis_logger.log('event', "Master exited from main loop")
+    logging.info("Master exited from main loop. %f, %s" % (time.time(), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
     remote_redis_logger.close()
     quit()
 

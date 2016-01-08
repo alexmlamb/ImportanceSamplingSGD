@@ -101,7 +101,7 @@ def get_database_config():
     #                        "lambda":"/home/gyomalin/ML/tmp",
     #                        "szkmbp":"/Users/gyomalin/tmp"}[socket.gethostname().lower()]
 
-    experiment_root_dir = "/rap/jvb-000-aa/data/alaingui/experiments_ISGD/00081"
+    experiment_root_dir = "/home/alaingui/00081"
     redis_rdb_path_plus_filename = os.path.join(experiment_root_dir, "00081.rdb")
     logging_folder = experiment_root_dir
     want_rdb_background_save = True
