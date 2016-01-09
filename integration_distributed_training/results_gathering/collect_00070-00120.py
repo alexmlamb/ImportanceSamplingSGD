@@ -45,7 +45,7 @@ import pickle
 import matplotlib
 # This has already been specified in .scitools.cfg
 # so we don't need to explicitly pick 'Agg'.
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import pylab
 import matplotlib.pyplot as plt
 
@@ -55,7 +55,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 def run():
 
     #(start_experiment_index, end_experiment_index) = (70, 120)
-    (start_experiment_index, end_experiment_index) = (70, 75)
+    (start_experiment_index, end_experiment_index) = (70, 90)
+    (start_experiment_index, end_experiment_index) = (120, 140)
     #(start_experiment_index, end_experiment_index) = (120, 150)
 
     L_parsed_results = []
@@ -69,6 +70,8 @@ def run():
         results = pickle.load(open(pkl_path, "r"))
         L_parsed_results.append(parse_results(results))
         print "Parsed %s." % pkl_path
+
+    # TODO : iterate over measurements, iterate over segments, produce png and pdf
 
     measurement = 'individual_accuracy'
     segment = 'train'

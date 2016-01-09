@@ -24,7 +24,7 @@ want_skip_over_already_done = True
 
 L_cmd = []
 L_missing = []
-for i in range(70, 170):
+for i in range(70, 90):
     rdb_path = "%s/%0.5d/%0.5d.rdb" % (experiment_dir, i, i)
     pkl_path = "%s/%0.5d/%0.5d.pkl" % (experiment_dir, i, i)
     if want_skip_over_already_done and os.path.exists(pkl_path):
