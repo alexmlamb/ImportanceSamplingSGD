@@ -55,7 +55,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 def run():
 
     #(start_experiment_index, end_experiment_index) = (70, 120)
-    (start_experiment_index, end_experiment_index) = (70, 90)
+    #(start_experiment_index, end_experiment_index) = (70, 90)
     (start_experiment_index, end_experiment_index) = (120, 140)
     #(start_experiment_index, end_experiment_index) = (120, 150)
 
@@ -73,49 +73,53 @@ def run():
 
     # TODO : iterate over measurements, iterate over segments, produce png and pdf
 
-    measurement = 'individual_accuracy'
-    segment = 'train'
+    #measurement = 'individual_accuracy'
+    #segment = 'train'
 
-    output_path = '%0.5d-%0.5d_%s_%s.pdf' % (start_experiment_index, end_experiment_index, measurement, segment)
-    pylab.hold(True)
-    max_timestamp = 0.0
-    for E in L_parsed_results:
+    for measurement in ['individual_accuracy', 'individual_loss']:
+        for segment in ['train', 'valid', 'test']:
+            for plot_suffix in ['pdf', 'png']:
 
-        R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
+                output_path = '%0.5d-%0.5d_%s_%s.%s' % (start_experiment_index, end_experiment_index, measurement, segment, plot_suffix)
+                pylab.hold(True)
+                max_timestamp = 0.0
+                for E in L_parsed_results:
 
-        domain = np.array([r[0] for r in R[segment]]) / 3600
-        values = np.array([r[1] for r in R[segment]])
-        if max_timestamp < domain[-1]:
-            max_timestamp = domain[-1]
+                    R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
 
-        handle = pylab.plot( domain,
-                             values,
-                             label=segment, linewidth=1 )
+                    domain = np.array([r[0] for r in R[segment]]) / 3600
+                    values = np.array([r[1] for r in R[segment]])
+                    if max_timestamp < domain[-1]:
+                        max_timestamp = domain[-1]
 
-    #pylab.plot( [L_domain[0]/3600, L_domain[-1]/3600], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
+                    handle = pylab.plot( domain,
+                                         values,
+                                         label=segment, linewidth=1 )
 
-    plt.xlabel("time in hours")
-    if measurement == "individual_accuracy":
-        plt.ylim([0.50, 1.05])
-        plt.title("Prediction accuracy over whole dataset")
-    elif measurement == "individual_loss":
-        plt.title("Loss over whole dataset")
+                    #pylab.plot( [L_domain[0]/3600, L_domain[-1]/3600], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
 
-    # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
-    xx, locs = plt.xticks()
-    ll = ['%.2f' % a for a in xx]
-    plt.xticks(xx, ll)
+                plt.xlabel("time in hours")
+                if measurement == "individual_accuracy":
+                    plt.ylim([0.50, 1.05])
+                    plt.title("Prediction accuracy over whole dataset")
+                elif measurement == "individual_loss":
+                    plt.title("Loss over whole dataset")
 
-    #plt.legend(loc=7)
+                # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
+                xx, locs = plt.xticks()
+                ll = ['%.2f' % a for a in xx]
+                plt.xticks(xx, ll)
 
-    if re.match(r".*\.pdf", output_path):
-        with PdfPages(output_path) as pdf:
-            pdf.savefig()
-    else:
-        pylab.savefig(output_path, dpi=250)
+                #plt.legend(loc=7)
 
-    pylab.close()
-    print "Wrote %s." % output_path
+                if re.match(r".*\.pdf", output_path):
+                    with PdfPages(output_path) as pdf:
+                        pdf.savefig()
+                else:
+                    pylab.savefig(output_path, dpi=250)
+
+                pylab.close()
+                print "Wrote %s." % output_path
 
 
 if __name__ == "__main__":
