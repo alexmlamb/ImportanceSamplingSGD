@@ -34,7 +34,53 @@ def parse_results(results):
                 t0 = timestamp
             DL_individual_accuracy[e['segment']].append((timestamp - t0, e['mean']))
 
-    return (DL_individual_accuracy, DL_individual_loss)
+    return (DL_individual_accuracy, DL_individual_loss, t0)
+
+
+def parse_results_trcov(results, t0=None):
+
+    # that `t0` is expected to come from a call to `parse_results`
+
+    sd = results['logging']['service_database'].values()[0]
+
+    LP_usgd2_minusmu2 = []
+    LP_isgd2_minusmu2 = []
+    LP_stale_addconst_isgd2_minusmu2 = []
+
+    additive_importance_const_str = None
+    for sd in L_service_database:
+        for (timestamp, e) in sd['SGD_trace_variance']:
+
+            if t0 is None:
+                t0 = timestamp
+
+            #if 'approx_mu2' in e:
+            #    LP_approx_mu2.append((timestamp - t0, e['approx_mu2']))
+            if 'usgd2' in e:
+                #LP_usgd2.append((timestamp, e['usgd2']))
+                LP_usgd2_minusmu2.append((timestamp - t0, e['usgd2'] - e['approx_mu2']))
+            #if 'staleisgd2' in e:
+            #    LP_staleisgd2.append((timestamp, e['staleisgd2']))
+            #    LP_staleisgd2_minusmu2.append((timestamp - t0, e['staleisgd2'] - e['approx_mu2']))
+            if 'isgd2' in e:
+                #LP_isgd2.append((timestamp, e['isgd2']))
+                LP_isgd2_minusmu2.append((timestamp - t0, e['isgd2'] - e['approx_mu2']))
+
+            # This one is a bit different because we're deadling with a dictionary.
+            # We'll assert a few things based on the current usage, which means that
+            # we really expect one entry there (10.0) and one entry only.
+            assert 'extra_staleisgd2' in e
+            if 'extra_staleisgd2' in e:
+                B = e['extra_staleisgd2'].items()
+                assert 1 == len(B)
+                if 0 < len(B):
+                    (additive_importance_const_str, v) = e['extra_staleisgd2'].items()[0]
+                    #LP_extra_staleisgd2.append((timestamp - t0, v))
+                    LP_stale_addconst_isgd2_minusmu2.append((timestamp - t0, v - e['approx_mu2']))
+
+    return (LP_usgd2_minusmu2, LP_isgd2_minusmu2, LP_stale_addconst_isgd2_minusmu2)
+
+
 
 
 import numpy as np
@@ -301,6 +347,26 @@ def run02():
                         L_parsed_results_ISSGD,
                         measurement, segment, output_path)
 
+
+
+def run03():
+
+    want_force_reload = True
+
+    # start_boilerplate
+    (start_experiment_index, end_experiment_index) = (120, 170)
+    checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
+    if os.path.exists(checkpoint_pkl) and not want_force_reload:
+        L_parsed_results_ISSGD = pickle.load(open(checkpoint_pkl, 'r'))
+        print "Read %s." % checkpoint_pkl
+    else:
+        L_parsed_results_ISSGD = read_parsed_results(experiment_dir, range(start_experiment_index, end_experiment_index))
+        pickle.dump(L_parsed_results_ISSGD, open(checkpoint_pkl, 'w'))
+        print "Wrote %s." % checkpoint_pkl
+    # end_boilerplate
+
+
+    L_parsed_results_ISSGD = parse_results_trcov(results)
 
 
 if __name__ == "__main__":
