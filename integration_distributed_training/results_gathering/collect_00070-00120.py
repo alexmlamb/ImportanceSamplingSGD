@@ -104,7 +104,7 @@ def median_and_quartiles_from_trajectories(L_domain, LP_XY):
 
 
 
-def plot_01(L_parsed_results, measurement, segment, output_path):
+def plot01(L_parsed_results, measurement, segment, output_path):
 
     pylab.hold(True)
     max_timestamp = 0.0
@@ -149,7 +149,7 @@ def plot_01(L_parsed_results, measurement, segment, output_path):
 
 
 
-def plot_02(L_parsed_results_USGD
+def plot02(L_parsed_results_USGD,
             L_parsed_results_ISSGD, measurement, segment, output_path):
 
     max_timestamp = 0.0
@@ -157,14 +157,15 @@ def plot_02(L_parsed_results_USGD
     LP_XY_ISSGD = []
     for (L_parsed_results, LP_XY) in [(L_parsed_results_USGD, LP_XY_USGD), (L_parsed_results_ISSGD, LP_XY_ISSGD)] :
 
-        R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
+        for E in L_parsed_results:
+            R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
 
-        domain = np.array([r[0] for r in R[segment]]) / 3600
-        values = np.array([r[1] for r in R[segment]])
-        if max_timestamp < domain[-1]:
-            max_timestamp = domain[-1]
+            domain = np.array([r[0] for r in R[segment]]) / 3600
+            values = np.array([r[1] for r in R[segment]])
+            if max_timestamp < domain[-1]:
+                max_timestamp = domain[-1]
 
-        LP_XY.append((domain, values))
+            LP_XY.append((domain, values))
 
     nbr_domain_steps = 100
     A_domain = np.linspace(0.0, max_timestamp, nbr_domain_steps)
@@ -172,22 +173,27 @@ def plot_02(L_parsed_results_USGD
     ISSGD_results = median_and_quartiles_from_trajectories(A_domain, LP_XY_ISSGD)
 
     pylab.hold(True)
+
     L_handles_for_legend = []
     handle = pylab.plot(A_domain,
                         USGD_results['mean'],
-                        label='USGD_%s' % segment, linewidth=2)
+                        label='regular SGD_%s' % segment, linewidth=2, c='#0000FF')
     L_handles_for_legend.append(handle)
-    pylab.plot(A_domain, USGD_results['quart1'], '--', linewidth=0.5)
-    pylab.plot(A_domain, USGD_results['quart3'], '--', linewidth=0.5)
+    pylab.plot(A_domain, USGD_results['quart1'], '--', linewidth=0.5, c='#0000FF')
+    pylab.plot(A_domain, USGD_results['quart3'], '--', linewidth=0.5, c='#0000FF')
 
+    handle = pylab.plot(A_domain,
+                        ISSGD_results['mean'],
+                        label='ISSGD_%s' % segment, linewidth=2, c='#00a65a')
+    L_handles_for_legend.append(handle)
+    pylab.plot(A_domain, ISSGD_results['quart1'], '--', linewidth=0.5, c='#00a65a')
+    pylab.plot(A_domain, ISSGD_results['quart3'], '--', linewidth=0.5, c='#00a65a')
 
-
-
-        #pylab.plot( [L_domain[0]/3600, L_domain[-1]/3600], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
 
     plt.xlabel("time in hours")
     if measurement == "individual_accuracy":
-        plt.ylim([0.50, 1.05])
+        plt.ylim([0.70, 1.05])
+        pylab.plot( [A_domain[0], A_domain[-1]], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
         plt.title("Prediction accuracy over whole dataset")
     elif measurement == "individual_loss":
         plt.title("Loss over whole dataset")
@@ -211,7 +217,7 @@ def plot_02(L_parsed_results_USGD
 
 
 
-def run():
+def run01():
 
     #(start_experiment_index, end_experiment_index) = (70, 120)
     #(start_experiment_index, end_experiment_index) = (70, 90)
@@ -221,17 +227,16 @@ def run():
     plotting_decision = 'overlapping'
     assert plotting_decision in ['overlapping', 'averaged']
 
-    L_parsed_results = []
+    want_force_reload = True
 
-    for i in range(start_experiment_index, end_experiment_index):
-        pkl_path = "%s/%0.5d/%0.5d.pkl" % (experiment_dir, i, i)
-        if not os.path.exists(pkl_path):
-            print "Skipping over %s because it's missing." % pkl_path
-            continue
-
-        results = pickle.load(open(pkl_path, "r"))
-        L_parsed_results.append(parse_results(results))
-        print "Parsed %s." % pkl_path
+    checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
+    if os.path.exists(checkpoint_pkl) and not want_force_reload:
+        L_parsed_results = pickle.load(open(checkpoint_pkl, 'r'))
+        print "Read %s." % checkpoint_pkl
+    else:
+        L_parsed_results = read_parsed_results(experiment_dir, range(start_experiment_index, end_experiment_index))
+        pickle.dump(L_parsed_results, open(checkpoint_pkl, 'w'))
+        print "Wrote %s." % checkpoint_pkl
 
     # TODO : iterate over measurements, iterate over segments, produce png and pdf
 
@@ -243,14 +248,60 @@ def run():
             for plot_suffix in ['pdf', 'png']:
 
                 output_path = '%0.5d-%0.5d_%s_%s.%s' % (start_experiment_index, end_experiment_index, measurement, segment, plot_suffix)
-                if plotting_decision == 'overlapping':
-                    plot_01(L_parsed_results, measurement, segment, output_path)
-                elif plotting_decision == 'averaged':
-                    plot_02(L_parsed_results, measurement, segment, output_path)
+                #if plotting_decision == 'overlapping':
+                plot01(L_parsed_results, measurement, segment, output_path)
+                #elif plotting_decision == 'averaged':
+                #    #plot02(L_parsed_results_USGD, L_parsed_results_ISSGD, measurement, segment, output_path))
 
 
+def read_parsed_results(experiment_dir, L_experiment_indices):
+    L_parsed_results = []
+    for i in L_experiment_indices:
+        pkl_path = "%s/%0.5d/%0.5d.pkl" % (experiment_dir, i, i)
+        if not os.path.exists(pkl_path):
+            print "Skipping over %s because it's missing." % pkl_path
+            continue
+
+        results = pickle.load(open(pkl_path, "r"))
+        L_parsed_results.append(parse_results(results))
+        print "Parsed %s." % pkl_path
+    return L_parsed_results
+
+
+def run02():
+
+    want_force_reload = True
+
+    (start_experiment_index, end_experiment_index) = (70, 120)
+    checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
+    if os.path.exists(checkpoint_pkl) and not want_force_reload:
+        L_parsed_results_USGD = pickle.load(open(checkpoint_pkl, 'r'))
+        print "Read %s." % checkpoint_pkl
+    else:
+        L_parsed_results_USGD = read_parsed_results(experiment_dir, range(start_experiment_index, end_experiment_index))
+        pickle.dump(L_parsed_results_USGD, open(checkpoint_pkl, 'w'))
+        print "Wrote %s." % checkpoint_pkl
+
+    (start_experiment_index, end_experiment_index) = (120, 170)
+    checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
+    if os.path.exists(checkpoint_pkl) and not want_force_reload:
+        L_parsed_results_ISSGD = pickle.load(open(checkpoint_pkl, 'r'))
+        print "Read %s." % checkpoint_pkl
+    else:
+        L_parsed_results_ISSGD = read_parsed_results(experiment_dir, range(start_experiment_index, end_experiment_index))
+        pickle.dump(L_parsed_results_ISSGD, open(checkpoint_pkl, 'w'))
+        print "Wrote %s." % checkpoint_pkl
+
+    for measurement in ['individual_accuracy', 'individual_loss']:
+        for segment in ['train', 'valid', 'test']:
+            for plot_suffix in ['pdf', 'png']:
+
+                output_path = 'USGD_ISSGD_%s_%s.%s' % (measurement, segment, plot_suffix)
+                plot02(L_parsed_results_USGD,
+                        L_parsed_results_ISSGD,
+                        measurement, segment, output_path)
 
 
 
 if __name__ == "__main__":
-    run()
+    run02()

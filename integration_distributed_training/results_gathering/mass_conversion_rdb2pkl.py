@@ -55,7 +55,8 @@ def f(cmd):
     return s
 
 
-if len(L_cmd) <= 6:
+if True:
+#if len(L_cmd) <= 6:
     print "Doing everything serially."
     for cmd in L_cmd:
         f(cmd)
