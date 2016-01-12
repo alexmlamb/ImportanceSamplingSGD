@@ -24,7 +24,7 @@ want_skip_over_already_done = True
 
 L_cmd = []
 L_missing = []
-for i in range(70, 90):
+for i in range(90, 120) + range(140, 170):
     rdb_path = "%s/%0.5d/%0.5d.rdb" % (experiment_dir, i, i)
     pkl_path = "%s/%0.5d/%0.5d.pkl" % (experiment_dir, i, i)
     if want_skip_over_already_done and os.path.exists(pkl_path):
@@ -61,7 +61,7 @@ if len(L_cmd) <= 6:
         f(cmd)
 else:
     print "Doing everything with a multiprocessing Pool."
-    pool = Pool(processes=6)
+    pool = Pool(processes=4)
     pool.map(f, L_cmd)
 
 

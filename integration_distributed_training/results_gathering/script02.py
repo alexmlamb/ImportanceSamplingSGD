@@ -9,7 +9,7 @@ from collections import defaultdict
 import matplotlib
 # This has already been specified in .scitools.cfg
 # so we don't need to explicitly pick 'Agg'.
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import pylab
 import matplotlib.pyplot as plt
 
@@ -216,7 +216,7 @@ def run():
     #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
     #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(51, 60)]:
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(61, 70)]:
 
     #for results_pickle_file in [os.path.join(helios_experiments_dir, "034/034.pkl"),
     #                            os.path.join(helios_experiments_dir, "034b/034b.pkl")]:
@@ -236,7 +236,7 @@ def run():
         plot_output_path = m.group(1) + "_raw_accuracy_loss.pkl"
         pickle.dump(recorded_results, open(plot_output_path, "w"), protocol=pickle.HIGHEST_PROTOCOL)
 
-        #process_action_ISGD_vs_USGD(E, plot_output_pattern)
+        process_action_ISGD_vs_USGD(E, None)
         #process_trcov(E, m.group(1) + "_sqrttrcov.png")
         process_trcov(E, m.group(1) + "_sqrttrcov.pdf")
         #process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
