@@ -37,22 +37,28 @@ def parse_results(results):
     return (DL_individual_accuracy, DL_individual_loss, t0)
 
 
-def parse_results_trcov(results, t0=None):
+def parse_results_trcov(results):
 
-    # that `t0` is expected to come from a call to `parse_results`
 
     sd = results['logging']['service_database'].values()[0]
 
+    t0 = None
     LP_usgd2_minusmu2 = []
     LP_isgd2_minusmu2 = []
     LP_stale_addconst_isgd2_minusmu2 = []
 
-    additive_importance_const_str = None
-    for sd in L_service_database:
+    #additive_importance_const_str = None
+    for _ in [1]:
         for (timestamp, e) in sd['SGD_trace_variance']:
 
+            # Maybe this should go after the time when we start getting valid readings.
             if t0 is None:
                 t0 = timestamp
+
+            # Use the absence of this measurement to signify that nothing
+            # should be recorded here.
+            if not np.isfinite(e['approx_mu2']):
+                continue
 
             #if 'approx_mu2' in e:
             #    LP_approx_mu2.append((timestamp - t0, e['approx_mu2']))
@@ -71,12 +77,17 @@ def parse_results_trcov(results, t0=None):
             # we really expect one entry there (10.0) and one entry only.
             assert 'extra_staleisgd2' in e
             if 'extra_staleisgd2' in e:
+                #print e
                 B = e['extra_staleisgd2'].items()
-                assert 1 == len(B)
-                if 0 < len(B):
+                #assert 1 == len(B), "len(B) is %d" % len(B)
+                if 1 == len(B):
                     (additive_importance_const_str, v) = e['extra_staleisgd2'].items()[0]
                     #LP_extra_staleisgd2.append((timestamp - t0, v))
                     LP_stale_addconst_isgd2_minusmu2.append((timestamp - t0, v - e['approx_mu2']))
+                elif 0 == len(B):
+                    LP_stale_addconst_isgd2_minusmu2.append((timestamp - t0, np.nan))
+                else:
+                    print "You shouldn't have more than one value for additive constants here. It's not planned in those particular experiments."
 
     return (LP_usgd2_minusmu2, LP_isgd2_minusmu2, LP_stale_addconst_isgd2_minusmu2)
 
@@ -195,72 +206,6 @@ def plot01(L_parsed_results, measurement, segment, output_path):
 
 
 
-def plot02(L_parsed_results_USGD,
-            L_parsed_results_ISSGD, measurement, segment, output_path):
-
-    max_timestamp = 0.0
-    LP_XY_USGD = []
-    LP_XY_ISSGD = []
-    for (L_parsed_results, LP_XY) in [(L_parsed_results_USGD, LP_XY_USGD), (L_parsed_results_ISSGD, LP_XY_ISSGD)] :
-
-        for E in L_parsed_results:
-            R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
-
-            domain = np.array([r[0] for r in R[segment]]) / 3600
-            values = np.array([r[1] for r in R[segment]])
-            if max_timestamp < domain[-1]:
-                max_timestamp = domain[-1]
-
-            LP_XY.append((domain, values))
-
-    nbr_domain_steps = 100
-    A_domain = np.linspace(0.0, max_timestamp, nbr_domain_steps)
-    USGD_results = median_and_quartiles_from_trajectories(A_domain, LP_XY_USGD)
-    ISSGD_results = median_and_quartiles_from_trajectories(A_domain, LP_XY_ISSGD)
-
-    pylab.hold(True)
-
-    L_handles_for_legend = []
-    handle = pylab.plot(A_domain,
-                        USGD_results['mean'],
-                        label='regular SGD_%s' % segment, linewidth=2, c='#0000FF')
-    L_handles_for_legend.append(handle)
-    pylab.plot(A_domain, USGD_results['quart1'], '--', linewidth=0.5, c='#0000FF')
-    pylab.plot(A_domain, USGD_results['quart3'], '--', linewidth=0.5, c='#0000FF')
-
-    handle = pylab.plot(A_domain,
-                        ISSGD_results['mean'],
-                        label='ISSGD_%s' % segment, linewidth=2, c='#00a65a')
-    L_handles_for_legend.append(handle)
-    pylab.plot(A_domain, ISSGD_results['quart1'], '--', linewidth=0.5, c='#00a65a')
-    pylab.plot(A_domain, ISSGD_results['quart3'], '--', linewidth=0.5, c='#00a65a')
-
-
-    plt.xlabel("time in hours")
-    if measurement == "individual_accuracy":
-        plt.ylim([0.70, 1.05])
-        pylab.plot( [A_domain[0], A_domain[-1]], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
-        plt.title("Prediction accuracy over whole dataset")
-    elif measurement == "individual_loss":
-        plt.title("Loss over whole dataset")
-
-    # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
-    xx, locs = plt.xticks()
-    ll = ['%.2f' % a for a in xx]
-    plt.xticks(xx, ll)
-
-    #plt.legend(loc=7)
-
-    if re.match(r".*\.pdf", output_path):
-        with PdfPages(output_path) as pdf:
-            pdf.savefig()
-    else:
-        pylab.savefig(output_path, dpi=250)
-
-    pylab.close()
-    print "Wrote %s." % output_path
-
-
 
 
 def run01():
@@ -314,9 +259,25 @@ def read_parsed_results(experiment_dir, L_experiment_indices):
     return L_parsed_results
 
 
+
+def read_parsed_results_trcov(experiment_dir, L_experiment_indices):
+    L_parsed_results = []
+    for i in L_experiment_indices:
+        pkl_path = "%s/%0.5d/%0.5d.pkl" % (experiment_dir, i, i)
+        if not os.path.exists(pkl_path):
+            print "Skipping over %s because it's missing." % pkl_path
+            continue
+
+        results = pickle.load(open(pkl_path, "r"))
+        L_parsed_results.append(parse_results_trcov(results))
+        print "Parsed %s." % pkl_path
+    return L_parsed_results
+
+
+
 def run02():
 
-    want_force_reload = True
+    want_force_reload = False
 
     (start_experiment_index, end_experiment_index) = (70, 120)
     checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
@@ -342,32 +303,214 @@ def run02():
         for segment in ['train', 'valid', 'test']:
             for plot_suffix in ['pdf', 'png']:
 
-                output_path = 'USGD_ISSGD_%s_%s.%s' % (measurement, segment, plot_suffix)
+                if measurement == 'individual_accuracy':
+                    output_path = 'USGD_ISSGD_%s_%s.%s' % ('prediction_error', segment, plot_suffix)
+                else:
+                    output_path = 'USGD_ISSGD_%s_%s.%s' % ('loss', segment, plot_suffix)
+
                 plot02(L_parsed_results_USGD,
                         L_parsed_results_ISSGD,
                         measurement, segment, output_path)
+
+    # Additional info : print out the final performance on the last 10%.
+
+    segment = 'test'
+    for (L_parsed_results, name) in [(L_parsed_results_USGD, 'USGD prediction error'), (L_parsed_results_ISSGD, 'ISSGD prediction error')]:
+        L_accum = []
+        for E in L_parsed_results:
+            R = E[0]
+            #R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
+            #domain = np.array([r[0] for r in R[segment]]) / 3600
+            values = np.array([r[1] for r in R[segment]])
+            N = values.shape[0]
+            assert len(values.shape) == 1
+            L_accum.append((1.0 - values[(0.9*N):]).mean())
+        print "%s %s: %f" % (name, segment, np.array(L_accum).mean())
+
+def plot02(L_parsed_results_USGD,
+            L_parsed_results_ISSGD, measurement, segment, output_path):
+
+    max_timestamp = 0.0
+    LP_XY_USGD = []
+    LP_XY_ISSGD = []
+    for (L_parsed_results, LP_XY) in [(L_parsed_results_USGD, LP_XY_USGD), (L_parsed_results_ISSGD, LP_XY_ISSGD)] :
+
+        for E in L_parsed_results:
+            R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
+
+            domain = np.array([r[0] for r in R[segment]]) / 3600
+            values = np.array([r[1] for r in R[segment]])
+            if max_timestamp < domain[-1]:
+                max_timestamp = domain[-1]
+
+            LP_XY.append((domain, values))
+
+    nbr_domain_steps = 100
+    A_domain = np.linspace(0.0, max_timestamp, nbr_domain_steps)
+    USGD_results = median_and_quartiles_from_trajectories(A_domain, LP_XY_USGD)
+    ISSGD_results = median_and_quartiles_from_trajectories(A_domain, LP_XY_ISSGD)
+
+    pylab.hold(True)
+
+    if measurement == "individual_accuracy":
+        # we'll report the error instead because Yoshua feels that it's better for plots
+        def f(x):
+            return 1.0 - x
+    elif measurement == "individual_loss":
+        def f(x):
+            return x
+
+
+    L_handles_for_legend = []
+    handle = pylab.plot(A_domain,
+                        f(USGD_results['median']),
+                        label='regular SGD', linewidth=2, c='#0000FF')
+    L_handles_for_legend.append(handle)
+    pylab.plot(A_domain, f(USGD_results['quart1']), '-', linewidth=0.5, c='#0000FF')
+    pylab.plot(A_domain, f(USGD_results['quart3']), '-', linewidth=0.5, c='#0000FF')
+
+    handle = pylab.plot(A_domain,
+                        f(ISSGD_results['median']),
+                        label='ISSGD', linewidth=2, c='#00a65a')
+    L_handles_for_legend.append(handle)
+    pylab.plot(A_domain, f(ISSGD_results['quart1']), '-', linewidth=0.5, c='#00a65a')
+    pylab.plot(A_domain, f(ISSGD_results['quart3']), '-', linewidth=0.5, c='#00a65a')
+
+
+    plt.xlabel("time in hours")
+    if measurement == "individual_accuracy":
+        plt.ylim([-0.02, 0.20])
+        pylab.plot( [A_domain[0], A_domain[-1]], [0.00, 0.00], '--', c="#FF7F00", linewidth=0.5)
+        #plt.ylim([0.70, 1.05])
+        #pylab.plot( [A_domain[0], A_domain[-1]], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
+        #plt.title("Prediction error over whole %s dataset." % segment)
+        plt.ylabel("prediction error for %s" % segment)
+    elif measurement == "individual_loss":
+        plt.title("Loss over whole dataset")
+
+    # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
+    xx, locs = plt.xticks()
+    ll = ['%.2f' % a for a in xx]
+    plt.xticks(xx, ll)
+
+    plt.legend(loc=0)
+
+    if re.match(r".*\.pdf", output_path):
+        with PdfPages(output_path) as pdf:
+            pdf.savefig()
+    else:
+        pylab.savefig(output_path, dpi=250)
+
+    pylab.close()
+    print "Wrote %s." % output_path
+
 
 
 
 def run03():
 
-    want_force_reload = True
+    want_force_reload = False
 
     # start_boilerplate
     (start_experiment_index, end_experiment_index) = (120, 170)
-    checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
+    checkpoint_pkl = "checkpoint_%0.5d_%0.5d_trcov.pkl" % (start_experiment_index, end_experiment_index)
     if os.path.exists(checkpoint_pkl) and not want_force_reload:
-        L_parsed_results_ISSGD = pickle.load(open(checkpoint_pkl, 'r'))
+        L_parsed_results_ISSGD_trcov = pickle.load(open(checkpoint_pkl, 'r'))
         print "Read %s." % checkpoint_pkl
     else:
-        L_parsed_results_ISSGD = read_parsed_results(experiment_dir, range(start_experiment_index, end_experiment_index))
-        pickle.dump(L_parsed_results_ISSGD, open(checkpoint_pkl, 'w'))
+        L_parsed_results_ISSGD_trcov = read_parsed_results_trcov(experiment_dir, range(start_experiment_index, end_experiment_index))
+        pickle.dump(L_parsed_results_ISSGD_trcov, open(checkpoint_pkl, 'w'))
         print "Wrote %s." % checkpoint_pkl
     # end_boilerplate
 
+    for plot_suffix in ['pdf', 'png']:
+        output_path = 'trcov_ISSGD.%s' % (plot_suffix)
+        plot03(L_parsed_results_ISSGD_trcov, output_path)
 
-    L_parsed_results_ISSGD = parse_results_trcov(results)
+def plot03(L_parsed_results_ISSGD_trcov, output_path):
+
+
+    max_timestamp = 0.0
+    LP_XY_U = [] # ideal usgd
+    LP_XY_I = [] # ideal issgd
+    LP_XY_A = [] # stale issgd + additive constant
+
+    for (LP_usgd2_minusmu2, LP_isgd2_minusmu2, LP_stale_addconst_isgd2_minusmu2) in L_parsed_results_ISSGD_trcov:
+
+        A_domain = np.array([r[0] for r in LP_usgd2_minusmu2]) / 3600
+        if max_timestamp < A_domain[-1]:
+            max_timestamp = A_domain[-1]
+
+        LP_XY_U.append((A_domain, np.array([r[1] for r in LP_usgd2_minusmu2])))
+        LP_XY_I.append((A_domain, np.array([r[1] for r in LP_isgd2_minusmu2])))
+        LP_XY_A.append((A_domain, np.array([r[1] for r in LP_stale_addconst_isgd2_minusmu2])))
+
+    # all the domain values are incompatible, so we need a way to redress this
+    nbr_domain_steps = 250
+    A_domain = np.linspace(0.0, max_timestamp, nbr_domain_steps)
+    results_U = median_and_quartiles_from_trajectories(A_domain, LP_XY_U)
+    results_I = median_and_quartiles_from_trajectories(A_domain, LP_XY_I)
+    results_A = median_and_quartiles_from_trajectories(A_domain, LP_XY_A)
+
+    pylab.hold(True)
+
+    # TODO : Adjust to plot the sqrt instead of the original values !
+
+    def f(X):
+        return np.sqrt(X)
+
+    L_handles_for_legend = []
+    handle = pylab.plot(A_domain,
+                        f(results_U['median']),
+                        label='SGD, ideal', linewidth=2, c='#0000FF')
+    L_handles_for_legend.append(handle)
+    pylab.plot(A_domain, f(results_U['quart1']), '-', linewidth=0.5, c='#0000FF')
+    pylab.plot(A_domain, f(results_U['quart3']), '-', linewidth=0.5, c='#0000FF')
+
+    handle = pylab.plot(A_domain,
+                        f(results_I['median']),
+                        label='ISSGD, ideal', linewidth=2, c='#00a65a')
+    L_handles_for_legend.append(handle)
+    pylab.plot(A_domain, f(results_I['quart1']), '-', linewidth=0.5, c='#00a65a')
+    pylab.plot(A_domain, f(results_I['quart3']), '-', linewidth=0.5, c='#00a65a')
+
+    handle = pylab.plot(A_domain,
+                        f(results_A['median']),
+                        label='ISSGD, actual', linewidth=2, c='#FF8000')
+    L_handles_for_legend.append(handle)
+    pylab.plot(A_domain, f(results_A['quart1']), '-', linewidth=0.5, c='#FF8000')
+    pylab.plot(A_domain, f(results_A['quart3']), '-', linewidth=0.5, c='#FF8000')
+
+    plt.xlabel("time in hours")
+    plt.ylabel(r"$\sqrt{Trace(\Sigma)}$")
+    #plt.ylim([0.70, 1.05])
+    #plt.title(r"Tracking $\sqrt{Trace(\Sigma)}$")
+
+    # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
+    xx, locs = plt.xticks()
+    ll = ['%.2f' % a for a in xx]
+    plt.xticks(xx, ll)
+
+    plt.legend(loc=7)
+
+    if re.match(r".*\.pdf", output_path):
+        with PdfPages(output_path) as pdf:
+            pdf.savefig()
+    else:
+        pylab.savefig(output_path, dpi=250)
+
+    pylab.close()
+    print "Wrote %s." % output_path
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
     run02()
+    #run03()
