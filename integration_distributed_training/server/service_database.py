@@ -240,7 +240,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
         #        making a horrible mess of spaghetti.
 
         # This is just extra. We always do the computation with 0.0 in all cases.
-        L_importance_weight_additive_constant = [importance_weight_additive_constant]
+        L_importance_weight_additive_constant = [importance_weight_additive_constant, 0.0, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
 
         (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches, D_other_staleISGD_main_term) = get_trace_covariance_information(rsconn, "train", L_importance_weight_additive_constant=L_importance_weight_additive_constant)
         # Make sure that you have a reasonable number of readings before
