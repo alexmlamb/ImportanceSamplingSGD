@@ -127,7 +127,7 @@ def get_database_config():
     staleness_threshold_num_minibatches_master_processed = None
 
     # Guillaume is not so fond of this approach.
-    importance_weight_additive_constant = 10.0
+    importance_weight_additive_constant = 1.0
 
     serialized_parameters_format ="opaque_string"
 
