@@ -301,7 +301,8 @@ def run02():
 
     want_force_reload = False
 
-    (start_experiment_index, end_experiment_index) = (170, 220)
+    #(start_experiment_index, end_experiment_index) = (170, 220)
+    (start_experiment_index, end_experiment_index) = (70, 120)
     checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
     if os.path.exists(checkpoint_pkl) and not want_force_reload:
         L_parsed_results_USGD = pickle.load(open(checkpoint_pkl, 'r'))
@@ -311,7 +312,8 @@ def run02():
         pickle.dump(L_parsed_results_USGD, open(checkpoint_pkl, 'w'))
         print "Wrote %s." % checkpoint_pkl
 
-    (start_experiment_index, end_experiment_index) = (220, 270)
+    #(start_experiment_index, end_experiment_index) = (220, 270)
+    (start_experiment_index, end_experiment_index) = (120, 170)
     checkpoint_pkl = "checkpoint_%0.5d_%0.5d.pkl" % (start_experiment_index, end_experiment_index)
     if os.path.exists(checkpoint_pkl) and not want_force_reload:
         L_parsed_results_ISSGD = pickle.load(open(checkpoint_pkl, 'r'))
