@@ -340,6 +340,7 @@ def run02():
     segment = 'test'
     for (L_parsed_results, name) in [(L_parsed_results_USGD, 'USGD prediction error'), (L_parsed_results_ISSGD, 'ISSGD prediction error')]:
         L_accum = []
+        failed_count = 0
         for E in L_parsed_results:
             R = E[0]
             #R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
@@ -347,8 +348,13 @@ def run02():
             values = np.array([r[1] for r in R[segment]])
             N = values.shape[0]
             assert len(values.shape) == 1
-            L_accum.append((1.0 - values[(0.9*N):]).mean())
-        print "%s %s: %f" % (name, segment, np.array(L_accum).mean())
+            m = (1.0 - values[(0.9*N):]).mean()
+            if np.isfinite(m):
+                L_accum.append(m)
+            else:
+                failed_count += 1
+
+        print "%s %s: %f (with %d values that are invalid)" % (name, segment, np.array(L_accum).mean(), failed_count)
 
 def plot02(L_parsed_results_USGD,
             L_parsed_results_ISSGD, measurement, segment, output_path):
