@@ -18,13 +18,14 @@ import subprocess
 
 # set this to True if you want to avoid re-doing jobs.
 # set this to False if you might have transferred updated rdb files since the last time.
-want_skip_over_already_done = True
+want_skip_over_already_done = False
 
 # TODO : Maybe add a `renice` to the command.
 
 L_cmd = []
 L_missing = []
-for i in range(90, 120) + range(140, 170):
+#for i in range(70, 270):
+for i in range(90, 120) + range(200, 220) + range(250, 270):
     rdb_path = "%s/%0.5d/%0.5d.rdb" % (experiment_dir, i, i)
     pkl_path = "%s/%0.5d/%0.5d.pkl" % (experiment_dir, i, i)
     if want_skip_over_already_done and os.path.exists(pkl_path):
@@ -37,6 +38,7 @@ for i in range(90, 120) + range(140, 170):
         continue
 
     cmd = "PYTHONPATH=${PYTHONPATH}:%s %s/integration_distributed_training/bin/rdb2pkl %s" % (importance_sampling_sgd_root, importance_sampling_sgd_root, rdb_path)
+    #cmd = "PYTHONPATH=${PYTHONPATH}:%s nice -n 10 %s/integration_distributed_training/bin/rdb2pkl %s" % (importance_sampling_sgd_root, importance_sampling_sgd_root, rdb_path)
     #print cmd
     L_cmd.append(cmd)
 
@@ -55,8 +57,8 @@ def f(cmd):
     return s
 
 
-if True:
-#if len(L_cmd) <= 6:
+#if True:
+if len(L_cmd) <= 6:
     print "Doing everything serially."
     for cmd in L_cmd:
         f(cmd)
