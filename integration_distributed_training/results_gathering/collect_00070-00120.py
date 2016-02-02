@@ -515,5 +515,5 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path):
 
 
 if __name__ == "__main__":
-    #run02()
-    run03()
+    run02()
+    #run03()
