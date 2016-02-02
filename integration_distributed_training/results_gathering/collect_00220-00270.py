@@ -488,6 +488,7 @@ def plot02(L_parsed_results_USGD,
     pylab.plot(A_domain, f(ISSGD_results['quart1']), '-', linewidth=1.0, c='#00a65a')
     pylab.plot(A_domain, f(ISSGD_results['quart3']), '-', linewidth=1.0, c='#00a65a')
 
+    want_ylabel = False
 
     plt.xlabel("time in hours")
     if measurement == "individual_accuracy":
@@ -496,10 +497,12 @@ def plot02(L_parsed_results_USGD,
         #plt.ylim([0.70, 1.05])
         #pylab.plot( [A_domain[0], A_domain[-1]], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
         #plt.title("Prediction error over whole %s dataset." % segment)
-        plt.ylabel("prediction error for %s" % segment)
+        if want_ylabel:
+            plt.ylabel("prediction error for %s" % segment)
     elif measurement == "individual_loss":
         pylab.plot( [A_domain[0], A_domain[-1]], [0.00, 0.00], '--', c="#FF7F00", linewidth=0.5)
-        plt.ylabel("loss over whole dataset")
+        if want_ylabel:
+            plt.ylabel("loss over whole dataset")
         plt.gca().set_ylim(bottom=-0.05)
         if extra_plot_info.has_key('cut_domain_to_4_hours') and extra_plot_info['cut_domain_to_4_hours']:
             plt.xlim([0.0, 4.00])
@@ -516,9 +519,9 @@ def plot02(L_parsed_results_USGD,
 
     if re.match(r".*\.pdf", output_path):
         with PdfPages(output_path) as pdf:
-            pdf.savefig()
+            pdf.savefig(bbox_inches='tight')
     else:
-        pylab.savefig(output_path, dpi=250)
+        pylab.savefig(output_path, dpi=250, bbox_inches='tight')
 
     pylab.close()
     print "Wrote %s." % output_path
