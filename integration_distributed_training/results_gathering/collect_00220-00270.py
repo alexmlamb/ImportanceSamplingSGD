@@ -573,7 +573,7 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path, extra_plot_info):
 
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
-    ll = ['%.1' % a for a in xx]
+    ll = ['%.1f' % a for a in xx]
     plt.xticks(xx, ll)
 
     plt.legend(loc=0)
