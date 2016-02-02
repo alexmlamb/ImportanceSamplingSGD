@@ -393,7 +393,7 @@ def plot02(L_parsed_results_USGD,
 
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
-    ll = ['%.2f' % a for a in xx]
+    ll = ['%.1f' % a for a in xx]
     plt.xticks(xx, ll)
 
     plt.legend(loc=0)
