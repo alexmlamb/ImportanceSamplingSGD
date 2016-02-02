@@ -388,6 +388,9 @@ def plot02(L_parsed_results_USGD,
     elif measurement == "individual_loss":
         plt.title("Loss over whole dataset")
 
+    params = {'legend.fontsize': 20, 'font.size':20}
+    pylab.rcParams.update(params)
+
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
     ll = ['%.2f' % a for a in xx]
