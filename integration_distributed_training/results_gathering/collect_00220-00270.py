@@ -361,83 +361,6 @@ def run02(want_force_reload, base_index, extra_plot_info):
 
         print "%s %s: %f (with %d values that are invalid)" % (name, segment, np.array(L_accum).mean(), failed_count)
 
-def plot02(L_parsed_results_USGD,
-            L_parsed_results_ISSGD, measurement, segment, output_path):
-
-    max_timestamp = 0.0
-    LP_XY_USGD = []
-    LP_XY_ISSGD = []
-    for (L_parsed_results, LP_XY) in [(L_parsed_results_USGD, LP_XY_USGD), (L_parsed_results_ISSGD, LP_XY_ISSGD)] :
-
-        for E in L_parsed_results:
-            R = {'individual_accuracy':E[0], 'individual_loss':E[1]}[measurement]
-
-            domain = np.array([r[0] for r in R[segment]]) / 3600
-            values = np.array([r[1] for r in R[segment]])
-            if max_timestamp < domain[-1]:
-                max_timestamp = domain[-1]
-
-            LP_XY.append((domain, values))
-
-    nbr_domain_steps = 100
-    A_domain = np.linspace(0.0, max_timestamp, nbr_domain_steps)
-    USGD_results = median_and_quartiles_from_trajectories(A_domain, LP_XY_USGD)
-    ISSGD_results = median_and_quartiles_from_trajectories(A_domain, LP_XY_ISSGD)
-
-    pylab.hold(True)
-
-    if measurement == "individual_accuracy":
-        # we'll report the error instead because Yoshua feels that it's better for plots
-        def f(x):
-            return 1.0 - x
-    elif measurement == "individual_loss":
-        def f(x):
-            return x
-
-
-    L_handles_for_legend = []
-    handle = pylab.plot(A_domain,
-                        f(USGD_results['median']),
-                        label='regular SGD', linewidth=2, c='#0000FF')
-    L_handles_for_legend.append(handle)
-    pylab.plot(A_domain, f(USGD_results['quart1']), '-', linewidth=0.5, c='#0000FF')
-    pylab.plot(A_domain, f(USGD_results['quart3']), '-', linewidth=0.5, c='#0000FF')
-
-    handle = pylab.plot(A_domain,
-                        f(ISSGD_results['median']),
-                        label='ISSGD', linewidth=2, c='#00a65a')
-    L_handles_for_legend.append(handle)
-    pylab.plot(A_domain, f(ISSGD_results['quart1']), '-', linewidth=0.5, c='#00a65a')
-    pylab.plot(A_domain, f(ISSGD_results['quart3']), '-', linewidth=0.5, c='#00a65a')
-
-
-    plt.xlabel("time in hours")
-    if measurement == "individual_accuracy":
-        plt.ylim([-0.02, 0.20])
-        pylab.plot( [A_domain[0], A_domain[-1]], [0.00, 0.00], '--', c="#FF7F00", linewidth=0.5)
-        #plt.ylim([0.70, 1.05])
-        #pylab.plot( [A_domain[0], A_domain[-1]], [1.00, 1.00], '--', c="#FF7F00", linewidth=0.5)
-        #plt.title("Prediction error over whole %s dataset." % segment)
-        plt.ylabel("prediction error for %s" % segment)
-    elif measurement == "individual_loss":
-        plt.title("Loss over whole dataset")
-
-    # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
-    xx, locs = plt.xticks()
-    ll = ['%.2f' % a for a in xx]
-    plt.xticks(xx, ll)
-
-    plt.legend(loc=0)
-
-    if re.match(r".*\.pdf", output_path):
-        with PdfPages(output_path) as pdf:
-            pdf.savefig()
-    else:
-        pylab.savefig(output_path, dpi=250)
-
-    pylab.close()
-    print "Wrote %s." % output_path
-
 
 def plot02(L_parsed_results_USGD,
             L_parsed_results_ISSGD, measurement, segment, output_path, extra_plot_info = {}):
@@ -517,11 +440,19 @@ def plot02(L_parsed_results_USGD,
 
     plt.legend(loc=0)
 
+    want_tight = False
+
     if re.match(r".*\.pdf", output_path):
         with PdfPages(output_path) as pdf:
-            pdf.savefig(bbox_inches='tight')
+            if want_tight:
+                pdf.savefig(bbox_inches='tight')
+            else:
+                pdf.savefig()
     else:
-        pylab.savefig(output_path, dpi=250, bbox_inches='tight')
+        if want_tight:
+            pylab.savefig(output_path, dpi=250, bbox_inches='tight')
+        else:
+            pylab.savefig(output_path, dpi=250)
 
     pylab.close()
     print "Wrote %s." % output_path
@@ -670,5 +601,5 @@ if __name__ == "__main__":
     run02(False, 70, {'cut_domain_to_4_hours':True})
     run02(False, 170, {})
 
-    #run03(False, 120, 170, {'highlight_additive_constant':10.0})
-    #run03(False, 220, 270, {'highlight_additive_constant':1.0})
+    run03(False, 120, 170, {'highlight_additive_constant':10.0})
+    run03(False, 220, 270, {'highlight_additive_constant':1.0})
