@@ -504,6 +504,9 @@ def plot02(L_parsed_results_USGD,
         if extra_plot_info.has_key('cut_domain_to_4_hours') and extra_plot_info['cut_domain_to_4_hours']:
             plt.xlim([0.0, 4.00])
 
+    params = {'legend.fontsize': 20, 'font.size':20}
+    pylab.rcParams.update(params)
+
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
     ll = ['%.2f' % a for a in xx]
@@ -633,7 +636,7 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path, extra_plot_info):
 
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
-    ll = ['%.2f' % a for a in xx]
+    ll = ['%.1' % a for a in xx]
     plt.xticks(xx, ll)
 
     plt.legend(loc=0)
