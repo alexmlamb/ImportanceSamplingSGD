@@ -509,7 +509,7 @@ def plot02(L_parsed_results_USGD,
 
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
-    ll = ['%.2f' % a for a in xx]
+    ll = ['%.1f' % a for a in xx]
     plt.xticks(xx, ll)
 
     plt.legend(loc=0)
@@ -633,6 +633,9 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path, extra_plot_info):
     #plt.ylim([0.70, 1.05])
     #plt.title(r"Tracking $\sqrt{Trace(\Sigma)}$")
     plt.xlim([0.0, 2.5])
+
+    params = {'legend.fontsize': 20, 'font.size':20}
+    pylab.rcParams.update(params)
 
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
