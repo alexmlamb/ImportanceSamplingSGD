@@ -22,17 +22,7 @@ def test_train():
 
         worker_vals = myModel.worker_process_minibatch(indices, "train", ["importance_weight", "gradient_square_norm", "loss", "accuracy"])
 
-        print worker_vals
-
-        if i == 2000:
-            print "SAVING VALUES"
-            paramStr = myModel.get_serialized_parameters()
-
-        if i == 8000:
-            print "LOADING OLD VALUES"
-            myModel.set_serialized_parameters(paramStr)
-
-        if i % 1000 == 0:
+        if i % 100 == 0:
             loss = 0.0
             acc = 0.0
             for j in range(26):
@@ -41,8 +31,11 @@ def test_train():
                 acc += output["accuracy"]
 
             print "loss", loss / 26.0
-            print "acc", acc / 26.0
+            print "acc", sum(acc) / (26.0 * len(acc))
+
 
 def all_tests():
     test_train()
 
+if __name__ == "__main__":
+    all_tests()

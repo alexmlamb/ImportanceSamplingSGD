@@ -8,6 +8,8 @@ def get_config():
     config["importance_algorithm"] = "isgd"
     #config["importance_algorithm"] = "sgd"
 
+    config['num_output'] = 10
+
     #Momentum rate, where 0.0 corresponds to not using momentum
     config["momentum_rate"] = 0.9
 
@@ -16,6 +18,8 @@ def get_config():
 
     #config["dataset"] = "mnist"
     config["dataset"] = "svhn"
+
+    config['normalize_data'] = True
 
     if config["dataset"] == "mnist":
         config["num_input"] = 784
