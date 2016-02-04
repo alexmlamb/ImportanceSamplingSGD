@@ -27,6 +27,11 @@ if __name__ == "__main__":
 
 """
     export PYTHONPATH=$PYTHONPATH:${HOME}/Documents/ImportanceSamplingSGD
-    cd ${HOME}/Documents/ImportanceSamplingSGD/integration_distributed_training/bin    
+    cd ${HOME}/Documents/ImportanceSamplingSGD/integration_distributed_training/bin
     python run_master.py --config_file="../config_files/config_09232.py" --bootstrap_file="bootstrap_09232"
+
+    export PYTHONPATH=$PYTHONPATH:${HOME}/Documents/ImportanceSamplingSGD
+    cd ${HOME}/Documents/ImportanceSamplingSGD/integration_distributed_training/bin
+    THEANO_FLAGS=device=cuda0,floatX=float32 python run_master.py --config_file="../config_files/config_09232.py" --bootstrap_file="bootstrap_09232"
+
 """

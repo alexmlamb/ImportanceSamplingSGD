@@ -49,7 +49,7 @@ def run(rdb_path, pkl_path):
                                     port=server_port, password=server_password )
 
     rserv.start()
-    time.sleep(5)
+    time.sleep(20)
     rsconn = rserv.get_client()
     print "pinging redis server : %s" % (rsconn.ping(),)
 

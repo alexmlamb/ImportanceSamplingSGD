@@ -213,8 +213,12 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
     remote_redis_logger.log('event', "Before entering service_database main loop.")
 
+    last_save_database_timestamp = None
+    # save every 5 minutes (this should remove some pressure)
+    save_database_threshold = 5*60
+
     while True:
-        logging.info("Running server. Press CTLR+C to stop. Timestamp %f." % time.time())
+        logging.info("Running server. Press CTLR+C to stop. Timestamp %f. %s" % (   time.time(), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))))
         logging.info("Number minibatches processed by master    " + str(rsconn.get("parameters:num_minibatches_master_processed")))
 
         for segment in ["train", "valid", "test"]:
@@ -236,7 +240,7 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
         #        making a horrible mess of spaghetti.
 
         # This is just extra. We always do the computation with 0.0 in all cases.
-        L_importance_weight_additive_constant = [importance_weight_additive_constant]
+        L_importance_weight_additive_constant = [importance_weight_additive_constant, 0.0, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
 
         (usgd2, staleisgd2, isgd2, mu2, ratio_of_usable_indices_for_USGD_and_ISGD, ratio_of_usable_indices_for_ISGDstale, nbr_minibatches, D_other_staleISGD_main_term) = get_trace_covariance_information(rsconn, "train", L_importance_weight_additive_constant=L_importance_weight_additive_constant)
         # Make sure that you have a reasonable number of readings before
@@ -268,4 +272,11 @@ def run(DD_config, rserv, rsconn, bootstrap_file, D_server_desc):
 
         # have the database save itself to the file at every iteration through the loop
         if DD_config['database']['want_rdb_background_save']:
-            rsconn.bgsave()
+            # redundant logic, but clearer to read
+            if ((last_save_database_timestamp is None) or
+                (save_database_threshold <= (time.time() - last_save_database_timestamp))):
+                last_save_database_timestamp = time.time()
+                rsconn.bgsave()
+                logging.info("Database called rsconn.bgsave(). %f. %s" % (  time.time(),
+                                                                            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))))
+                continue

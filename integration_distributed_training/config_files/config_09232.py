@@ -73,10 +73,10 @@ def get_model_config():
     #Hold this fraction of the instances in the validation dataset
     model_config["fraction_validation"] = 0.05
 
-    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 512)
+    model_config["master_routine"] = ["sync_params"] + ["refresh_importance_weights"] + (["process_minibatch"] * 32)
     model_config["worker_routine"] = ["sync_params"] + (["process_minibatch"] * 10)
 
-    model_config["turn_off_importance_sampling"] = True
+    model_config["turn_off_importance_sampling"] = 0.5
 
     assert model_config['Ntrain'] is not None and 0 < model_config['Ntrain']
     assert model_config['Nvalid'] is not None

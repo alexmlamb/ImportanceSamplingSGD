@@ -9,7 +9,7 @@ from collections import defaultdict
 import matplotlib
 # This has already been specified in .scitools.cfg
 # so we don't need to explicitly pick 'Agg'.
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import pylab
 import matplotlib.pyplot as plt
 
@@ -193,7 +193,7 @@ def run():
                     "szkmbp":"/Users/gyomalin/Documents/helios_experiments"}[socket.gethostname().lower()]
 
     # lambda
-    #helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
+    helios_experiments_dir = "/mnt/dodrio/recent/ICLR2016_ISGD/helios_experiments"
     # szkmbp
     # helios_experiments_dir = "/Users/gyomalin/Documents/helios_experiments"
 
@@ -216,10 +216,13 @@ def run():
     #                             os.path.join(helios_experiments_dir, "016/016.pkl"),
     #                             os.path.join(helios_experiments_dir, "017/017.pkl")]:
 
-    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(36,40)]:
+    for results_pickle_file in [os.path.join(helios_experiments_dir, "%0.3d/%0.3d.pkl" % (d, d)) for d in range(61, 70)]:
+
+    #for results_pickle_file in [os.path.join(helios_experiments_dir, "034/034.pkl"),
+    #                            os.path.join(helios_experiments_dir, "034b/034b.pkl")]:
 
         if not os.path.exists(results_pickle_file):
-            print "Error. File %s does not exist."
+            print "Error. File %s does not exist." % results_pickle_file
             continue
 
         print "Processing %s." % results_pickle_file
@@ -233,7 +236,7 @@ def run():
         plot_output_path = m.group(1) + "_raw_accuracy_loss.pkl"
         pickle.dump(recorded_results, open(plot_output_path, "w"), protocol=pickle.HIGHEST_PROTOCOL)
 
-        #process_action_ISGD_vs_USGD(E, plot_output_pattern)
+        process_action_ISGD_vs_USGD(E, None)
         #process_trcov(E, m.group(1) + "_sqrttrcov.png")
         process_trcov(E, m.group(1) + "_sqrttrcov.pdf")
         #process_ratio_of_usable_importance_weights(E, m.group(1) + "_ratio_usable_importance_weights.png")
@@ -479,6 +482,9 @@ def process_trcov(E, output_path):
     xx, locs = plt.xticks()
     ll = ['%.2f' % a for a in xx]
     plt.xticks(xx, ll)
+
+    # remove this to get the actual curve
+    plt.ylim([0.0, 100.0])
 
     #plt.title("Square root of Trace(Cov) computed over whole dataset")
     plt.ylabel("sqrt(tr(cov))")

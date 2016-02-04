@@ -1,0 +1,16 @@
+
+All done with Alex's config. All with staleness_threshold_seconds = 20, and learning_rate = 0.01.
+
+turn_off_importance_sampling is now at 0.5
+
+061 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 32, additive_importance +10.0
+062 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 32, additive_importance +1.0
+063 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 32, additive_importance +0.1
+
+064 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 512, additive_importance +10.0
+065 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 512, additive_importance +1.0
+066 : ISGD with Alex's setup, 4 GPU, master fetch importance weights every 512, additive_importance +0.1
+
+067 : ISGD with Alex's setup, 2 GPU, master fetch importance weights every 32, additive_importance +10.0
+068 : ISGD with Alex's setup, 2 GPU, master fetch importance weights every 32, additive_importance +1.0
+069 : ISGD with Alex's setup, 2 GPU, master fetch importance weights every 32, additive_importance +0.1
