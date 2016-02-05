@@ -422,11 +422,12 @@ def plot02(L_parsed_results_USGD,
         #plt.title("Prediction error over whole %s dataset." % segment)
         if want_ylabel:
             plt.ylabel("prediction error for %s" % segment)
+
     elif measurement == "individual_loss":
         pylab.plot( [A_domain[0], A_domain[-1]], [0.00, 0.00], '--', c="#FF7F00", linewidth=0.5)
         if want_ylabel:
             plt.ylabel("loss over whole dataset")
-        plt.gca().set_ylim(bottom=-0.05)
+        plt.gca().set_ylim(bottom=-0.02)
         if extra_plot_info.has_key('cut_domain_to_4_hours') and extra_plot_info['cut_domain_to_4_hours']:
             plt.xlim([0.0, 4.00])
 
@@ -435,12 +436,24 @@ def plot02(L_parsed_results_USGD,
 
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
+    # get rid of the last tick because that prevents the border from being as tight as possible
+    xx = xx[:-1]
+    locs = locs[:-1]
     ll = ['%.1f' % a for a in xx]
     plt.xticks(xx, ll)
 
+    yy, locs = plt.yticks()
+    # get rid of the last tick because that prevents the border from being as tight as possible
+    yy = yy[:-1]
+    locs = locs[:-1]
+    yy = [a for a in yy if (0 <= a)]
+    ll = ['%.2f' % a for a in yy]
+    plt.yticks(yy, ll)
+
+
     plt.legend(loc=0)
 
-    want_tight = False
+    want_tight = True
 
     if re.match(r".*\.pdf", output_path):
         with PdfPages(output_path) as pdf:
@@ -527,14 +540,10 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path, extra_plot_info):
         return np.sqrt(X)
 
     L_handles_for_legend = []
+
     handle = pylab.plot(A_domain,
                         f(results_U['median']),
                         label='SGD, ideal', linewidth=2.5, c='#0000FF')
-    L_handles_for_legend.append(handle)
-
-    handle = pylab.plot(A_domain,
-                        f(results_I['median']),
-                        label='ISSGD, ideal', linewidth=2.5, c='#00a65a')
     L_handles_for_legend.append(handle)
 
     if extra_plot_info['highlight_additive_constant'] == 10.0:
@@ -549,7 +558,6 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path, extra_plot_info):
     else:
         assert False
 
-
     for (k, s, color, linewidth) in L_to_print:
         found = False
         for (kstr, results_A) in D_results_A.iteritems():
@@ -562,6 +570,14 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path, extra_plot_info):
                             label=s, linewidth=linewidth, c=color)
         L_handles_for_legend.append(handle)
 
+
+
+    handle = pylab.plot(A_domain,
+                        f(results_I['median']),
+                        label='ISSGD, ideal', linewidth=2.5, c='#00a65a')
+    L_handles_for_legend.append(handle)
+
+
     plt.xlabel("time in hours")
     plt.ylabel(r"$\sqrt{Trace(\Sigma)}$")
     #plt.ylim([0.70, 1.05])
@@ -573,16 +589,35 @@ def plot03(L_parsed_results_ISSGD_trcov, output_path, extra_plot_info):
 
     # http://stackoverflow.com/questions/14442099/matplotlib-how-to-show-all-digits-on-ticks
     xx, locs = plt.xticks()
+    # get rid of the last tick because that prevents the border from being as tight as possible
+    xx = xx[:-1]
+    locs = locs[:-1]
     ll = ['%.1f' % a for a in xx]
     plt.xticks(xx, ll)
 
+    yy, locs = plt.yticks()
+    # get rid of the last tick because that prevents the border from being as tight as possible
+    yy = yy[:-1]
+    locs = locs[:-1]
+    yy = [a for a in yy if (0 <= a)]
+    ll = ['%.0f' % a for a in yy]
+    plt.yticks(yy, ll)
+
     plt.legend(loc=0)
+
+    want_tight = True
 
     if re.match(r".*\.pdf", output_path):
         with PdfPages(output_path) as pdf:
-            pdf.savefig()
+            if want_tight:
+                pdf.savefig(bbox_inches='tight')
+            else:
+                pdf.savefig()
     else:
-        pylab.savefig(output_path, dpi=250)
+        if want_tight:
+            pylab.savefig(output_path, dpi=250, bbox_inches='tight')
+        else:
+            pylab.savefig(output_path, dpi=250)
 
     pylab.close()
     print "Wrote %s." % output_path
